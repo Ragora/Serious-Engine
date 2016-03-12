@@ -16,7 +16,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // MainFrm.cpp : implementation of the CMainFrame class
 //
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include <Engine/Templates/Stock_CTextureData.h>
 
 #ifdef _DEBUG

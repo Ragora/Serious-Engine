@@ -16,7 +16,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // RCon.cpp : Defines the class behaviors for the application.
 //
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "RCon.h"
 #include "RConDlg.h"
 

@@ -16,7 +16,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // StainsComboBox.cpp : implementation file
 //
 
-#include "stdafx.h"
+#include "StdAfx.h"
 
 #ifdef _DEBUG
 #undef new

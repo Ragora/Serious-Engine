@@ -16,7 +16,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // SplitterFrame.cpp : implementation file
 //
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "seriousskastudio.h"
 #include "SplitterFrame.h"
 #include "MainFrm.h"

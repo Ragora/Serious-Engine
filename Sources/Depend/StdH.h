@@ -16,11 +16,16 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <direct.h>
-#include <sys\types.h>
-#include <sys\stat.h>
-#include <fcntl.h>
-#include <io.h>
 
+#ifdef _MSC_VER
+#include <io.h>
+#include <direct.h>
+#else
+#include <unistd.h>
+#endif
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <Engine/Engine.h>
 #include <Engine/Base/GroupFile.h>
