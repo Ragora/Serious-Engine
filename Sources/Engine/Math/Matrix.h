@@ -1,4 +1,4 @@
-/* Copyright (c) 2002-2012 Croteam Ltd. 
+/* Copyright (c) 2002-2012 Croteam Ltd.
 This program is free software; you can redistribute it and/or modify
 it under the terms of version 2 of the GNU General Public License as published by
 the Free Software Foundation
@@ -101,6 +101,7 @@ __forceinline Matrix<Type, iRows, iColumns>::Matrix(void)
  */
 
 // set FLOAT 3x3
+template<>
 Matrix<FLOAT,3,3>::Matrix(const FLOAT x /*= Type(0)*/)
 {
   // set whole matrix to constant
@@ -110,6 +111,7 @@ Matrix<FLOAT,3,3>::Matrix(const FLOAT x /*= Type(0)*/)
 }
 
 // set DOUBLE 3x3
+template<>
 Matrix<DOUBLE,3,3>::Matrix(const DOUBLE x /*= Type(0)*/)
 {
   // set whole matrix to constant
@@ -121,7 +123,7 @@ Matrix<DOUBLE,3,3>::Matrix(const DOUBLE x /*= Type(0)*/)
 template<class Type, int iRows, int iColumns>
 Matrix<Type, iRows, iColumns>::Matrix(const Type x /*= Type(0)*/)
 {
-  ASSERT( iRows!=3 && iColumns!=3);  // 3 is optimized special case 
+  ASSERT( iRows!=3 && iColumns!=3);  // 3 is optimized special case
   // set whole matrix to constant
   for(int iRow=1; iRow<=iRows; iRow++) {
     for(int iColumn=1; iColumn<=iColumns; iColumn++) {
@@ -157,6 +159,7 @@ __forceinline const Type &Matrix<Type, iRows, iColumns>::operator()(int iRow, in
 
 
 // transposed FLOAT 3x3
+template<>
 __forceinline Matrix<FLOAT,3,3> &Matrix<FLOAT,3,3>::operator!=(const Matrix<FLOAT,3,3> &matrix2)
 {
   (*this)(1,1)=matrix2(1,1);  (*this)(1,2)=matrix2(2,1);  (*this)(1,3)=matrix2(3,1);
@@ -166,6 +169,7 @@ __forceinline Matrix<FLOAT,3,3> &Matrix<FLOAT,3,3>::operator!=(const Matrix<FLOA
 }
 
 // transposed DOUBLE 3x3
+template<>
 __forceinline Matrix<DOUBLE,3,3> &Matrix<DOUBLE,3,3>::operator!=(const Matrix<DOUBLE,3,3> &matrix2)
 {
   (*this)(1,1)=matrix2(1,1);  (*this)(1,2)=matrix2(2,1);  (*this)(1,3)=matrix2(3,1);
@@ -186,7 +190,7 @@ template<class Type, int iRows, int iColumns>
 __forceinline Matrix<Type, iRows, iColumns> &Matrix<Type, iRows, iColumns>::operator!=(const Matrix<Type, iRows, iColumns> &matrix2)
 {
   // transpose member by member
-  ASSERT( iRows!=3 && iColumns!=3);  // 3 is optimized special case 
+  ASSERT( iRows!=3 && iColumns!=3);  // 3 is optimized special case
   for(int iRow=1; iRow<=iRows; iRow++) {
     for(int iColumn=1; iColumn<=iColumns; iColumn++) {
       (*this)(iColumn, iRow) = matrix2(iRow, iColumn);
@@ -197,6 +201,7 @@ __forceinline Matrix<Type, iRows, iColumns> &Matrix<Type, iRows, iColumns>::oper
 
 
 // sum of two FLOATs 3x3
+template<>
 __forceinline Matrix<FLOAT,3,3> &Matrix<FLOAT,3,3>::operator+=(const Matrix<FLOAT,3,3> &matrix2)
 {
   (*this)(1,1)+=matrix2(1,1);  (*this)(1,2)+=matrix2(1,2);  (*this)(1,3)+=matrix2(1,3);
@@ -206,6 +211,7 @@ __forceinline Matrix<FLOAT,3,3> &Matrix<FLOAT,3,3>::operator+=(const Matrix<FLOA
 }
 
 // sum of two DOUBLEs 3x3
+template<>
 __forceinline Matrix<DOUBLE,3,3> &Matrix<DOUBLE,3,3>::operator+=(const Matrix<DOUBLE,3,3> &matrix2)
 {
   (*this)(1,1)+=matrix2(1,1);  (*this)(1,2)+=matrix2(1,2);  (*this)(1,3)+=matrix2(1,3);
@@ -219,7 +225,7 @@ template<class Type, int iRows, int iColumns>
 __forceinline Matrix<Type, iRows, iColumns> &Matrix<Type, iRows, iColumns>::operator+=(const Matrix<Type, iRows, iColumns> &matrix2)
 {
   // add member by member
-  ASSERT( iRows!=3 && iColumns!=3);  // 3 is optimized special case 
+  ASSERT( iRows!=3 && iColumns!=3);  // 3 is optimized special case
   for(int iRow=1; iRow<=iRows; iRow++) {
     for(int iColumn=1; iColumn<=iColumns; iColumn++) {
       (*this)(iRow, iColumn) += matrix2(iRow, iColumn);
@@ -236,6 +242,7 @@ __forceinline Matrix<Type, iRows, iColumns> Matrix<Type, iRows, iColumns>::opera
 
 
 // difference of two FLOATs 3x3
+template<>
 __forceinline Matrix<FLOAT,3,3> &Matrix<FLOAT,3,3>::operator-=(const Matrix<FLOAT,3,3> &matrix2)
 {
   (*this)(1,1)-=matrix2(1,1);  (*this)(1,2)-=matrix2(1,2);  (*this)(1,3)-=matrix2(1,3);
@@ -245,6 +252,7 @@ __forceinline Matrix<FLOAT,3,3> &Matrix<FLOAT,3,3>::operator-=(const Matrix<FLOA
 }
 
 // difference of two DOUBLEs 3x3
+template<>
 __forceinline Matrix<DOUBLE,3,3> &Matrix<DOUBLE,3,3>::operator-=(const Matrix<DOUBLE,3,3> &matrix2)
 {
   (*this)(1,1)-=matrix2(1,1);  (*this)(1,2)-=matrix2(1,2);  (*this)(1,3)-=matrix2(1,3);
@@ -258,7 +266,7 @@ template<class Type, int iRows, int iColumns>
 __forceinline Matrix<Type, iRows, iColumns> &Matrix<Type, iRows, iColumns>::operator-=(const Matrix<Type, iRows, iColumns> &matrix2)
 {
   // sub member by member
-  ASSERT( iRows!=3 && iColumns!=3);  // 3 is optimized special case 
+  ASSERT( iRows!=3 && iColumns!=3);  // 3 is optimized special case
   for(int iRow=1; iRow<=iRows; iRow++) {
     for(int iColumn=1; iColumn<=iColumns; iColumn++) {
       (*this)(iRow, iColumn) -= matrix2(iRow, iColumn);
@@ -284,6 +292,7 @@ __forceinline Matrix<Type, iRows, iColumns> Matrix<Type, iRows, iColumns>::opera
 
 
 // FLOAT 3x3
+template<>
 __forceinline Matrix<FLOAT,3,3> Matrix<FLOAT,3,3>::operator*(const Matrix<FLOAT,3,3> &matrix2) const
 {
   Matrix<FLOAT,3,3> result;
@@ -300,6 +309,7 @@ __forceinline Matrix<FLOAT,3,3> Matrix<FLOAT,3,3>::operator*(const Matrix<FLOAT,
 }
 
 // DOUBLE 3x3
+template<>
 __forceinline Matrix<DOUBLE,3,3> Matrix<DOUBLE,3,3>::operator*(const Matrix<DOUBLE,3,3> &matrix2) const
 {
   Matrix<DOUBLE,3,3> result;
@@ -322,7 +332,7 @@ __forceinline Matrix<Type, iRows, iColumns> Matrix<Type, iRows, iColumns>::opera
   Matrix<Type, iRows, iColumns> result;
   // check that the matrices have square dimensions
   ASSERT(iRows==iColumns);
-  ASSERT( iRows!=3 && iColumns!=3);  // 3 is optimized special case 
+  ASSERT( iRows!=3 && iColumns!=3);  // 3 is optimized special case
   // multiply
   for(int iRow=1; iRow<=iRows; iRow++) {
     for(int iColumn=1; iColumn<=iColumns; iColumn++) {
@@ -346,6 +356,7 @@ __forceinline Matrix<Type, iRows, iColumns> &Matrix<Type, iRows, iColumns>::oper
 
 
 // multiply FLOAT 3x3 with scalar
+template<>
 __forceinline Matrix<FLOAT,3,3> &Matrix<FLOAT,3,3>::operator*=(const FLOAT tMul)
 {
   (*this)(1,1)*=tMul;  (*this)(1,2)*=tMul;  (*this)(1,3)*=tMul;
@@ -355,6 +366,7 @@ __forceinline Matrix<FLOAT,3,3> &Matrix<FLOAT,3,3>::operator*=(const FLOAT tMul)
 }
 
 // multiply DOUBLE 3x3 with scalar
+template<>
 __forceinline Matrix<DOUBLE,3,3> &Matrix<DOUBLE,3,3>::operator*=(const DOUBLE tMul)
 {
   (*this)(1,1)*=tMul;  (*this)(1,2)*=tMul;  (*this)(1,3)*=tMul;
@@ -369,7 +381,7 @@ template<class Type, int iRows, int iColumns>
 __forceinline Matrix<Type, iRows, iColumns> &Matrix<Type, iRows, iColumns>::operator*=(const Type tMul)
 {
   // multiply member by member
-  ASSERT( iRows!=3 && iColumns!=3);  // 3 is optimized special case 
+  ASSERT( iRows!=3 && iColumns!=3);  // 3 is optimized special case
   for(int iRow=1; iRow<=iRows; iRow++) {
     for(int iColumn=1; iColumn<=iColumns; iColumn++) {
       (*this)(iRow, iColumn) *= tMul;
@@ -486,4 +498,3 @@ __forceinline FLOATmatrix3D DOUBLEtoFLOAT(const DOUBLEmatrix3D &md) {
 
 
 #endif  /* include-once check. */
-
