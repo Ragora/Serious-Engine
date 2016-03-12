@@ -1,4 +1,4 @@
-/* Copyright (c) 2002-2012 Croteam Ltd. 
+/* Copyright (c) 2002-2012 Croteam Ltd.
 This program is free software; you can redistribute it and/or modify
 it under the terms of version 2 of the GNU General Public License as published by
 the Free Software Foundation
@@ -127,7 +127,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // global factors for saturation and stuff
 extern SLONG _slTexSaturation;
 extern SLONG _slTexHueShift;
-extern SLONG _slShdSaturation; 
+extern SLONG _slShdSaturation;
 extern SLONG _slShdHueShift;
 
 
@@ -231,7 +231,7 @@ __forceinline ULONG ByteSwap( ULONG ul)
 
 __forceinline ULONG rgba2argb( COLOR col)
 {
-#if (defined USE_PORTABLE_C)
+#if (defined USE_PORTABLE_C || defined __GNUC__)
 	return( (col << 24) | (col >> 8) );
 
 #elif (defined _MSC_VER)
@@ -250,7 +250,7 @@ __forceinline ULONG rgba2argb( COLOR col)
 
 __forceinline ULONG abgr2argb( ULONG ul)
 {
-#if (defined USE_PORTABLE_C)
+#if (defined USE_PORTABLE_C || defined __GNUC__)
 	// this could be simplified, this is just a safe conversion from asm code
 	ul = ( ((ul << 24)            ) |
          ((ul << 8) & 0x00FF0000) |
@@ -267,7 +267,15 @@ __forceinline ULONG abgr2argb( ULONG ul)
     mov   dword ptr [ulRet],eax
   }
   return ulRet;
-
+/*
+#elif (defined __GNUC__)
+    __asm__ __volatile__ (
+      "movl %0, %%eax; BSWAP %%eax; ror %%eax, 8; movl %%eax, %1\n\t"
+          : "=a" (ul)
+          : "a" (ul)
+    );
+    return(ul);
+    */
 #else
   #error please define for your platform.
 #endif
