@@ -1,4 +1,4 @@
-/* Copyright (c) 2002-2012 Croteam Ltd. 
+/* Copyright (c) 2002-2012 Croteam Ltd.
 This program is free software; you can redistribute it and/or modify
 it under the terms of version 2 of the GNU General Public License as published by
 the Free Software Foundation
@@ -21,7 +21,15 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <malloc.h>
 #include <stdarg.h>
 #include <stdio.h>
+
+#ifdef _MSC_VER
 #include <conio.h>
+#include <crtdbg.h>
+#include <winsock2.h>
+#include <windows.h>
+#include <mmsystem.h> // for timers
+#endif
+
 #include <string.h>
 #include <stddef.h>
 #include <time.h>
@@ -29,11 +37,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <search.h>   // for qsort
 #include <float.h>    // for FPU control
 
-#include <crtdbg.h>
-
-#include <winsock2.h>
-#include <windows.h>
-#include <mmsystem.h> // for timers
 
 #include <Engine/Base/Types.h>
 #include <Engine/Base/Assert.h>
