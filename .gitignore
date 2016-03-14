@@ -49,6 +49,7 @@ Sources/Debug/
 *.user
 .clang/
 *.mk
+*.pri
 
 # Ecc Generated files
 Sources/Engine/Classes/BaseEvents.cpp
