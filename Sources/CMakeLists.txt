@@ -1,10 +1,60 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
-PROJECT(SeriousEngine)
 
 ADD_DEFINITIONS(-DPLATFORM_UNIX=1)
 ADD_DEFINITIONS(-D_MT=1)
 
-SET (CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} -std=c++11)
+OPTION(USE_CLANG "Build application with clang" OFF) # OFF is the default
+OPTION(USE_LTO   "Use clangs link time optimization for Release builds" OFF) # OFF is the default
+
+IF(WIN32)
+    SET (CMAKE_BUILD_TYPE None CACHE STRING "Set build type to None for windows") # Keep it blank for windows build?
+ELSE(WIN32)
+    IF(NOT CMAKE_BUILD_TYPE)
+	SET (CMAKE_BUILD_TYPE Debug CACHE STRING 
+	    "Choose the type of build, options are : None Debug Release RelWithDebInfo MinSizeRel." 
+	    FORCE)
+    ENDIF(NOT CMAKE_BUILD_TYPE)
+ENDIF(WIN32)
+
+IF(USE_CLANG) # Use clang/clang++
+
+    SET (CMAKE_C_COMPILER             "/usr/bin/clang")
+    SET (CMAKE_C_FLAGS                "-Wall -std=c99")
+    SET (CMAKE_C_FLAGS_DEBUG          "-g")
+    SET (CMAKE_C_FLAGS_MINSIZEREL     "-Os -DNDEBUG")
+    
+    IF(USE_LTO)
+    	SET (CMAKE_C_FLAGS_RELEASE        "-O4 -DNDEBUG")
+    ELSE(USE_LTO)
+        SET (CMAKE_C_FLAGS_RELEASE        "-O3 -DNDEBUG")
+    ENDIF(USE_LTO)
+
+    SET (CMAKE_C_FLAGS_RELWITHDEBINFO "-O2 -g")
+
+    SET (CMAKE_CXX_COMPILER             "/usr/bin/clang++")
+    SET (CMAKE_CXX_FLAGS                "-Wall -std=c++11")
+    SET (CMAKE_CXX_FLAGS_DEBUG          "-g")
+    SET (CMAKE_CXX_FLAGS_MINSIZEREL     "-Os -DNDEBUG")
+    SET (CMAKE_CXX_FLAGS_RELEASE        "-O3 -DNDEBUG")
+    SET (CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g")
+
+ELSE(USE_CLANG) # Use gcc/g++
+
+    SET (CMAKE_C_FLAGS                "-Wall -std=c99")
+    SET (CMAKE_C_FLAGS_DEBUG          "-g")
+    SET (CMAKE_C_FLAGS_MINSIZEREL     "-Os -DNDEBUG")
+    SET (CMAKE_C_FLAGS_RELEASE        "-O3 -DNDEBUG")
+    SET (CMAKE_C_FLAGS_RELWITHDEBINFO "-O2 -g")
+
+    SET (CMAKE_CXX_FLAGS                "-Wall -std=c++11")
+    SET (CMAKE_CXX_FLAGS_DEBUG          "-g")
+    SET (CMAKE_CXX_FLAGS_MINSIZEREL     "-Os -DNDEBUG")
+    SET (CMAKE_CXX_FLAGS_RELEASE        "-O3 -DNDEBUG")
+    SET (CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g")
+
+ENDIF(USE_CLANG)
+
+PROJECT(SeriousEngine)
 
 # Looks like the engine depends on these projects at some point.
 # FIXME: For Windows, these are in Tools.Win32
