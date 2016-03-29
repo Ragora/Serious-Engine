@@ -6,10 +6,15 @@
 # Intel compiler < version 6.0 probably won't work.
 #CC := icc
 #LINKER := icc
-CC := gcc
-CXX := g++
-LINKER := g++
-LIBLINKER := g++
+#CC := gcc
+#CXX := g++
+#LINKER := g++
+#LIBLINKER := g++
+
+CC := clang
+CXX := clang++
+LINKER := clang++
+LIBLINKER := clang++
 
 #arch := $(shell uname -m)
 
@@ -422,16 +427,16 @@ SHADERSOBJS := $(foreach f,$(OBJS3),$(BINDIR)/$(f))
 SHADERSSRCS := $(foreach f,$(SHADERSSRCS),$(SRCDIR)/$(f))
 
 
-GAMESRCS := Game/Camera.cpp Game/CompMessage.cpp Game/CompModels.cpp \
-            Game/Computer.cpp Game/Console.cpp Game/Controls.cpp \
-            Game/Game.cpp Game/LCDDrawing.cpp Game/LoadingHook.cpp \
-            Game/Map.cpp Game/SessionProperties.cpp Game/WEDInterface.cpp
-
-OBJS1 := $(GAMESRCS:.c=.o)
-OBJS2 := $(OBJS1:.cpp=.o)
-OBJS3 := $(OBJS2:.asm=.o)
-GAMEOBJS := $(foreach f,$(OBJS3),$(BINDIR)/$(f))
-GAMESRCS := $(foreach f,$(GAMESRCS),$(SRCDIR)/$(f))
+#GAMESRCS := Game/Camera.cpp Game/CompMessage.cpp Game/CompModels.cpp \
+#            Game/Computer.cpp Game/Console.cpp Game/Controls.cpp \
+#            Game/Game.cpp Game/LCDDrawing.cpp Game/LoadingHook.cpp \
+#            Game/Map.cpp Game/SessionProperties.cpp Game/WEDInterface.cpp
+#
+#OBJS1 := $(GAMESRCS:.c=.o)
+#OBJS2 := $(OBJS1:.cpp=.o)
+#OBJS3 := $(OBJS2:.asm=.o)
+#GAMEOBJS := $(foreach f,$(OBJS3),$(BINDIR)/$(f))
+#GAMESRCS := $(foreach f,$(GAMESRCS),$(SRCDIR)/$(f))
 
 
 GAMEMPSRCS := GameMP/Camera.cpp GameMP/CompMessage.cpp GameMP/CompModels.cpp \
@@ -445,23 +450,23 @@ OBJS3 := $(OBJS2:.asm=.o)
 GAMEMPOBJS := $(foreach f,$(OBJS3),$(BINDIR)/$(f))
 GAMEMPSRCS := $(foreach f,$(GAMEMPSRCS),$(SRCDIR)/$(f))
 
-ENTITYFILES := $(wildcard Entities/*.es)
-ENTITYHEADERS := $(ENTITYFILES:.es=.h)
-ENTITYTABLES := $(ENTITYFILES:.es=_tables.h)
-ENTITYSRCS := $(ENTITYHEADERS:.h=.cpp)
-
-ENTITYCOMMONSRCS := Entities/Common/Common.cpp Entities/Common/Particles.cpp \
-                    Entities/Common/PathFinding.cpp Entities/Common/HUD.cpp
+#ENTITYFILES := $(wildcard Entities/*.es)
+#ENTITYHEADERS := $(ENTITYFILES:.es=.h)
+#ENTITYTABLES := $(ENTITYFILES:.es=_tables.h)
+#ENTITYSRCS := $(ENTITYHEADERS:.h=.cpp)
+#
+#ENTITYCOMMONSRCS := Entities/Common/Common.cpp Entities/Common/Particles.cpp \
+#                    Entities/Common/PathFinding.cpp Entities/Common/HUD.cpp
 
 # These file are empty right now. ?
 #ENTITYCOMMONSRCS += Entities/Common/Stats.cpp
 #ENTITYCOMMONSRCS += Entities/Common/Debris.cpp
 
-ENTITYHEADERS := $(foreach f,$(ENTITYHEADERS),$(SRCDIR)/$(f))
+#ENTITYHEADERS := $(foreach f,$(ENTITYHEADERS),$(SRCDIR)/$(f))
 
-OBJS1 := $(ENTITYSRCS:.cpp=.o) $(ENTITYCOMMONSRCS:.cpp=.o)
-ENTITYOBJS := $(foreach f,$(OBJS1),$(BINDIR)/$(f))
-ENTITYSRCS := $(foreach f,$(ENTITYSRCS),$(SRCDIR)/$(f))
+#OBJS1 := $(ENTITYSRCS:.cpp=.o) $(ENTITYCOMMONSRCS:.cpp=.o)
+#ENTITYOBJS := $(foreach f,$(OBJS1),$(BINDIR)/$(f))
+#ENTITYSRCS := $(foreach f,$(ENTITYSRCS),$(SRCDIR)/$(f))
 
 
 ENTITYMPFILES := $(wildcard EntitiesMP/*.es)
@@ -511,15 +516,15 @@ else
   DLLEXT := so
 endif
 ifeq ($(strip $(debug)),true)
-  ENTITYDLL := $(BINDIR)/libEntitiesD.$(DLLEXT)
+  #ENTITYDLL := $(BINDIR)/libEntitiesD.$(DLLEXT)
   ENTITYMPDLL := $(BINDIR)/libEntitiesMPD.$(DLLEXT)
-  GAMEDLL := $(BINDIR)/libGameD.$(DLLEXT)
+  #GAMEDLL := $(BINDIR)/libGameD.$(DLLEXT)
   GAMEMPDLL := $(BINDIR)/libGameMPD.$(DLLEXT)
   SHADERSDLL := $(BINDIR)/libShadersD.$(DLLEXT)
 else
-  ENTITYDLL := $(BINDIR)/libEntities.$(DLLEXT)
+  #ENTITYDLL := $(BINDIR)/libEntities.$(DLLEXT)
   ENTITYMPDLL := $(BINDIR)/libEntitiesMP.$(DLLEXT)
-  GAMEDLL := $(BINDIR)/libGame.$(DLLEXT)
+  #GAMEDLL := $(BINDIR)/libGame.$(DLLEXT)
   GAMEMPDLL := $(BINDIR)/libGameMP.$(DLLEXT)
   SHADERSDLL := $(BINDIR)/libShaders.$(DLLEXT)
 endif
@@ -573,8 +578,8 @@ endif
 CFLAGS += -IExternal/SDL12
 CFLAGS += $(USE_ASM) -I$(SRCDIR) -D_REENTRANT -DPLATFORM_UNIX -D_MT
 ifeq ($(strip $(macosx)),true)
-  CFLAGS += -DPLATFORM_MACOSX
-  CXXFLAGS += -Wno-invalid-offsetof
+  CFLAGS += -DPLATFORM_MACOSX -arch i386
+  CXXFLAGS += -Wno-invalid-offsetof -arch i386
 endif
 
 ifeq ($(strip $(CC)),icc)
@@ -592,7 +597,8 @@ else
   # !!! FIXME: Get -Wall in here, some day.
   # !!! FIXME: Get -Werror back in here for gcc3, some day.
   CFLAGS += $(USE_ASM) -I$(SRCDIR) -D_REENTRANT -fsigned-char -DPLATFORM_UNIX
-  CXXFLAGS += -Wno-non-template-friend -fexceptions -frtti
+  #CXXFLAGS += -Wno-non-template-friend -fexceptions -frtti
+  CXXFLAGS += -fexceptions -frtti
   CFLAGS += -D_MT -fno-omit-frame-pointer
 endif
 
@@ -657,7 +663,7 @@ else
 endif
 DLLLDFLAGS := $(PICFLAG) $(LDFLAGS)
 ifeq ($(strip $(macosx)),true)
-  DLLLDFLAGS += -dynamiclib -undefined dynamic_lookup
+  DLLLDFLAGS += -dynamiclib -undefined dynamic_lookup -arch i386
 else
   DLLLDFLAGS += -shared
 endif
@@ -674,7 +680,7 @@ else
 endif
 
 ifeq ($(strip $(macosx)),true)
-  LDFLAGS := -framework Cocoa -framework OpenGL
+  LDFLAGS := -framework Cocoa -framework OpenGL -arch i386
 else
   LDFLAGS += -rdynamic -lm -ldl
 endif
@@ -699,8 +705,8 @@ CXXFLAGS += $(CFLAGS)
 	$(ECCEXE) $<
 	@touch $@
 
-$(BINDIR)/Entities/%.o: $(SRCDIR)/Entities/%.cpp
-	$(CXX) -c -o $@ $< -I$(dir $<)StdH $(CXXFLAGS)
+#$(BINDIR)/Entities/%.o: $(SRCDIR)/Entities/%.cpp
+#	$(CXX) -c -o $@ $< -I$(dir $<)StdH $(CXXFLAGS)
 
 $(BINDIR)/EntitiesMP/%.o: $(SRCDIR)/EntitiesMP/%.cpp
 	$(CXX) -c -o $@ $< -I$(dir $<)StdH $(CXXFLAGS)
@@ -750,14 +756,14 @@ $(SDLMAINLIB) : lib/macosx_x86/libSDLmain.a $(BINDIR)
 	ranlib $@
 endif
 
-$(ENTITYDLL): $(ENTITYHEADERS) $(ENTITYOBJS)
-	$(LIBLINKER) $(DLLLDFLAGS) -o $(ENTITYDLL) $(ENTITYOBJS) $(EFENCELIB)
+#$(ENTITYDLL): $(ENTITYHEADERS) $(ENTITYOBJS)
+#	$(LIBLINKER) $(DLLLDFLAGS) -o $(ENTITYDLL) $(ENTITYOBJS) $(EFENCELIB)
 
 $(ENTITYMPDLL): $(ENTITYMPHEADERS) $(ENTITYMPOBJS)
 	$(LIBLINKER) $(DLLLDFLAGS) -o $(ENTITYMPDLL) $(ENTITYMPOBJS) $(EFENCELIB)
 
-$(GAMEDLL): $(GAMEOBJS)
-	$(LIBLINKER) $(DLLLDFLAGS) -o $(GAMEDLL) $(GAMEOBJS) $(EFENCELIB)
+#$(GAMEDLL): $(GAMEOBJS)
+#	$(LIBLINKER) $(DLLLDFLAGS) -o $(GAMEDLL) $(GAMEOBJS) $(EFENCELIB)
 
 $(GAMEMPDLL): $(GAMEMPOBJS)
 	$(LIBLINKER) $(DLLLDFLAGS) -o $(GAMEMPDLL) $(GAMEMPOBJS) $(EFENCELIB)
