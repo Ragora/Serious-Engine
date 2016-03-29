@@ -267,15 +267,29 @@ public:
   CMappingDefinition bpt_mdMapping; // mapping of texture on polygon
 
   union {
-  struct {
-    UBYTE bpt_ubScroll;               // texture scroll
-    UBYTE bpt_ubBlend;                // type of texture blending used
-    UBYTE bpt_ubFlags;                // additional flags
-    UBYTE bpt_ubDummy;                // unused (alignment)
-    COLOR bpt_colColor;               // defines constant color and alpha of polygon
-  } s;
+    struct {
+      UBYTE bpt_ubScroll;               // texture scroll
+      UBYTE bpt_ubBlend;                // type of texture blending used
+      UBYTE bpt_ubFlags;                // additional flags
+      UBYTE bpt_ubDummy;                // unused (alignment)
+      COLOR bpt_colColor;               // defines constant color and alpha of polygon
+    } s;
     UBYTE bpt_auProperties[8];
   };
+
+  // ATTENTION! If you add/edit/remove any data member, PLEASE update the
+  //  operator = method, below!  --ryan.
+  CBrushPolygonTexture& operator =(const CBrushPolygonTexture &src)
+  {
+    if (this != &src)
+    {
+      bpt_toTexture = src.bpt_toTexture;
+      bpt_mdMapping = src.bpt_mdMapping;
+      memcpy(&bpt_auProperties, &src.bpt_auProperties, sizeof (bpt_auProperties));
+    }
+    return *this;
+  }
+
 
   CBrushPolygonTexture(void)
     {
@@ -360,8 +374,29 @@ struct CBrushPolygonProperties {
   UWORD bpp_uwPretenderDistance;  // distance for pretender switching [m]
   /* Default constructor. */
   CBrushPolygonProperties(void) { memset(this, 0, sizeof(*this)); };
+  friend __forceinline CTStream &operator>>(CTStream &strm, CBrushPolygonProperties &cbpp)
+  {
+    strm>>cbpp.bpp_ubSurfaceType;
+    strm>>cbpp.bpp_ubIlluminationType;
+    strm>>cbpp.bpp_ubShadowBlend;
+    strm>>cbpp.bpp_ubMirrorType;
+    strm>>cbpp.bpp_ubGradientType;
+    strm>>cbpp.bpp_sbShadowClusterSize;
+    strm>>cbpp.bpp_uwPretenderDistance;
+    return strm;
+  }
+  friend __forceinline CTStream &operator<<(CTStream &strm, const CBrushPolygonProperties &cbpp)
+  {
+    strm<<cbpp.bpp_ubSurfaceType;
+    strm<<cbpp.bpp_ubIlluminationType;
+    strm<<cbpp.bpp_ubShadowBlend;
+    strm<<cbpp.bpp_ubMirrorType;
+    strm<<cbpp.bpp_ubGradientType;
+    strm<<cbpp.bpp_sbShadowClusterSize;
+    strm<<cbpp.bpp_uwPretenderDistance;
+    return strm;
+  }
 };
-
 class ENGINE_API CBrushPolygon {
 public:
 // implementation:
@@ -446,12 +481,11 @@ public:
   SLONG GetUsedMemory(void);
 };
 
-
 // get pointer to embedding brush polygon
 inline CBrushPolygon *CBrushShadowMap::GetBrushPolygon(void) {
-  return (CBrushPolygon *) ((UBYTE*)this-offsetof(CBrushPolygon, bpo_smShadowMap));
+  return (CBrushPolygon *) ((UBYTE*)this-_offsetof(CBrushPolygon, bpo_smShadowMap));
+  return(NULL);
 }
-
 
 // selection of brush polygons
 typedef CSelection<CBrushPolygon, BPOF_SELECTED>       CBrushPolygonSelection;

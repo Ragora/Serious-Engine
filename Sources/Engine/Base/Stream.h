@@ -370,12 +370,14 @@ ENGINE_API INDEX ExpandFilePath(ULONG ulType, const CTFileName &fnmFile, CTFileN
 ENGINE_API void MakeDirList(
   CDynamicStackArray<CTFileName> &adeDir, 
   const CTFileName &fnmDir,     // directory to list
-  const CTString &strPattern,   // pattern for each file to match ("" matches all)
+  const CTFileName &fnmPattern, // pattern for each file to match ("" matches all)
   ULONG ulFlags                 // additional flags
 );
 
 // global string with application path
 ENGINE_API extern CTFileName _fnmApplicationPath;
+// global string with user-specific writable directory.
+ENGINE_API extern CTFileName _fnmUserDir;
 // global string with current MOD path
 ENGINE_API extern CTFileName _fnmMod;
 // global string with current name (the parameter that is passed on cmdline)

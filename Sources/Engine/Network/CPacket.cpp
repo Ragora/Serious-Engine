@@ -13,7 +13,7 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include <Engine/StdH.h>
 
 #include <Engine/Base/Console.h>
 #include <Engine/Base/ErrorReporting.h>
@@ -22,7 +22,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <Engine/Base/Memory.h>
 #include <Engine/Network/CPacket.h>
 
-#include <Engine/Base/Listiterator.inl>
+#include <Engine/Base/ListIterator.inl>
 
 // should the packet transfers in/out of the buffer be reported to the console
 extern INDEX net_bReportPackets;
@@ -35,7 +35,8 @@ extern FLOAT net_fSendRetryWait;
 // make the address broadcast
 void CAddress::MakeBroadcast(void)
 {
-  adr_ulAddress = INADDR_BROADCAST;
+  //adr_ulAddress = INADDR_BROADCAST;
+STUBBED("INADDR_BROADCAST?!");
   extern INDEX net_iPort;
   adr_uwPort = net_iPort;
   adr_uwID = 0;
@@ -255,9 +256,10 @@ SLONG CPacket::GetTransferSize()
   return pa_slTransferSize;
 };
 
+#define SLASHSLASH  0x2F2F   // looks like "//" in ASCII.
 BOOL CPacket::IsBroadcast() 
 {
-  if (pa_adrAddress.adr_uwID == '//' || pa_adrAddress.adr_uwID == 0) {
+  if (pa_adrAddress.adr_uwID == SLASHSLASH || pa_adrAddress.adr_uwID == 0) {
     return TRUE;
   }
 
@@ -619,7 +621,7 @@ BOOL CPacketBuffer::RemoveConnectResponsePackets() {
 			delete litPacketIter;
 		}
 	}
-	return NULL;
+	return FALSE;
 };
 
 

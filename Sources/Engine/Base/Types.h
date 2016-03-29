@@ -19,12 +19,16 @@ with this program; if not, write to the Free Software Foundation, Inc.,
   #pragma once
 #endif
 
+#ifdef _MSC_VER
+#define __MSVC_INLINE__
+#endif
+
 #include <Engine/Base/Base.h>
 #include <Engine/Graphics/gl_types.h>
 
 typedef signed long  int    SLONG;
 typedef signed short int    SWORD;
-typedef signed char	        SBYTE;
+typedef signed char         SBYTE;
 typedef signed int          SINT;
 
 typedef unsigned long  int  ULONG;
@@ -33,27 +37,194 @@ typedef unsigned char       UBYTE;
 typedef unsigned int        UINT;
 
 
-#ifdef PLATFORM_UNIX  /* rcg10042001 */
-    #define __forceinline inline
+#if __POWERPC__  /* rcg03232004 */
+  #define PLATFORM_BIGENDIAN 1
+  #define PLATFORM_LITTLEENDIAN 0
+#else
+  #define PLATFORM_BIGENDIAN 0
+  #define PLATFORM_LITTLEENDIAN 1
+#endif
 
-    #if (!defined MAX_PATH)
-      #define MAX_PATH 256
+// Mac symbols have an underscore prepended...
+#if PLATFORM_MACOSX
+  #define ASMSYM(x) "_" #x
+#else
+  #define ASMSYM(x) #x
+#endif
+
+#ifdef PLATFORM_UNIX  /* rcg10042001 */
+    #include <stdio.h>
+    #include <string.h>
+    #include <stdlib.h>
+    #include <unistd.h>
+    #include <sys/fcntl.h>
+    #include <sys/stat.h>
+    #include <sys/types.h>
+    #include <sys/param.h>
+    #include <errno.h>
+    #include <stdarg.h>
+    #include <ctype.h>
+    #include <limits.h>    // for PAGESIZE...
+    #include <math.h>
+
+    // check for legacy defines...
+    #if (defined __ICC)
+      #if (!defined __INTEL_COMPILER)
+        #define __INTEL_COMPILER  __ICC
+      #endif
     #endif
 
-    typedef long long  __int64;
+    #if ((defined __GNUC__) && (!defined __GNU_INLINE__))
+      #define __GNU_INLINE__
+    #endif
+
+    #if (defined __INTEL_COMPILER)
+      #if ((!defined __GNU_INLINE__) && (!defined __MSVC_INLINE__))
+        #error Please define __GNU_INLINE__ or __MSVC_INLINE__ with Intel C++.
+      #endif
+
+      #if ((defined __GNU_INLINE__) && (defined __MSVC_INLINE__))
+        #error Define either __GNU_INLINE__ or __MSVC_INLINE__ with Intel C++.
+      #endif
+    #endif
+
+    #ifndef PAGESIZE
+      #define PAGESIZE 4096
+    #endif
+
+    #define FAR
+    #define __forceinline inline
+    #define __stdcall
+    #define __cdecl
+    #define WINAPI
+
+    #if (!defined MAX_PATH)
+      #if (defined MAXPATHLEN)
+        #define MAX_PATH MAXPATHLEN
+      #else
+        #define MAX_PATH 256
+      #endif
+    #endif
+
+    #define _O_BINARY   0
+    #define _O_RDONLY   O_RDONLY
+    #define _S_IWRITE   S_IWRITE
+    #define _S_IREAD    S_IREAD
+
+    #if (!defined __INTEL_COMPILER)
+      #define _alloca alloca
+    #endif
+
+    #define _CrtCheckMemory() 1
+    #define _mkdir(x) mkdir(x, S_IRWXU)
+    #define _open open
+    #define _close close
+    #define _strupr strupr
+    #define stricmp strcasecmp
+    #define strcmpi strcasecmp
+    #define strnicmp strncasecmp
+    #define _vsnprintf vsnprintf
+    #define _snprintf snprintf
+    #define _set_new_handler std::set_new_handler
+    #define _finite finite
+
+    inline void _RPT_do(const char *type, const char *fmt, ...)
+    {
+#if 0
+        #if (!defined NDEBUG)
+            va_list ap;
+            fprintf(stderr, "_RPT (%s): ", type);
+            va_start(ap, fmt);
+            vfprintf(stderr, fmt, ap);
+            va_end(ap);
+            fflush(stderr);
+        #endif
+#endif
+    } // _RPT0
+
+    #define _CRT_WARN "_CRT_WARN"
+    #define _CRT_ERROR "_CRT_ERROR"
+    #define _CRT_ASSER "_CRT_ASSERT"
+
+    #define _RPT0(type, fmt)                 _RPT_do(type, fmt)
+    #define _RPT1(type, fmt, a1)             _RPT_do(type, fmt, a1)
+    #define _RPT2(type, fmt, a1, a2)         _RPT_do(type, fmt, a1, a2)
+    #define _RPT3(type, fmt, a1, a2, a3)     _RPT_do(type, fmt, a1, a2, a3)
+    #define _RPT4(type, fmt, a1, a2, a3, a4) _RPT_do(type, fmt, a1, a2, a3, a4)
+
+    #define STUBBED(txt) fprintf(stderr, "STUB: %s in %s, line %d.\n", txt, __FILE__, __LINE__)
+
+    // !!! FIXME : Should inline functions go somewhere else?
+
+    inline void _strupr(char *str)
+    {
+        if (str != NULL)
+        {
+            for (char *ptr = str; *ptr; ptr++)
+               *ptr = toupper(*ptr);
+        }
+    }
+
+    inline ULONG _rotl(ULONG ul, int bits)
+    {
+        #if (defined USE_PORTABLE_C)
+            // This is not fast at all, but it works.
+            for (int i = 0; i < bits; i++)
+                ul = ( (ul << 1) | ((ul & 0x80000000) >> 31) );
+            return(ul);
+
+        #elif (defined __GNU_INLINE__)
+            // This, on the other hand, is wicked fast.  :)
+            __asm__ __volatile__ (
+                "roll %%cl, %%eax    \n\t"
+                    : "=a" (ul)
+                    : "a" (ul), "c" (bits)
+                    : "cc"
+            );
+            return(ul);
+
+        #elif (defined __MSVC_INLINE__)
+            // MSVC version for Intel C++...
+            __asm
+            {
+                mov eax, dword ptr [ul]
+                mov ecx, dword ptr [bits]
+                rol eax, cl
+                mov dword ptr [ul], eax
+            }
+            return(ul);
+
+        #else
+            #error need inline asm for your platform.
+        #endif
+    }
+
+    typedef unsigned long long  __uint64;
+    #if (!defined __INTEL_COMPILER)
+      typedef long long  __int64;
+    #endif
+
+    typedef UBYTE BYTE;
+    typedef unsigned short WORD;
     typedef unsigned long  int  DWORD;
     typedef signed long  int    LONG;
+    typedef void *LPVOID;
+    typedef char *LPSTR;
+    typedef signed long int WPARAM;
+    typedef signed long int LPARAM;
+    typedef signed short int SHORT;
 
     typedef void *HWND;  /* !!! FIXME this sucks. */
     typedef void *HINSTANCE;  /* !!! FIXME this sucks. */
     typedef void *HGLRC;  /* !!! FIXME this sucks. */
+    typedef void *HGLOBAL;  /* !!! FIXME this sucks. */
     typedef ULONG COLORREF;  /* !!! FIXME this sucks. */
 
     typedef struct
     {
         LONG x;
         LONG y;
-    } POINT;
+    } POINT, *LPPOINT;
 
     typedef struct
     {
@@ -62,6 +233,20 @@ typedef unsigned int        UINT;
         LONG right;
         LONG bottom;
     } RECT;
+
+    #define WAVE_FORMAT_PCM  0x0001
+
+    typedef struct
+    {
+        SWORD wFormatTag;
+        WORD  nChannels;
+        DWORD nSamplesPerSec;
+        WORD  wBitsPerSample;
+        WORD  nBlockAlign;
+        DWORD nAvgBytesPerSec;
+        WORD  cbSize;
+    } WAVEFORMATEX;
+
 #endif
 
 
@@ -106,10 +291,18 @@ typedef long int INDEX;     // for indexed values and quantities
 #define ANGLE_270  (270.0f)
 #define ANGLE_360  (360.0f)
 
-// you need <stddef.h> for this!
+
+// Stupid GCC bug.
+#if (__GNUC__ >= 3)
+  #define _offsetof(cl, mbr) (((size_t)&(((cl *)0x0004)->mbr)) - 0x0004)
+#else
+  // you need <stddef.h> for this!
+  #define _offsetof(cl, mbr) offsetof(cl, mbr)
+#endif
+
 #define structptr(structure, member, ptr) \
 ( (struct structure *) ( ((UBYTE *)(ptr)) - \
- offsetof(struct structure, member)) )
+ _offsetof(struct structure, member)) )
 
 // standard types
 
@@ -409,6 +602,9 @@ typedef BSPCutter<FLOAT, 3>          FLOATbspcutter3D;
 template<class cType>
 inline void Clear(cType &t) { t.cType::Clear(); };
 
+template<class cType>
+inline void Clear(cType *t) { t->cType::Clear(); };
+
 // specific clearing functions for built-in types
 inline void Clear(signed long int sli) {};
 inline void Clear(unsigned long int uli) {};
@@ -417,7 +613,101 @@ inline void Clear(float i) {};
 inline void Clear(double i) {};
 inline void Clear(void *pv) {};
 
-#define SYMBOLLOCATOR(symbol)
+// These macros are not safe to use unless data is UNSIGNED!
+#define BYTESWAP16_unsigned(x)   ((((x)>>8)&0xff)+ (((x)<<8)&0xff00))
+#define BYTESWAP32_unsigned(x)   (((x)>>24) + (((x)>>8)&0xff00) + (((x)<<8)&0xff0000) + ((x)<<24))
+
+// rcg03242004
+#if PLATFORM_LITTLEENDIAN
+	#define BYTESWAP(x)
+#else
+
+    static inline void BYTESWAP(UWORD &val)
+    {
+        #if __POWERPC__
+        __asm__ __volatile__ (
+            "lhbrx %0,0,%1"
+                : "=r" (val)
+                : "r" (&val)
+                );
+        #else
+        val = BYTESWAP16_unsigned(val);
+        #endif
+    }
+
+    static inline void BYTESWAP(SWORD &val)
+    {
+        // !!! FIXME: reinterpret_cast ?
+        UWORD uval = *((UWORD *) &val);
+        BYTESWAP(uval);
+        val = *((SWORD *) &uval);
+    }
+
+    static inline void BYTESWAP(ULONG &val)
+    {
+        #if __POWERPC__
+        __asm__ __volatile__ (
+            "lwbrx %0,0,%1"
+                : "=r" (val)
+                : "r" (&val)
+        );
+        #else
+        val = BYTESWAP32_unsigned(val);
+        #endif
+    }
+
+    static inline void BYTESWAP(SLONG &val)
+    {
+        // !!! FIXME: reinterpret_cast ?
+        ULONG uval = *((ULONG *) &val);
+        BYTESWAP(uval);
+        val = *((SLONG *) &uval);
+    }
+
+    static inline void BYTESWAP(BOOL &val)
+    {
+        // !!! FIXME: reinterpret_cast ?
+        ULONG uval = *((ULONG *) &val);
+        BYTESWAP(uval);
+        val = *((BOOL *) &uval);
+    }
+
+    static inline void BYTESWAP(FLOAT &val)
+    {
+        // !!! FIXME: reinterpret_cast ?
+        ULONG uval = *((ULONG *) &val);
+        BYTESWAP(uval);
+        val = *((FLOAT *) &uval);
+    }
+
+	static inline void BYTESWAP(__uint64 &val)
+	{
+		ULONG l = (ULONG) (val & 0xFFFFFFFF);
+		ULONG h = (ULONG) ((val >> 32) & 0xFFFFFFFF);
+        BYTESWAP(l);
+        BYTESWAP(h);
+	    val = ( (((__uint64) (l)) << 32) |
+		         ((__uint64) (h)) );
+	}
+
+    static inline void BYTESWAP(__int64 &val)
+    {
+        // !!! FIXME: reinterpret_cast ?
+        __uint64 uval = *((__uint64 *) &val);
+        BYTESWAP(uval);
+        val = *((__int64 *) &uval);
+    }
+
+    static inline void BYTESWAP(DOUBLE &val)
+    {
+        // !!! FIXME: reinterpret_cast ?
+        __uint64 uval = *((__uint64 *) &val);
+        BYTESWAP(uval);
+        val = *((DOUBLE *) &uval);
+    }
+
+
+#endif
 
 #endif  /* include-once check. */
 

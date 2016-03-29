@@ -21,7 +21,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 %}
 uses "EntitiesMP/Devil";
 uses "EntitiesMP/Debris";
-uses "EntitiesMP\GradientMarker";
+uses "EntitiesMP/GradientMarker";
+uses "EntitiesMP/Effector";
 
 %{
 struct DebrisInfo {
@@ -160,7 +161,7 @@ functions:
     }
     
     // if gradient marker
-    if( slPropertyOffset==offsetof(CDestroyableArchitecture, m_penGradient) )
+    if( slPropertyOffset==_offsetof(CDestroyableArchitecture, m_penGradient) )
     {
       return (IsDerivedFromClass(penTarget, "Gradient Marker"));
     }

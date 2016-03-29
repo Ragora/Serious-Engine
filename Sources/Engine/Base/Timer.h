@@ -36,7 +36,7 @@ public:
   inline CTimerValue(__int64 llValue) : tv_llValue(llValue) {};
 public:
   /* Constructor. */
-  inline CTimerValue(void) {};
+  inline CTimerValue(void) : tv_llValue((__int64) -1) {}
   /* Constructor from seconds. */
   inline CTimerValue(double dSeconds);
   /* Clear timer value (set it to zero). */
@@ -131,13 +131,20 @@ public:
   inline FLOAT GetLerpFactor2(void) const { return tm_fLerpFactor2; };
 
   /* Get current timer value of high precision timer. */
-  inline CTimerValue GetHighPrecisionTimer(void) {
-   __int64 mmRet;
-    _asm rdtsc
-    _asm mov dword ptr [mmRet+0],eax
-    _asm mov dword ptr [mmRet+4],edx
-    return mmRet;
-  };
+  CTimerValue GetHighPrecisionTimer(void);
+
+  /*
+   * rcg10072001
+   * put current process to sleep for at least (milliseconds) milliseconds.
+   *  Note that many platforms can't sleep less than 10 milliseconds, and
+   *  most will not revive your thread at the exact moment you requested.
+   *  So don't use this on life support machines.  :)
+   */
+  void Sleep(DWORD milliseconds);
+
+#ifdef SINGLE_THREADED
+  CTimerValue tm_InitialTimerUpkeep;  // don't touch.
+#endif
 };
 
 // pointer to global timer object

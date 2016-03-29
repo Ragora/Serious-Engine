@@ -13,7 +13,11 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#pragma once
+#ifndef SE_INCL_GFX_WRAPPER_H
+#define SE_INCL_GFX_WRAPPER_H
+#ifdef PRAGMA_ONCE
+  #pragma once
+#endif
 
 
 enum GfxBlend
@@ -272,9 +276,12 @@ extern void gfxFlushQuads(void);
 // check GFX errors only in debug builds
 #ifndef NDEBUG
   extern void OGL_CheckError(void);
-  extern void D3D_CheckError(HRESULT hr);
   #define OGL_CHECKERROR     OGL_CheckError();
+
+  #ifdef SE1_D3D
+  extern void D3D_CheckError(HRESULT hr);
   #define D3D_CHECKERROR(hr) D3D_CheckError(hr);
+  #endif
 #else
   #define OGL_CHECKERROR     (void)(0);
   #define D3D_CHECKERROR(hr) (void)(0);
@@ -305,3 +312,7 @@ extern void d3dSetVertexShader(DWORD dwHandle);
   } while(ref>0);  \
   object = NONE; \
 }
+
+#endif /* include-once wrapper. */
+
+

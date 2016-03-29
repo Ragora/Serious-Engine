@@ -18,9 +18,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "StdH.h"
 %}
 
+uses "EntitiesMP/Debris";
 uses "EntitiesMP/ModelHolder2";
 uses "EntitiesMP/BasicEffects";
-uses "EntitiesMP/Debris";
 uses "EntitiesMP/BloodSpray";
 uses "EntitiesMP/SoundHolder";
 
@@ -61,8 +61,8 @@ properties:
  27 FLOAT m_fParticleSize "Particle Size" 'Z' = 1.0f, // size of particles
  28 BOOL m_bRequireExplosion "Requires Explosion" = FALSE,
  29 FLOAT m_fDebrisLaunchPower "CC: Debris Launch Power" 'L' = 1.0f, // launch power of debris
- 30 enum DebrisParticlesType m_dptParticles "CC: Trail particles" = DPT_NONE,
- 31 enum BasicEffectType m_betStain "CC: Leave stain" = BET_NONE,
+ 30 INDEX /*enum DebrisParticlesType*/ m_dptParticles "CC: Trail particles" = DPT_NONE,
+ 31 INDEX /*enum BasicEffectType*/ m_betStain "CC: Leave stain" = BET_NONE,
  32 FLOAT m_fLaunchCone "CC: Launch cone" = 45.0f,
  33 FLOAT m_fRndRotH "CC: Rotation heading" = 720.0f,
  34 FLOAT m_fRndRotP "CC: Rotation pitch" = 720.0f,
@@ -118,7 +118,7 @@ functions:
   /* Get anim data for given animation property - return NULL for none. */
   CAnimData *GetAnimData(SLONG slPropertyOffset)
   {
-    if(slPropertyOffset==offsetof(CModelDestruction, m_iStartAnim)) 
+    if(slPropertyOffset==_offsetof(CModelDestruction, m_iStartAnim)) 
     {
       CModelHolder2 *pmh=GetModel(0);
       if(pmh!=NULL)
@@ -134,9 +134,9 @@ functions:
     if(ct==0) {
       ((CTString&)m_strDescription).PrintF("(%g): no more", m_fHealth);
     } else if(ct==1) {
-      ((CTString&)m_strDescription).PrintF("(%g): %s", m_fHealth, m_penModel0->GetName());
+      ((CTString&)m_strDescription).PrintF("(%g): %s", m_fHealth, (const char *) m_penModel0->GetName());
     } else if (TRUE) {
-      ((CTString&)m_strDescription).PrintF("(%g): %s,...(%d)", m_fHealth, m_penModel0->GetName(), ct);
+      ((CTString&)m_strDescription).PrintF("(%g): %s,...(%d)", m_fHealth, (const char *) m_penModel0->GetName(), ct);
     }
     return m_strDescription;
   }
@@ -145,7 +145,7 @@ functions:
   void CheckOneModelTarget(CEntityPointer &pen)
   {
     if (pen!=NULL && !IsOfClass(pen, "ModelHolder2")) {
-      WarningMessage("Model '%s' is not ModelHolder2!", pen->GetName());
+      WarningMessage("Model '%s' is not ModelHolder2!", (const char *) pen->GetName());
       pen=NULL;
     }
   }

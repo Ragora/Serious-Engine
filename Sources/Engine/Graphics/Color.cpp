@@ -13,7 +13,7 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include <Engine/StdH.h>
 
 #include <Engine/Graphics/Color.h>
 #include <Engine/Math/Functions.h>
@@ -45,7 +45,7 @@ COLOR HSVToColor( UBYTE const ubH, UBYTE const ubS, UBYTE const ubV)
       case 3:  return RGBToColor(slP,slQ,ubV);
       case 4:  return RGBToColor(slT,slP,ubV);
       case 5:  return RGBToColor(ubV,slP,slQ);
-      default: ASSERTALWAYS("WHAT???"); return C_BLACK;
+      default: ASSERTALWAYS("WHAT\?\?\?"); return C_BLACK;
     }
   } else return RGBToColor(ubV,ubV,ubV);
 }
@@ -246,6 +246,31 @@ COLOR MulColors( COLOR col1, COLOR col2)
   if( col1==0xFFFFFFFF)   return col2;
   if( col2==0xFFFFFFFF)   return col1;
   if( col1==0 || col2==0) return 0;
+
+#if (defined USE_PORTABLE_C)
+  // !!! FIXME: This...is not fast.
+  union
+  {
+    COLOR col;
+    UBYTE bytes[4];
+  } conv1;
+
+  union
+  {
+    COLOR col;
+    UBYTE bytes[4];
+  } conv2;
+
+  conv1.col = col1;
+  conv2.col = col2;
+  conv1.bytes[0] = (UBYTE) ((((DWORD) conv1.bytes[0]) * ((DWORD) conv2.bytes[0])) / 255);
+  conv1.bytes[1] = (UBYTE) ((((DWORD) conv1.bytes[1]) * ((DWORD) conv2.bytes[1])) / 255);
+  conv1.bytes[2] = (UBYTE) ((((DWORD) conv1.bytes[2]) * ((DWORD) conv2.bytes[2])) / 255);
+  conv1.bytes[3] = (UBYTE) ((((DWORD) conv1.bytes[3]) * ((DWORD) conv2.bytes[3])) / 255);
+
+  return(conv1.col);
+
+#elif (defined __MSVC_INLINE__)
   COLOR colRet;
   __asm {
     xor     ebx,ebx
@@ -321,6 +346,95 @@ COLOR MulColors( COLOR col1, COLOR col2)
     mov     D [colRet],ebx
   }
   return colRet;
+
+#elif (defined __GNU_INLINE__)
+  COLOR colRet;
+  __asm__ __volatile__ (
+    "pushl     %%ebx                \n\t"
+    "xorl     %%ebx, %%ebx         \n\t"
+
+    // red
+    "movl     %%esi, %%eax         \n\t"
+    "andl     $0xFF000000, %%eax   \n\t"
+    "shrl     $24, %%eax           \n\t"
+    "movl     %%eax, %%ecx         \n\t"
+    "shll     $8, %%ecx            \n\t"
+    "orl      %%ecx, %%eax         \n\t"
+    "movl     %%edi, %%edx         \n\t"
+    "andl     $0xFF000000, %%edx   \n\t"
+    "shrl     $24, %%edx           \n\t"
+    "movl     %%edx, %%ecx         \n\t"
+    "shll     $8, %%ecx            \n\t"
+    "orl      %%ecx, %%edx         \n\t"
+    "imull    %%edx, %%eax         \n\t"
+    "shrl     $24, %%eax           \n\t"
+    "shll     $24, %%eax           \n\t"
+    "orl      %%eax, %%ebx         \n\t"
+
+    // green
+    "movl     %%esi, %%eax         \n\t"
+    "andl     $0x00FF0000, %%eax   \n\t"
+    "shrl     $16, %%eax           \n\t"
+    "movl     %%eax, %%ecx         \n\t"
+    "shll     $8,%%ecx             \n\t"
+    "orl      %%ecx, %%eax         \n\t"
+    "movl     %%edi, %%edx         \n\t"
+    "andl     $0x00FF0000, %%edx   \n\t"
+    "shrl     $16, %%edx           \n\t"
+    "movl     %%edx, %%ecx         \n\t"
+    "shll     $8, %%ecx            \n\t"
+    "orl      %%ecx, %%edx         \n\t"
+    "imull    %%edx, %%eax         \n\t"
+    "shrl     $24, %%eax           \n\t"
+    "shll     $16, %%eax           \n\t"
+    "orl      %%eax, %%ebx         \n\t"
+
+    // blue
+    "movl     %%esi, %%eax         \n\t"
+    "andl     $0x0000FF00, %%eax   \n\t"
+    "shrl     $8, %%eax            \n\t"
+    "movl     %%eax, %%ecx         \n\t"
+    "shll     $8, %%ecx            \n\t"
+    "orl      %%ecx, %%eax         \n\t"
+    "movl     %%edi, %%edx         \n\t"
+    "andl     $0x0000FF00, %%edx   \n\t"
+    "shrl     $8, %%edx            \n\t"
+    "movl     %%edx, %%ecx         \n\t"
+    "shll     $8, %%ecx            \n\t"
+    "orl      %%ecx, %%edx         \n\t"
+    "imull    %%edx, %%eax         \n\t"
+    "shrl     $24, %%eax           \n\t"
+    "shll     $8, %%eax            \n\t"
+    "orl      %%eax, %%ebx         \n\t"
+
+    // alpha
+    "movl     %%esi, %%eax         \n\t"
+    "andl     $0x000000FF, %%eax   \n\t"
+    "shrl     $0, %%eax            \n\t"  // !!! FIXME: Lose this line.
+    "movl     %%eax, %%ecx         \n\t"
+    "shll     $8, %%ecx            \n\t"
+    "orl      %%ecx, %%eax         \n\t"
+    "movl     %%edi, %%edx         \n\t"
+    "andl     $0x000000FF, %%edx   \n\t"
+    "shrl     $0, %%edx            \n\t"  // !!! FIXME: Lose this line.
+    "movl     %%edx, %%ecx         \n\t"
+    "shll     $8, %%ecx            \n\t"
+    "orl      %%ecx, %%edx         \n\t"
+    "imull    %%edx, %%eax         \n\t"
+    "shrl     $24, %%eax           \n\t"
+    "shll     $0, %%eax            \n\t"  // !!! FIXME: Lose this line.
+    "orl      %%eax, %%ebx         \n\t"
+    "movl     %%ebx, %%ecx         \n\t"
+    "popl     %%ebx                \n\t"
+        : "=c" (colRet)
+        : "S" (col1), "D" (col2)
+        : "eax", "edx", "cc", "memory"
+  );
+
+  return colRet;
+#else
+  #error please fill in inline assembly for your platform.
+#endif
 }
 
 
@@ -331,6 +445,12 @@ COLOR AddColors( COLOR col1, COLOR col2)
   if( col2==0) return col1;
   if( col1==0xFFFFFFFF || col2==0xFFFFFFFF) return 0xFFFFFFFF;
   COLOR colRet;
+
+#if (defined USE_PORTABLE_C)
+  STUBBED("AddColors");
+  colRet = 0;
+
+#elif (defined __MSVC_INLINE__)
   __asm {
     xor     ebx,ebx
     mov     esi,255
@@ -393,6 +513,88 @@ COLOR AddColors( COLOR col1, COLOR col2)
     // done
     mov     D [colRet],ebx
   }
+
+#elif (defined __GNU_INLINE__)
+  __asm__ __volatile__ (
+    "pushl   %%ebx                \n\t"
+    "pushl   %%edi                \n\t"
+    "pushl   %%esi                \n\t"
+    "xorl    %%ebx, %%ebx         \n\t"
+    "mov     $255, %%esi          \n\t"
+
+    // red
+    "movl    (%%esp), %%eax       \n\t"
+    "andl    $0xFF000000, %%eax   \n\t"
+    "shrl    $24, %%eax           \n\t"
+    "movl    4(%%esp), %%edx      \n\t"
+    "andl    $0xFF000000, %%edx   \n\t"
+    "shrl    $24, %%edx           \n\t"
+    "addl    %%edx, %%eax         \n\t"
+    "cmpl    %%eax, %%esi         \n\t" // clamp
+    "sbbl    %%ecx, %%ecx         \n\t"
+    "orl     %%ecx, %%eax         \n\t"
+    "shll    $24, %%eax           \n\t"
+    "andl    $0xFF000000, %%eax   \n\t"
+    "orl     %%eax, %%ebx         \n\t"
+
+    // green
+    "movl    (%%esp), %%eax       \n\t"
+    "andl    $0x00FF0000, %%eax   \n\t"
+    "shrl    $16, %%eax           \n\t"
+    "movl    4(%%esp), %%edx      \n\t"
+    "andl    $0x00FF0000, %%edx   \n\t"
+    "shrl    $16, %%edx           \n\t"
+    "addl    %%edx, %%eax         \n\t"
+    "cmpl    %%eax, %%esi         \n\t" // clamp
+    "sbbl    %%ecx, %%ecx         \n\t"
+    "orl     %%ecx, %%eax         \n\t"
+    "shll    $16, %%eax           \n\t"
+    "andl    $0x00FF0000, %%eax   \n\t"
+    "orl     %%eax, %%ebx         \n\t"
+
+    // blue
+    "movl    (%%esp), %%eax       \n\t"
+    "andl    $0x0000FF00, %%eax   \n\t"
+    "shrl    $8, %%eax            \n\t"
+    "movl    4(%%esp), %%edx      \n\t"
+    "andl    $0x0000FF00, %%edx   \n\t"
+    "shrl    $8, %%edx            \n\t"
+    "addl    %%edx, %%eax         \n\t"
+    "cmpl    %%eax, %%esi         \n\t" // clamp
+    "sbbl    %%ecx, %%ecx         \n\t"
+    "orl     %%ecx, %%eax         \n\t"
+    "shll    $8, %%eax            \n\t"
+    "andl    $0x0000FF00, %%eax   \n\t"
+    "orl     %%eax, %%ebx         \n\t"
+
+    // alpha
+    "movl    (%%esp), %%eax       \n\t"
+    "andl    $0x000000FF, %%eax   \n\t"
+    "shrl    $0, %%eax            \n\t"
+    "movl    4(%%esp), %%edx      \n\t"
+    "andl    $0x000000FF, %%edx   \n\t"
+    "shrl    $0, %%edx            \n\t"
+    "addl    %%edx, %%eax         \n\t"
+    "cmpl    %%eax, %%esi         \n\t" // clamp
+    "sbbl    %%ecx, %%ecx         \n\t"
+    "orl     %%ecx, %%eax         \n\t"
+    "shll    $0, %%eax            \n\t"
+    "andl    $0x000000FF, %%eax   \n\t"
+    "orl     %%eax, %%ebx         \n\t"
+    "movl     %%ebx, %%ecx        \n\t"
+
+    // done.
+    "addl    $8, %%esp            \n\t"
+    "popl     %%ebx               \n\t"
+        : "=c" (colRet)
+        : "S" (col1), "D" (col2)
+        : "eax", "edx", "cc", "memory"
+  );
+
+#else
+  #error please fill in inline assembly for your platform.
+#endif
+
   return colRet;
 }
 
@@ -401,6 +603,11 @@ COLOR AddColors( COLOR col1, COLOR col2)
 // multiple conversion from OpenGL color to DirectX color
 extern void abgr2argb( ULONG *pulSrc, ULONG *pulDst, INDEX ct)
 {
+#if (defined USE_PORTABLE_C)
+  //#error write me.
+  STUBBED("abgr2argb");
+
+#elif (defined __MSVC_INLINE__)
   __asm {
     mov   esi,dword ptr [pulSrc]
     mov   edi,dword ptr [pulDst]
@@ -452,4 +659,12 @@ colSkip2:
     mov   dword ptr [edi],eax
 colSkip1:
   }
+
+#elif (defined __GNU_INLINE__)
+  STUBBED("convert to inline asm.");
+
+#else
+  #error please fill in inline assembly for your platform.
+#endif
 }
+

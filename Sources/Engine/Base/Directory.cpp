@@ -13,10 +13,11 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include "Engine/StdH.h"
 #include <Engine/Base/Stream.h>
 #include <Engine/Base/FileName.h>
 #include <Engine/Base/Unzip.h>
+#include <Engine/Base/FileSystem.h>
 #include <Engine/Templates/DynamicStackArray.cpp>
 #include <io.h>
 
@@ -62,32 +63,33 @@ void FillDirList_internal(const CTFileName &fnmBasePath,
       continue;
     }
     
+    const char *dirsep = CFileSystem::GetDirSeparator();
+
     // start listing the directory
-    struct _finddata_t c_file; long hFile;
-    hFile = _findfirst( (const char *)(fnmBasePath+fnmDir+"*"), &c_file );
-    
+    CDynamicArray<CTString> *files;
+    files = _pFileSystem->FindFiles(fnmBasePath+fnmDir, "*");
+    int max = files->Count();
+
     // for each file in the directory
-    for (
-      BOOL bFileExists = hFile!=-1; 
-      bFileExists; 
-      bFileExists = _findnext( hFile, &c_file )==0) {
+    for (int i = 0; i < max; i++) {
+      const char *fname = (*files)[i];
 
       // if dummy dir (this dir, parent dir, or any dir starting with '.')
-      if (c_file.name[0]=='.') {
+      if (_pFileSystem->IsDummyFile(fname)) {
         // skip it
         continue;
       }
 
       // get the file's filepath
-      CTFileName fnm = fnmDir+c_file.name;
+      CTFileName fnm = fnmDir + fname;
 
       // if it is a directory
-      if (c_file.attrib&_A_SUBDIR) {
+      if (_pFileSystem->IsDirectory(fnm)) {
         // if recursive reading
         if (bRecursive) {
           // add it to the list of directories to search
           CDirToRead *pdrNew = new CDirToRead;
-          pdrNew->dr_strDir = fnm+"\\";
+          pdrNew->dr_strDir = fnm + dirsep;
           lhDirs.AddTail(pdrNew->dr_lnNode);
         }
       // if it matches the pattern
@@ -96,13 +98,15 @@ void FillDirList_internal(const CTFileName &fnmBasePath,
         afnm.Push() = fnm;
       }
     }
+
+    delete files;
   }
 }
 
 
 // make a list of all files in a directory
 ENGINE_API void MakeDirList(
-  CDynamicStackArray<CTFileName> &afnmDir, const CTFileName &fnmDir, const CTString &strPattern, ULONG ulFlags)
+  CDynamicStackArray<CTFileName> &afnmDir, const CTFileName &fnmDir, const CTFileName &fnmPattern, ULONG ulFlags)
 {
   afnmDir.PopAll();
   BOOL bRecursive = ulFlags&DLI_RECURSIVE;
@@ -112,17 +116,21 @@ ENGINE_API void MakeDirList(
   CDynamicStackArray<CTFileName> afnm;
 
   if (_fnmMod!="") {
-    FillDirList_internal(_fnmApplicationPath, afnm, fnmDir, strPattern, bRecursive,
+    FillDirList_internal(_fnmUserDir, afnm, fnmDir, fnmPattern, bRecursive,
+      &_afnmBaseBrowseInc, &_afnmBaseBrowseExc);
+    FillDirList_internal(_fnmApplicationPath, afnm, fnmDir, fnmPattern, bRecursive,
       &_afnmBaseBrowseInc, &_afnmBaseBrowseExc);
     if (bSearchCD) {
-      FillDirList_internal(_fnmCDPath, afnm, fnmDir, strPattern, bRecursive,
+      FillDirList_internal(_fnmCDPath, afnm, fnmDir, fnmPattern, bRecursive,
       &_afnmBaseBrowseInc, &_afnmBaseBrowseExc);
     }
-    FillDirList_internal(_fnmApplicationPath+_fnmMod, afnm, fnmDir, strPattern, bRecursive, NULL, NULL);
+    FillDirList_internal(_fnmUserDir+_fnmMod, afnm, fnmDir, fnmPattern, bRecursive, NULL, NULL);
+    FillDirList_internal(_fnmApplicationPath+_fnmMod, afnm, fnmDir, fnmPattern, bRecursive, NULL, NULL);
   } else {
-    FillDirList_internal(_fnmApplicationPath, afnm, fnmDir, strPattern, bRecursive, NULL, NULL);
+    FillDirList_internal(_fnmUserDir, afnm, fnmDir, fnmPattern, bRecursive, NULL, NULL);
+    FillDirList_internal(_fnmApplicationPath, afnm, fnmDir, fnmPattern, bRecursive, NULL, NULL);
     if (bSearchCD) {
-      FillDirList_internal(_fnmCDPath, afnm, fnmDir, strPattern, bRecursive, NULL, NULL);
+      FillDirList_internal(_fnmCDPath, afnm, fnmDir, fnmPattern, bRecursive, NULL, NULL);
     }
   }
 
@@ -144,7 +152,7 @@ ENGINE_API void MakeDirList(
     }
 
     // if doesn't match pattern
-    if (strPattern!="" && !fnm.Matches(strPattern)) {
+    if (fnmPattern!="" && !fnm.Matches(fnmPattern)) {
       // skip it
       continue;
     }

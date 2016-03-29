@@ -26,12 +26,13 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <Engine/Base/CRC.h>
 #include <Engine/Base/CRCTable.h>
 #include <Engine/Base/ProgressHook.h>
+#include <Engine/Base/FileSystem.h>
 #include <Engine/Sound/SoundListener.h>
 #include <Engine/Sound/SoundLibrary.h>
 #include <Engine/Graphics/GfxLibrary.h>
 #include <Engine/Graphics/Font.h>
 #include <Engine/Network/Network.h>
-#include <Engine/templates/DynamicContainer.cpp>
+#include <Engine/Templates/DynamicContainer.cpp>
 #include <Engine/Templates/Stock_CAnimData.h>
 #include <Engine/Templates/Stock_CTextureData.h>
 #include <Engine/Templates/Stock_CSoundData.h>
@@ -44,6 +45,10 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <Engine/Templates/StaticArray.cpp>
 #include <Engine/Base/IFeel.h>
 
+#if (defined PLATFORM_MACOSX)
+#include <Carbon/Carbon.h>
+#endif
+
 // this version string can be referenced from outside the engine
 ENGINE_API CTString _strEngineBuild  = "";
 ENGINE_API ULONG _ulEngineBuildMajor = _SE_BUILD_MAJOR;
@@ -53,12 +58,13 @@ ENGINE_API BOOL _bDedicatedServer = FALSE;
 ENGINE_API BOOL _bWorldEditorApp  = FALSE;
 ENGINE_API CTString _strLogFile = "";
 
-// global handle for application window
-extern HWND _hwndMain = NULL;
-extern BOOL _bFullScreen = FALSE;
+// global handle for application windows
+// !!! FIXME rcg10072001 this needs to be abstracted.
+static HWND _hwndMain = NULL;
+static BOOL _bFullScreen = FALSE;
 
-// critical section for access to zlib functions
-CTCriticalSection zip_csLock; 
+CTCriticalSection zip_csLock; // critical section for access to zlib functions
+
 
 // to keep system gamma table
 static UWORD auwSystemGamma[256*3];
@@ -96,8 +102,10 @@ static CTString sys_strModName = "";
 static CTString sys_strModExt  = "";
 
 // enables paranoia checks for allocation array
-extern BOOL _bAllocationArrayParanoiaCheck = FALSE;
+BOOL _bAllocationArrayParanoiaCheck = FALSE;
 
+// rcg10072001
+#ifdef PLATFORM_WIN32
 BOOL APIENTRY DllMain( HANDLE hModule, DWORD  ul_reason_for_call, LPVOID lpReserved)
 {
   switch (ul_reason_for_call)
@@ -116,14 +124,19 @@ BOOL APIENTRY DllMain( HANDLE hModule, DWORD  ul_reason_for_call, LPVOID lpReser
 
 static void DetectCPU(void)
 {
+#if (defined USE_PORTABLE_C)  // rcg10072001
+  CPrintF(TRANS("  (No CPU detection in this binary.)\n"));
+
+#else
   char strVendor[12+1];
   strVendor[12] = 0;
   ULONG ulTFMS;
   ULONG ulFeatures;
 
+  #if (defined __MSVC_INLINE__)
   // test MMX presence and update flag
   __asm {
-    mov     eax,0           ;// request for basic id
+    xor     eax,eax           ;// request for basic id
     cpuid
     mov     dword ptr [strVendor+0], ebx
     mov     dword ptr [strVendor+4], edx
@@ -133,6 +146,43 @@ static void DetectCPU(void)
     mov     dword ptr [ulTFMS], eax ;// remember type, family, model and stepping
     mov     dword ptr [ulFeatures], edx
   }
+
+  #elif (defined __GNU_INLINE__)
+    // test MMX presence and update flag
+    __asm__ __volatile__ (
+        "pushl   %%ebx            \n\t"
+        "xorl    %%eax,%%eax      \n\t"  // request for basic id
+        "cpuid                    \n\t"
+        "movl    %%ebx,  (%%esi)  \n\t"
+        "movl    %%edx, 4(%%esi)  \n\t"
+        "movl    %%ecx, 8(%%esi)  \n\t"
+        "popl    %%ebx            \n\t"
+            : // no specific outputs.
+            : "S" (strVendor)
+            : "eax", "ecx", "edx", "memory"
+    );
+
+        // need to break this into a separate asm block, since I'm clobbering
+        //  too many registers. There's something to be said for letting MSVC
+        //  figure out where on the stack your locals are resting, but yeah,
+        //  I know, that's x86-specific anyhow...
+        // !!! FIXME: can probably do this right with modern GCC.
+
+    __asm__ __volatile__ (
+        "pushl   %%ebx                  \n\t"
+        "movl    $1, %%eax              \n\t"  // request for TFMS feature flags
+        "cpuid                          \n\t"
+        "mov     %%eax, (%%esi)         \n\t"  // remember type, family, model and stepping
+        "mov     %%edx, (%%edi)         \n\t"
+        "popl    %%ebx                  \n\t"
+            : // no specific outputs.
+            : "S" (&ulTFMS), "D" (&ulFeatures)
+            : "eax", "ecx", "edx", "memory"
+    );
+
+  #else
+    #error Please implement for your platform or define USE_PORTABLE_C.
+  #endif
 
   INDEX iType     = (ulTFMS>>12)&0x3;
   INDEX iFamily   = (ulTFMS>> 8)&0xF;
@@ -150,8 +200,8 @@ static void DetectCPU(void)
   CTString strYes = TRANS("Yes");
   CTString strNo = TRANS("No");
 
-  CPrintF(TRANS("  MMX : %s\n"), bMMX ?strYes:strNo);
-  CPrintF(TRANS("  CMOV: %s\n"), bCMOV?strYes:strNo);
+  CPrintF(TRANS("  MMX : %s\n"), (const char *) (bMMX ?strYes:strNo));
+  CPrintF(TRANS("  CMOV: %s\n"), (const char *) (bCMOV?strYes:strNo));
   CPrintF(TRANS("  Clock: %.0fMHz\n"), _pTimer->tm_llCPUSpeedHZ/1E6);
 
   sys_strCPUVendor = strVendor;
@@ -164,15 +214,27 @@ static void DetectCPU(void)
   sys_iCPUMHz = INDEX(_pTimer->tm_llCPUSpeedHZ/1E6);
 
   if( !bMMX) FatalError( TRANS("MMX support required but not present!"));
+
+#endif  // defined USE_PORTABLE_C
 }
 
 static void DetectCPUWrapper(void)
 {
+#ifdef _MSC_VER  // rcg10072001
   __try {
     DetectCPU();
   } __except(EXCEPTION_EXECUTE_HANDLER) {
     CPrintF( TRANS("Cannot detect CPU: exception raised.\n"));
   }
+#else
+    // We just have to punt and try this. The exception we're catching here
+    //  is really a matter of whether the CPUID instruction is missing (on a
+    //  pre Pentium system, which can't run this game anyhow) which will raise
+    //  SIGILL on Unix platforms, or the CPU doesn't have MMX, in which case
+    //  FatalError will end the process. USE_PORTABLE_C users will not have
+    //  any exception at all. Have I rationalized this enough, yet?  :) --ryan.
+    DetectCPU();
+#endif
 }
 
 // reverses string
@@ -194,41 +256,80 @@ static char strDirPath[MAX_PATH] = "";
 
 static void AnalyzeApplicationPath(void)
 {
-  strcpy(strDirPath, "D:\\");
-  strcpy(strExePath, "D:\\TestExe.xbe");
+  // rcg10072001 rewritten with abstraction layer.
+  const char *_dirsep = CFileSystem::GetDirSeparator();
+  size_t seplen = strlen(_dirsep);
+  char *dirsep = new char[seplen + 1];
+  strcpy(dirsep, _dirsep);
+  StrRev(dirsep);
+
   char strTmpPath[MAX_PATH] = "";
-  // get full path to the exe
-  GetModuleFileNameA( NULL, strExePath, sizeof(strExePath)-1);
-  // copy that to the path
+
+  _pFileSystem->GetExecutablePath(strExePath, sizeof (strExePath)-1);
   strncpy(strTmpPath, strExePath, sizeof(strTmpPath)-1);
   strDirPath[sizeof(strTmpPath)-1] = 0;
   // remove name from application path
   StrRev(strTmpPath);  
   // find last backslash
-  char *pstr = strchr( strTmpPath, '\\');
+  char *pstr = strstr( strTmpPath, dirsep);
   if( pstr==NULL) {
     // not found - path is just "\"
-    strcpy( strTmpPath, "\\");
+    strcpy( strTmpPath, dirsep);
     pstr = strTmpPath;
   } 
   // remove 'debug' from app path if needed
-  if( strnicmp( pstr, "\\gubed", 6)==0) pstr += 6;
-  if( pstr[0] = '\\') pstr++;
-  char *pstrFin = strchr( pstr, '\\');
+  if( strnicmp( pstr, (CTString(dirsep)+"gubed"), 5+seplen)==0) pstr += (5 + seplen);
+  if( strncmp(pstr, dirsep, seplen) == 0) pstr += seplen;
+  char *pstrFin = strstr( pstr, dirsep);
   if( pstrFin==NULL) {
-    strcpy( pstr, "\\");
+    strcpy( pstr, dirsep);
     pstrFin = pstr;
   }
   // copy that to the path
   StrRev(pstrFin);
   strncpy( strDirPath, pstrFin, sizeof(strDirPath)-1);
   strDirPath[sizeof(strDirPath)-1] = 0;
+  delete[] dirsep;
 }
 
+// rcg03242003
+static void SanityCheckTypes(void)
+{
+    ASSERT(sizeof (SBYTE) == 1);
+    ASSERT(sizeof (UBYTE) == 1);
+    ASSERT(sizeof (UWORD) == 2);
+    ASSERT(sizeof (SWORD) == 2);
+    ASSERT(sizeof (ULONG) == 4);
+    ASSERT(sizeof (SLONG) == 4);
+    ASSERT(sizeof (INDEX) == 4);
+    ASSERT(sizeof (BOOL) == 4);
+
+    ULONG val = 0x02000001;
+    UBYTE num = *((UBYTE *) &val);
+    #if PLATFORM_BIGENDIAN
+        #if PLATFORM_LITTLEENDIAN
+            #error uh...what?
+        #endif
+        ASSERT(num == 0x02);
+    #endif
+    #if PLATFORM_LITTLEENDIAN
+        #if PLATFORM_BIGENDIAN
+            #error uh...what?
+        #endif
+        ASSERT(num == 0x01);
+    #endif
+}
 
 // startup engine 
-ENGINE_API void SE_InitEngine(CTString strGameID)
+ENGINE_API void SE_InitEngine(const char *argv0, CTString strGameID)
 {
+  SanityCheckTypes();
+
+  const char *gamename = "UnknownGame";
+  if (strGameID != "")
+    gamename = (const char *) strGameID;
+  _pFileSystem = CFileSystem::GetInstance(argv0, gamename);  // rcg10082001
+
   #pragma message(">> Remove this from SE_InitEngine : _bWorldEditorApp")
   if(strGameID=="SeriousEditor") {
     _bWorldEditorApp = TRUE;
@@ -237,6 +338,12 @@ ENGINE_API void SE_InitEngine(CTString strGameID)
   AnalyzeApplicationPath();
   _fnmApplicationPath = CTString(strDirPath);
   _fnmApplicationExe = CTString(strExePath);
+
+    // rcg01012002 calculate user dir.
+  char buf[MAX_PATH];
+  _pFileSystem->GetUserDirectory(buf, sizeof (buf));
+  _fnmUserDir = CTString(buf);
+
   try {
     _fnmApplicationExe.RemoveApplicationPath_t();
   } catch (char *strError) {
@@ -247,8 +354,10 @@ ENGINE_API void SE_InitEngine(CTString strGameID)
   _pConsole = new CConsole;
   if (_strLogFile=="") {
     _strLogFile = CTFileName(CTString(strExePath)).FileName();
+    // chop off end of Unix executable filename... --ryan.
+    _strLogFile.ReplaceSubstr(CTString("-bin"), CTString(""));
   }
-  _pConsole->Initialize(_fnmApplicationPath+_strLogFile+".log", 90, 512);
+  _pConsole->Initialize(_fnmUserDir+_strLogFile+".log", 90, 512);
 
   _pAnimStock        = new CStock_CAnimData;
   _pTextureStock     = new CStock_CTextureData;
@@ -259,6 +368,11 @@ ENGINE_API void SE_InitEngine(CTString strGameID)
   _pSkeletonStock    = new CStock_CSkeleton;
   _pAnimSetStock     = new CStock_CAnimSet;
   _pShaderStock      = new CStock_CShader;
+
+  // rcg11232001 I moved this here so I can register platform-specific cvars.
+  // init main shell
+  _pShell = new CShell;
+  _pShell->Initialize();
 
   _pTimer = new CTimer;
   _pGfx   = new CGfxLibrary;
@@ -272,20 +386,23 @@ ENGINE_API void SE_InitEngine(CTString strGameID)
 
   // print basic engine info
   CPrintF(TRANS("--- Serious Engine Startup ---\n"));
-  CPrintF("  %s\n\n", _strEngineBuild);
+  CPrintF("  %s\n\n", (const char *) _strEngineBuild);
 
   // print info on the started application
   CPrintF(TRANS("Executable: %s\n"), strExePath);
-  CPrintF(TRANS("Assumed engine directory: %s\n"), _fnmApplicationPath);
+  CPrintF(TRANS("Assumed engine directory: %s\n"), (const char *) _fnmApplicationPath);
 
   CPrintF("\n");
 
   // report os info
   CPrintF(TRANS("Examining underlying OS...\n"));
-  OSVERSIONINFOA osv;
+
+// !!! FIXME: Abstract this somehow.
+#if (defined PLATFORM_WIN32)
+  OSVERSIONINFO osv;
   memset(&osv, 0, sizeof(osv));
   osv.dwOSVersionInfoSize = sizeof(osv);
-  if (GetVersionExA(&osv)) {
+  if (GetVersionEx(&osv)) {
     switch (osv.dwPlatformId) {
     case VER_PLATFORM_WIN32s:         sys_strOS = "Win32s";  break;
     case VER_PLATFORM_WIN32_WINDOWS:  sys_strOS = "Win9x"; break;
@@ -305,11 +422,37 @@ ENGINE_API void SE_InitEngine(CTString strGameID)
   } else {
     CPrintF(TRANS("Error getting OS info: %s\n"), GetWindowsError(GetLastError()) );
   }
+
+#elif (defined PLATFORM_MACOSX)
+    long osver = 0x0000;
+    OSErr err = Gestalt(gestaltSystemVersion, &osver);
+    if (err != noErr)
+        osver = 0x0000;
+
+    sys_iOSMajor = ((osver & 0x0F00) >> 8) + (((osver & 0xF000) >> 12) * 10);
+    sys_iOSMinor = ((osver & 0x00F0) >> 4);
+    sys_iOSBuild = ((osver & 0x000F) >> 0);
+    sys_strOS = "Mac OS X";
+    sys_strOSMisc = "Mac OS";
+    CPrintF(TRANS("  Type: %s\n"), (const char*)sys_strOS);
+    CPrintF(TRANS("  Version: %d.%d.%d\n"),
+                 (int)sys_iOSMajor, (int)sys_iOSMinor, (int)sys_iOSBuild);
+
+#elif (defined PLATFORM_UNIX)  // !!! FIXME: rcg10082001 what to do with this?
+    sys_iOSMajor = 1;
+    sys_iOSMinor = 0;
+    sys_iOSBuild = 0;
+    sys_strOS = "Unix";
+    sys_strOSMisc = "Unix";
+    CPrintF(TRANS("  Type: %s\n"), (const char*)sys_strOS);
+
+#else
+   #error Do something with this for your platform.
+#endif
+
   CPrintF("\n");
 
-  // init main shell
-  _pShell = new CShell;
-  _pShell->Initialize();
+  // (rcg11232001 this is where _pShell was originally created.)
 
   // report CPU
   CPrintF(TRANS("Detecting CPU...\n"));
@@ -320,6 +463,7 @@ ENGINE_API void SE_InitEngine(CTString strGameID)
   extern void ReportGlobalMemoryStatus(void);
   ReportGlobalMemoryStatus();
 
+#if (defined PLATFORM_WIN32)  // !!! FIXME: Abstract this somehow.
   MEMORYSTATUS ms;
   GlobalMemoryStatus(&ms);
 
@@ -327,10 +471,21 @@ ENGINE_API void SE_InitEngine(CTString strGameID)
   sys_iRAMPhys = ms.dwTotalPhys    /MB;
   sys_iRAMSwap = ms.dwTotalPageFile/MB;
 
+#elif (defined PLATFORM_UNIX)
+  sys_iRAMPhys = 1;  // !!! FIXME: This is bad. Bad. BAD.
+  sys_iRAMSwap = 1;
+
+#else
+   #error Do something with this for your platform.
+#endif
+
   // initialize zip semaphore
   zip_csLock.cs_iIndex = -1;  // not checked for locking order
 
 
+// rcg10082001 Honestly, all of this is meaningless in a multitasking OS.
+//  That includes Windows, too.
+#if (defined PLATFORM_WIN32)  // !!! FIXME: Abstract this somehow.
   // get info on the first disk in system
   DWORD dwSerial;
   DWORD dwFreeClusters;
@@ -343,48 +498,57 @@ ENGINE_API void SE_InitEngine(CTString strGameID)
 
   GetVolumeInformationA(strDrive, NULL, 0, &dwSerial, NULL, NULL, NULL, 0);
   GetDiskFreeSpaceA(strDrive, &dwSectors, &dwBytes, &dwFreeClusters, &dwClusters);
-  sys_iHDDSize = __int64(dwSectors)*dwBytes*dwClusters/MB;
-  sys_iHDDFree = __int64(dwSectors)*dwBytes*dwFreeClusters/MB;
+  sys_iHDDSize = ((__int64)dwSectors)*dwBytes*dwClusters/MB;
+  sys_iHDDFree = ((__int64)dwSectors)*dwBytes*dwFreeClusters/MB;
   sys_iHDDMisc = dwSerial;
+
+#elif (defined PLATFORM_UNIX)  // !!! FIXME: Uhh...?
+  sys_iHDDSize = 1;
+  sys_iHDDFree = 1;
+  sys_iHDDMisc = 0xDEADBEEF;
+
+#else
+   #error Do something with this for your platform.
+#endif
  
   // add console variables
   extern INDEX con_bNoWarnings;
   extern INDEX wld_bFastObjectOptimization;
   extern INDEX fil_bPreferZips;
   extern FLOAT mth_fCSGEpsilon;
-  _pShell->DeclareSymbol("user INDEX con_bNoWarnings;", &con_bNoWarnings);
-  _pShell->DeclareSymbol("user INDEX wld_bFastObjectOptimization;", &wld_bFastObjectOptimization);
-  _pShell->DeclareSymbol("user FLOAT mth_fCSGEpsilon;", &mth_fCSGEpsilon);
-  _pShell->DeclareSymbol("persistent user INDEX fil_bPreferZips;", &fil_bPreferZips);
+  _pShell->DeclareSymbol("user INDEX con_bNoWarnings;", (void *) &con_bNoWarnings);
+  _pShell->DeclareSymbol("user INDEX wld_bFastObjectOptimization;", (void *) &wld_bFastObjectOptimization);
+  _pShell->DeclareSymbol("user FLOAT mth_fCSGEpsilon;", (void *) &mth_fCSGEpsilon);
+  _pShell->DeclareSymbol("persistent user INDEX fil_bPreferZips;", (void *) &fil_bPreferZips);
   // OS info
-  _pShell->DeclareSymbol("user const CTString sys_strOS    ;", &sys_strOS);
-  _pShell->DeclareSymbol("user const INDEX sys_iOSMajor    ;", &sys_iOSMajor);
-  _pShell->DeclareSymbol("user const INDEX sys_iOSMinor    ;", &sys_iOSMinor);
-  _pShell->DeclareSymbol("user const INDEX sys_iOSBuild    ;", &sys_iOSBuild);
-  _pShell->DeclareSymbol("user const CTString sys_strOSMisc;", &sys_strOSMisc);
+  _pShell->DeclareSymbol("user const CTString sys_strOS    ;", (void *) &sys_strOS);
+  _pShell->DeclareSymbol("user const INDEX sys_iOSMajor    ;", (void *) &sys_iOSMajor);
+  _pShell->DeclareSymbol("user const INDEX sys_iOSMinor    ;", (void *) &sys_iOSMinor);
+  _pShell->DeclareSymbol("user const INDEX sys_iOSBuild    ;", (void *) &sys_iOSBuild);
+  _pShell->DeclareSymbol("user const CTString sys_strOSMisc;", (void *) &sys_strOSMisc);
   // CPU info
-  _pShell->DeclareSymbol("user const CTString sys_strCPUVendor;", &sys_strCPUVendor);
-  _pShell->DeclareSymbol("user const INDEX sys_iCPUType       ;", &sys_iCPUType    );
-  _pShell->DeclareSymbol("user const INDEX sys_iCPUFamily     ;", &sys_iCPUFamily  );
-  _pShell->DeclareSymbol("user const INDEX sys_iCPUModel      ;", &sys_iCPUModel   );
-  _pShell->DeclareSymbol("user const INDEX sys_iCPUStepping   ;", &sys_iCPUStepping);
-  _pShell->DeclareSymbol("user const INDEX sys_bCPUHasMMX     ;", &sys_bCPUHasMMX  );
-  _pShell->DeclareSymbol("user const INDEX sys_bCPUHasCMOV    ;", &sys_bCPUHasCMOV );
-  _pShell->DeclareSymbol("user const INDEX sys_iCPUMHz        ;", &sys_iCPUMHz     );
-  _pShell->DeclareSymbol("     const INDEX sys_iCPUMisc       ;", &sys_iCPUMisc    );
+  _pShell->DeclareSymbol("user const CTString sys_strCPUVendor;", (void *) &sys_strCPUVendor);
+  _pShell->DeclareSymbol("user const INDEX sys_iCPUType       ;", (void *) &sys_iCPUType    );
+  _pShell->DeclareSymbol("user const INDEX sys_iCPUFamily     ;", (void *) &sys_iCPUFamily  );
+  _pShell->DeclareSymbol("user const INDEX sys_iCPUModel      ;", (void *) &sys_iCPUModel   );
+  _pShell->DeclareSymbol("user const INDEX sys_iCPUStepping   ;", (void *) &sys_iCPUStepping);
+  _pShell->DeclareSymbol("user const INDEX sys_bCPUHasMMX     ;", (void *) &sys_bCPUHasMMX  );
+  _pShell->DeclareSymbol("user const INDEX sys_bCPUHasCMOV    ;", (void *) &sys_bCPUHasCMOV );
+  _pShell->DeclareSymbol("user const INDEX sys_iCPUMHz        ;", (void *) &sys_iCPUMHz     );
+  _pShell->DeclareSymbol("     const INDEX sys_iCPUMisc       ;", (void *) &sys_iCPUMisc    );
   // RAM info
-  _pShell->DeclareSymbol("user const INDEX sys_iRAMPhys;", &sys_iRAMPhys);
-  _pShell->DeclareSymbol("user const INDEX sys_iRAMSwap;", &sys_iRAMSwap);
-  _pShell->DeclareSymbol("user const INDEX sys_iHDDSize;", &sys_iHDDSize);
-  _pShell->DeclareSymbol("user const INDEX sys_iHDDFree;", &sys_iHDDFree);
-  _pShell->DeclareSymbol("     const INDEX sys_iHDDMisc;", &sys_iHDDMisc);
+  _pShell->DeclareSymbol("user const INDEX sys_iRAMPhys;", (void *) &sys_iRAMPhys);
+  _pShell->DeclareSymbol("user const INDEX sys_iRAMSwap;", (void *) &sys_iRAMSwap);
+  _pShell->DeclareSymbol("user const INDEX sys_iHDDSize;", (void *) &sys_iHDDSize);
+  _pShell->DeclareSymbol("user const INDEX sys_iHDDFree;", (void *) &sys_iHDDFree);
+  _pShell->DeclareSymbol("     const INDEX sys_iHDDMisc;", (void *) &sys_iHDDMisc);
   // MOD info
-  _pShell->DeclareSymbol("user const CTString sys_strModName;", &sys_strModName);
-  _pShell->DeclareSymbol("user const CTString sys_strModExt;",  &sys_strModExt);
+  _pShell->DeclareSymbol("user const CTString sys_strModName;", (void *) &sys_strModName);
+  _pShell->DeclareSymbol("user const CTString sys_strModExt;",  (void *) &sys_strModExt);
 
   // Stock clearing
   extern void FreeUnusedStock(void);
-  _pShell->DeclareSymbol("user void FreeUnusedStock(void);", &FreeUnusedStock);
+  _pShell->DeclareSymbol("user void FreeUnusedStock(void);", (void *) &FreeUnusedStock);
   
   // Timer tick quantum
   _pShell->DeclareSymbol("user const FLOAT fTickQuantum;", (FLOAT*)&_pTimer->TickQuantum);
@@ -447,6 +611,8 @@ ENGINE_API void SE_InitEngine(CTString strGameID)
   _pfdDisplayFont = NULL;
   _pfdConsoleFont = NULL;
 
+// !!! FIXME: Move this into GfxLibrary...
+#ifdef PLATFORM_WIN32
   // readout system gamma table
   HDC  hdc = GetDC(NULL);
   BOOL bOK = GetDeviceGammaRamp( hdc, &auwSystemGamma[0]);
@@ -456,7 +622,13 @@ ENGINE_API void SE_InitEngine(CTString strGameID)
     CPrintF( TRANS("\nWARNING: Gamma, brightness and contrast are not adjustable!\n\n"));
   } // done
   ReleaseDC( NULL, hdc);
-  
+#else
+  // !!! FIXME : rcg01072002 This CAN be done with SDL, actually. Move this somewhere.
+  CPrintF( TRANS("\nWARNING: Gamma, brightness and contrast are not adjustable!\n\n"));
+#endif
+
+// !!! FIXME : rcg12072001 Move this somewhere else.
+#ifdef PLATFORM_WIN32
   // init IFeel
   HWND hwnd = NULL;//GetDesktopWindow();
   HINSTANCE hInstance = GetModuleHandle(NULL);
@@ -476,12 +648,15 @@ ENGINE_API void SE_InitEngine(CTString strGameID)
     }
     CPrintF("\n");
   }
+#endif
 }
 
 
 // shutdown entire engine
 ENGINE_API void SE_EndEngine(void)
 {
+// !!! FIXME: Move this into GfxLibrary...
+#ifdef PLATFORM_WIN32
   // restore system gamma table (if needed)
   if( _pGfx->gl_ulFlags&GLF_ADJUSTABLEGAMMA) {
     HDC  hdc = GetDC(NULL);
@@ -489,6 +664,7 @@ ENGINE_API void SE_EndEngine(void)
     //ASSERT(bOK);
     ReleaseDC( NULL, hdc);
   }
+#endif
 
   // free stocks
   delete _pEntityClassStock;  _pEntityClassStock = NULL;
@@ -512,6 +688,7 @@ ENGINE_API void SE_EndEngine(void)
   delete _pTimer;    _pTimer   = NULL;  
   delete _pShell;    _pShell   = NULL;  
   delete _pConsole;  _pConsole = NULL;
+  delete _pFileSystem;  _pFileSystem = NULL;
   extern void EndStreams(void);
   EndStreams();
 
@@ -575,6 +752,7 @@ ENGINE_API void SE_UpdateWindowHandle( HWND hwndMain)
 
 static BOOL TouchBlock(UBYTE *pubMemoryBlock, INDEX ctBlockSize)
 {
+#if (defined __MSC_VER)
   // cannot pretouch block that are smaller than 64KB :(
   ctBlockSize -= 16*0x1000;
   if( ctBlockSize<4) return FALSE; 
@@ -602,14 +780,25 @@ touchLoop:
   __except(EXCEPTION_EXECUTE_HANDLER) { 
     return FALSE;
   }
+
+#else
+
+  // !!! FIXME: How necessary is this on a system with a good memory manager?
+  // !!! More importantly, will this help if the system is paging to disk
+  // !!! like mad anyhow? Leaving this as a no-op for most systems seems safe
+  // !!! to me.  --ryan.
+
+#endif
+
   return TRUE;
 }
 
 
 // pretouch all memory commited by process
-extern BOOL _bNeedPretouch = FALSE;
+BOOL _bNeedPretouch = FALSE;
 ENGINE_API extern void SE_PretouchIfNeeded(void)
 {
+#if (defined PLATFORM_WIN32)
   // only if pretouching is needed?
   extern INDEX gam_bPretouch;
   if( !_bNeedPretouch || !gam_bPretouch) return;
@@ -681,6 +870,14 @@ nextRegion:
   // some blocks failed?
   if( ctFails>1) CPrintF( TRANS("(%d blocks were skipped)\n"), ctFails);
   //_pShell->Execute("StockDump();");
+
+#else
+
+  // See dissertation in TouchBlock().  --ryan.
+
+  _bNeedPretouch = FALSE;
+
+#endif
 }
 
 

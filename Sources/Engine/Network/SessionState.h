@@ -39,6 +39,10 @@ with this program; if not, write to the Free Software Foundation, Inc.,
   void ClearDumpStream(void);
 #endif
 
+#ifdef NETSTRUCTS_PACKED
+  #pragma pack(1)
+#endif
+
 // checksum of world snapshot at given point in time - used for sync-checking
 class CSyncCheck {
 public:
@@ -61,6 +65,10 @@ public:
   CPredictedEvent(void);
   void Clear(void) {};
 };
+
+#ifdef NETSTRUCTS_PACKED
+  #pragma pack()
+#endif
 
 /*
  * Session state, manipulates local copy of the world

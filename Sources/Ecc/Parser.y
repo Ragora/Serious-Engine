@@ -3,6 +3,13 @@
 #include "Ecc/StdH.h"
 #include "Ecc/Main.h"
 
+// turn off over-helpful bit of bison... --ryan.
+#ifdef __GNUC__
+#define __attribute__(x)
+#endif
+
+#define YYINITDEPTH 1000
+
 static char *_strCurrentClass;
 static int _iCurrentClassID;
 static char *_strCurrentBase;
@@ -125,7 +132,7 @@ void CreateInternalHandlerFunction(char *strFunctionName, char *strID)
 void DeclareFeatureProperties(void)
 {
   if (_bFeature_CanBePredictable) {
-    fprintf(_fTables, " CEntityProperty(CEntityProperty::EPT_ENTITYPTR, NULL, (0x%08x<<8)+%s, offsetof(%s, %s), %s, %s, %s, %s),\n",
+    fprintf(_fTables, " CEntityProperty(CEntityProperty::EPT_ENTITYPTR, NULL, (0x%08x<<8)+%s, _offsetof(%s, %s), %s, %s, %s, %s),\n",
       _iCurrentClassID,
       "255",
       _strCurrentClass,
@@ -142,7 +149,7 @@ void DeclareFeatureProperties(void)
   }
 }
 
-#undef YYERROR_VERBOSE
+#define YYERROR_VERBOSE 1
 
 %}
 
@@ -584,7 +591,7 @@ empty_property_declaration_list
 
 property_declaration
   : property_id property_type property_identifier property_wed_name_opt property_default_opt property_flags_opt {
-    fprintf(_fTables, " CEntityProperty(%s, %s, (0x%08x<<8)+%s, offsetof(%s, %s), %s, %s, %s, %s),\n",
+    fprintf(_fTables, " CEntityProperty(%s, %s, (0x%08x<<8)+%s, _offsetof(%s, %s), %s, %s, %s, %s),\n",
       _strCurrentPropertyPropertyType,
       _strCurrentPropertyEnumType,
       _iCurrentClassID,

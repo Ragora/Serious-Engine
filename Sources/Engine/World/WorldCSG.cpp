@@ -13,7 +13,7 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include <Engine/StdH.h>
 
 #include <Engine/Base/ErrorReporting.h>
 #include <Engine/World/World.h>
@@ -421,7 +421,8 @@ void CWorld::SplitSectors(CEntity &enThis, CBrushSectorSelection &selbscSectorsT
   // for all sectors in the selection
   FOREACHINDYNAMICCONTAINER(selbscSectorsToSplit, CBrushSector, itbsc) {
     // split the sector using the copy of other object
-    SplitOneSector(*itbsc, CObject3D(obOther));
+    CObject3D obj(obOther);
+    SplitOneSector(*itbsc, obj);
   }
 
   // update the bounding boxes of this brush

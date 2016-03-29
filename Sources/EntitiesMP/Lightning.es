@@ -82,14 +82,14 @@ functions:
     {
       CLight *penLight = (CLight*)&*m_penLight;
 
-      if (slPropertyOffset==offsetof(CLightning, m_iLightAnim))
+      if (slPropertyOffset==_offsetof(CLightning, m_iLightAnim))
       {
         return penLight->m_aoLightAnimation.GetData();
       }
     }
     else
     {
-      WarningMessage("Target '%s' is not of light class!", m_penLight->GetName());
+      WarningMessage("Target '%s' is not of light class!", (const char *) m_penLight->GetName());
     }
     return NULL;
   };
@@ -225,7 +225,7 @@ procedures:
     {
       if( m_penTarget != NULL)
       {
-        WarningMessage("Target '%s' is not of Marker class!", m_penTarget->GetName());
+        WarningMessage("Target '%s' is not of Marker class!", (const char *) m_penTarget->GetName());
       }
       // don't do anything
       return;

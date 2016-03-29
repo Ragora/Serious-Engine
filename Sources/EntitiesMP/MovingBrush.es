@@ -20,7 +20,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 uses "EntitiesMP/MovingBrushMarker";
 uses "EntitiesMP/SoundHolder";
-uses "EntitiesMP\MirrorMarker";
+uses "EntitiesMP/MirrorMarker";
 uses "EntitiesMP/Debris";
 
 event EHit {
@@ -201,7 +201,7 @@ functions:
       // if impact by bull
       if( dmtType == DMT_IMPACT && IsOfClass(penInflictor, "Werebull"))
       {
-        // receive the damage so large to blowup
+        // recieve the damage so large to blowup
         CMovableBrushEntity::ReceiveDamage(penInflictor, dmtType, m_fHealth*2, vHitPoint, vDirection);
         // kill the bull in place, but make sure it doesn't blow up
         ((CLiveEntity*)penInflictor)->SetHealth(0.0f);
@@ -251,7 +251,7 @@ functions:
   const CTString &GetDescription(void) const {
     ((CTString&)m_strDescription).PrintF("-><none>");
     if (m_penTarget!=NULL) {
-      ((CTString&)m_strDescription).PrintF("->%s", m_penTarget->GetName());
+      ((CTString&)m_strDescription).PrintF("->%s", (const char *) m_penTarget->GetName());
     }
     return m_strDescription;
   }
@@ -408,7 +408,7 @@ functions:
     }
 
     if (!IsOfClass(m_penTarget, "Moving Brush Marker")) {
-      WarningMessage("Entity '%s' is not of Moving Brush Marker class!", m_penTarget->GetName());
+      WarningMessage("Entity '%s' is not of Moving Brush Marker class!", (const char *) m_penTarget->GetName());
       return FALSE;
     }
 

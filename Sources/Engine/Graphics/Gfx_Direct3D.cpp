@@ -688,8 +688,7 @@ void CGfxLibrary::InitContext_D3D()
   gl_pd3dIdx = NULL;
   gl_pd3dVtx = NULL;
   gl_pd3dNor = NULL;
-  INDEX i=0;
-  for( ; i<GFX_MAXLAYERS; i++) gl_pd3dCol[i] = gl_pd3dTex[i] = NULL;
+  for( INDEX i=0; i<GFX_MAXLAYERS; i++) gl_pd3dCol[i] = gl_pd3dTex[i] = NULL;
   ASSERT( gl_ctTexBuffers>0 && gl_ctTexBuffers<=GFX_MAXLAYERS);
   ASSERT( gl_ctColBuffers>0 && gl_ctColBuffers<=GFX_MAXLAYERS);
   gl_ctVertices = 0;

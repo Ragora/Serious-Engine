@@ -277,6 +277,4 @@ private:
   INDEX   tr_ctDriverChanges;
 };
 
-
-
 #endif

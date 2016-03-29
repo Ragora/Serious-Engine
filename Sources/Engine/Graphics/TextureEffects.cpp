@@ -13,16 +13,16 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include "Engine/StdH.h"
 
 #include <Engine/Graphics/Texture.h>
 #include <Engine/Graphics/TextureEffects.h>
 
 #include <Engine/Math/Functions.h>
 #include <Engine/Base/Timer.h>
-#include <Engine/Base/Statistics_internal.h>
+#include <Engine/Base/Statistics_Internal.h>
 #include <Engine/Templates/DynamicArray.cpp>
-#include <Engine/Templates/Stock_CtextureData.h>
+#include <Engine/Templates/Stock_CTextureData.h>
 #include <Engine/Templates/StaticArray.cpp>
 
 // asm shortcuts
@@ -32,16 +32,58 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define W  word ptr
 #define B  byte ptr
 
+#if (defined USE_PORTABLE_C)
+#define ASMOPT 0
+#elif (defined __MSVC_INLINE__)
 #define ASMOPT 1
+#elif (defined __GNU_INLINE__)
+#define ASMOPT 1
+#else
+#define ASMOPT 0
+#endif
 
+static __int64 mmBaseWidthShift=0;
+static __int64 mmBaseWidth=0;
+static __int64 mmBaseWidthMask=0;
+static __int64 mmBaseHeightMask=0;
+static __int64 mmBaseMasks=0;
+static __int64 mmShift=0;
 
+#if (defined __GNUC__)
+/*
+ * If these are "const" vars, they get optimized to hardcoded values when gcc
+ *  builds with optimization, which means the linker can't resolve the
+ *  references to them in the inline ASM. That's obnoxious.
+ */
+static __int64 mm1LO   = 0x0000000000000001ll;
+static __int64 mm1HI   = 0x0000000100000000ll;
+static __int64 mm1HILO = 0x0000000100000001ll;
+static __int64 mm0001  = 0x0000000000000001ll;
+static __int64 mm0010  = 0x0000000000010000ll;
+static __int64 mm00M0  = 0x00000000FFFF0000ll;
+
+static void *force_syms_to_exist = NULL;
+void asm_force_mm1LO() { force_syms_to_exist = &mm1LO; }
+void asm_force_mm1HI() { force_syms_to_exist = &mm1HI; }
+void asm_force_mm1HILO() { force_syms_to_exist = &mm1HILO; }
+void asm_force_mm0001() { force_syms_to_exist = &mm0001; }
+void asm_force_mm0010() { force_syms_to_exist = &mm0010; }
+void asm_force_mm00M0() { force_syms_to_exist = &mm00M0; }
+void asm_force_mmBaseWidthShift() { force_syms_to_exist = &mmBaseWidthShift; }
+void asm_force_mmBaseWidth() { force_syms_to_exist = &mmBaseWidth; }
+void asm_force_mmBaseWidthMask() { force_syms_to_exist = &mmBaseWidthMask; }
+void asm_force_mmBaseHeightMask() { force_syms_to_exist = &mmBaseHeightMask; }
+void asm_force_mmBaseMasks() { force_syms_to_exist = &mmBaseMasks; }
+void asm_force_mmShift() { force_syms_to_exist = &mmShift; }
+
+#else
 static const __int64 mm1LO   = 0x0000000000000001;
 static const __int64 mm1HI   = 0x0000000100000000;
 static const __int64 mm1HILO = 0x0000000100000001;
 static const __int64 mm0001  = 0x0000000000000001;
 static const __int64 mm0010  = 0x0000000000010000;
 static const __int64 mm00M0  = 0x00000000FFFF0000;
-static __int64 mmBaseWidthShift=0, mmBaseWidth=0, mmBaseWidthMask=0, mmBaseHeightMask=0, mmBaseMasks=0, mmShift=0;
+#endif
 
 
 // speed table
@@ -200,7 +242,10 @@ inline void PutPixel25UBYTE_FIRE( PIX pixU, PIX pixV, INDEX iHeightMid)
 //                        WATER EFFECTS
 /////////////////////////////////////////////////////////////////////
 
-#define DISTORSION 3 //3
+
+// WARNING: Changing this value will BREAK the inline asm on
+//  GNU-based platforms (Linux, etc.) YOU HAVE BEEN WARNED.
+#define DISTORTION 3 //3
 
 
 ///////////////// random surfer
@@ -214,7 +259,7 @@ void InitializeRandomSurfer(CTextureEffectSource *ptes,
     PIX pixU0, PIX pixV0, PIX pixU1, PIX pixV1)
 {
   Surfer &sf =
-    ((Surfer&) ptes->tes_tespEffectSourceProperties.tesp_achDummy);
+    (*((Surfer *) ptes->tes_tespEffectSourceProperties.tesp_achDummy));
   sf.fU = pixU0;
   sf.fV = pixV0;
   sf.fAngle = RNDW&7;
@@ -223,12 +268,12 @@ void InitializeRandomSurfer(CTextureEffectSource *ptes,
 void AnimateRandomSurfer(CTextureEffectSource *ptes)
 {
   Surfer &sf =
-    ((Surfer&) ptes->tes_tespEffectSourceProperties.tesp_achDummy);
+    (*((Surfer *) ptes->tes_tespEffectSourceProperties.tesp_achDummy));
 
-  PutPixel9SLONG_WATER(sf.fU, sf.fV, 125);
+  PutPixel9SLONG_WATER((long) sf.fU, (long) sf.fV, 125);
   sf.fU += 2*sin(sf.fAngle);
   sf.fV += 2*cos(sf.fAngle);
-  PutPixel9SLONG_WATER(sf.fU, sf.fV, 250);
+  PutPixel9SLONG_WATER((long) sf.fU, (long) sf.fV, 250);
 
   if((RNDW&15)==0) {
     sf.fAngle += 3.14f/7.0f;
@@ -282,7 +327,7 @@ void AnimateRaindrops(CTextureEffectSource *ptes, int iHeight)
       rd.iIndex++;
 
       if (rd.iIndex < 8) {
-        PutPixel9SLONG_WATER(rd.pixU, rd.pixV, sin(rd.iIndex/4.0f*(-3.14f))*rd.iHeight);
+        PutPixel9SLONG_WATER(rd.pixU, rd.pixV, (long) sin(rd.iIndex/4.0f*(-3.14f))*rd.iHeight);
       }
     } else {
       rd.pixU = RNDW&(_pixBufferWidth -1);  
@@ -315,7 +360,7 @@ void InitializeOscilator(CTextureEffectSource *ptes,
     PIX pixU0, PIX pixV0, PIX pixU1, PIX pixV1)
 {
   Oscilator &os =
-    ((Oscilator&) ptes->tes_tespEffectSourceProperties.tesp_achDummy);
+    (*((Oscilator *) ptes->tes_tespEffectSourceProperties.tesp_achDummy));
   os.pixU = pixU0;
   os.pixV = pixV0;
   os.fAngle = -3.14f;
@@ -324,8 +369,8 @@ void InitializeOscilator(CTextureEffectSource *ptes,
 void AnimateOscilator(CTextureEffectSource *ptes)
 {
   Oscilator &os =
-    ((Oscilator&) ptes->tes_tespEffectSourceProperties.tesp_achDummy);
-  PutPixel9SLONG_WATER(os.pixU, os.pixV, sin(os.fAngle)*150);
+    (*((Oscilator *) ptes->tes_tespEffectSourceProperties.tesp_achDummy));
+  PutPixel9SLONG_WATER(os.pixU, os.pixV, (long) sin(os.fAngle)*150);
   os.fAngle += (3.14f/6);
 }
 
@@ -342,7 +387,7 @@ void InitializeVertLine(CTextureEffectSource *ptes,
     PIX pixU0, PIX pixV0, PIX pixU1, PIX pixV1)
 {
   VertLine &vl =
-    ((VertLine&) ptes->tes_tespEffectSourceProperties.tesp_achDummy);
+    (*((VertLine *) ptes->tes_tespEffectSourceProperties.tesp_achDummy));
   vl.pixU = pixU0;
   vl.pixV = pixV0;
   vl.fAngle = -3.14f;
@@ -356,10 +401,10 @@ void InitializeVertLine(CTextureEffectSource *ptes,
 void AnimateVertLine(CTextureEffectSource *ptes)
 {
   VertLine &vl =
-    ((VertLine&) ptes->tes_tespEffectSourceProperties.tesp_achDummy);
+    (*((VertLine *) ptes->tes_tespEffectSourceProperties.tesp_achDummy));
   PIX pixV = vl.pixV;
   for (int iCnt=0; iCnt<vl.uwSize; iCnt++) {
-    PutPixelSLONG_WATER(vl.pixU, pixV, sin(vl.fAngle)*25);
+    PutPixelSLONG_WATER(vl.pixU, pixV, (long) (sin(vl.fAngle)*25));
     pixV = (pixV+1)&(_pixBufferHeight-1);
   }
   vl.fAngle += (3.14f/6);
@@ -378,7 +423,7 @@ void InitializeHortLine(CTextureEffectSource *ptes,
     PIX pixU0, PIX pixV0, PIX pixU1, PIX pixV1)
 {
   HortLine &hl =
-    ((HortLine&) ptes->tes_tespEffectSourceProperties.tesp_achDummy);
+    (*((HortLine *) ptes->tes_tespEffectSourceProperties.tesp_achDummy));
   hl.pixU = pixU0;
   hl.pixV = pixV0;
   hl.fAngle = -3.14f;
@@ -392,10 +437,10 @@ void InitializeHortLine(CTextureEffectSource *ptes,
 void AnimateHortLine(CTextureEffectSource *ptes)
 {
   HortLine &hl =
-    ((HortLine&) ptes->tes_tespEffectSourceProperties.tesp_achDummy);
+    (*((HortLine *) ptes->tes_tespEffectSourceProperties.tesp_achDummy));
   PIX pixU = hl.pixU;
   for (int iCnt=0; iCnt<hl.uwSize; iCnt++) {
-    PutPixelSLONG_WATER(pixU, hl.pixV, sin(hl.fAngle)*25);
+    PutPixelSLONG_WATER(pixU, hl.pixV, (long) (sin(hl.fAngle)*25));
     pixU = (pixU+1)&(_pixBufferWidth-1);
   }
   hl.fAngle += (3.14f/6);
@@ -417,7 +462,7 @@ void InitializeFirePoint(CTextureEffectSource *ptes,
     PIX pixU0, PIX pixV0, PIX pixU1, PIX pixV1)
 {
   FirePoint &ft =
-    ((FirePoint&) ptes->tes_tespEffectSourceProperties.tesp_achDummy);
+    (*((FirePoint *) ptes->tes_tespEffectSourceProperties.tesp_achDummy));
   ft.pixU = pixU0;
   ft.pixV = pixV0;
 }
@@ -425,7 +470,7 @@ void InitializeFirePoint(CTextureEffectSource *ptes,
 void AnimateFirePoint(CTextureEffectSource *ptes)
 {
   FirePoint &ft =
-    ((FirePoint&) ptes->tes_tespEffectSourceProperties.tesp_achDummy);
+    (*((FirePoint *) ptes->tes_tespEffectSourceProperties.tesp_achDummy));
   PutPixel9UBYTE_FIRE(ft.pixU, ft.pixV, 255);
 }
 
@@ -433,7 +478,7 @@ void InitializeRandomFirePoint(CTextureEffectSource *ptes,
     PIX pixU0, PIX pixV0, PIX pixU1, PIX pixV1)
 {
   FirePoint &ft =
-    ((FirePoint&) ptes->tes_tespEffectSourceProperties.tesp_achDummy);
+    (*((FirePoint *) ptes->tes_tespEffectSourceProperties.tesp_achDummy));
   ft.pixU = pixU0;
   ft.pixV = pixV0;
 }
@@ -441,7 +486,7 @@ void InitializeRandomFirePoint(CTextureEffectSource *ptes,
 void AnimateRandomFirePoint(CTextureEffectSource *ptes)
 {
   FirePoint &ft =
-    ((FirePoint&) ptes->tes_tespEffectSourceProperties.tesp_achDummy);
+    (*((FirePoint *) ptes->tes_tespEffectSourceProperties.tesp_achDummy));
   PutPixel9UBYTE_FIRE(ft.pixU, ft.pixV, RNDW&255);
 }
 
@@ -449,7 +494,7 @@ void InitializeFireShakePoint(CTextureEffectSource *ptes,
     PIX pixU0, PIX pixV0, PIX pixU1, PIX pixV1)
 {
   FirePoint &ft =
-    ((FirePoint&) ptes->tes_tespEffectSourceProperties.tesp_achDummy);
+    (*((FirePoint *) ptes->tes_tespEffectSourceProperties.tesp_achDummy));
   ft.pixU = pixU0;
   ft.pixV = pixV0;
 }
@@ -457,7 +502,7 @@ void InitializeFireShakePoint(CTextureEffectSource *ptes,
 void AnimateFireShakePoint(CTextureEffectSource *ptes)
 {
   FirePoint &ft =
-    ((FirePoint&) ptes->tes_tespEffectSourceProperties.tesp_achDummy);
+    (*((FirePoint *) ptes->tes_tespEffectSourceProperties.tesp_achDummy));
   UBYTE pixU, pixV;
   pixU = RNDW%3 - 1;
   pixV = RNDW%3 - 1;
@@ -479,7 +524,7 @@ void InitializeFirePlace(CTextureEffectSource *ptes,
     PIX pixU0, PIX pixV0, PIX pixU1, PIX pixV1)
 {
   FirePlace &fp =
-    ((FirePlace&) ptes->tes_tespEffectSourceProperties.tesp_achDummy);
+    (*((FirePlace *) ptes->tes_tespEffectSourceProperties.tesp_achDummy));
   fp.pixU = pixU0;
   fp.pixV = pixV0;
   fp.ubWidth = abs(pixU1-pixU0);
@@ -495,7 +540,7 @@ void AnimateFirePlace(CTextureEffectSource *ptes)
 {
   INDEX iIndex;
   FirePlace &fp =
-    ((FirePlace&) ptes->tes_tespEffectSourceProperties.tesp_achDummy);
+    (*((FirePlace *) ptes->tes_tespEffectSourceProperties.tesp_achDummy));
   ULONG ulRND = RNDW&255;
   // match
   if (ulRND>200) {
@@ -556,7 +601,7 @@ void InitializeFireRoler(CTextureEffectSource *ptes,
     PIX pixU0, PIX pixV0, PIX pixU1, PIX pixV1)
 {
   FireRoler &fr =
-    ((FireRoler&) ptes->tes_tespEffectSourceProperties.tesp_achDummy);
+    (*((FireRoler *) ptes->tes_tespEffectSourceProperties.tesp_achDummy));
   fr.pixU = pixU0;
   fr.pixV = pixV0;
   if (pixU0==pixU1 && pixV0==pixV1) {
@@ -577,15 +622,15 @@ void InitializeFireRoler(CTextureEffectSource *ptes,
 void AnimateFireRoler(CTextureEffectSource *ptes)
 {
   FireRoler &fr =
-    ((FireRoler&) ptes->tes_tespEffectSourceProperties.tesp_achDummy);
-  PutPixel9UBYTE_FIRE(cos(fr.fAngle)*fr.fRadiusU + fr.pixU,
-                      sin(fr.fAngle)*fr.fRadiusV + fr.pixV, 255);
+    (*((FireRoler *) ptes->tes_tespEffectSourceProperties.tesp_achDummy));
+  PutPixel9UBYTE_FIRE((long) (cos(fr.fAngle)*fr.fRadiusU + fr.pixU),
+                      (long) (sin(fr.fAngle)*fr.fRadiusV + fr.pixV), 255);
   fr.fAngle += fr.fAngleAdd;
-  PutPixel9UBYTE_FIRE(cos(fr.fAngle)*fr.fRadiusU + fr.pixU,
-                      sin(fr.fAngle)*fr.fRadiusV + fr.pixV, 200);
+  PutPixel9UBYTE_FIRE((long) (cos(fr.fAngle)*fr.fRadiusU + fr.pixU),
+                      (long) (sin(fr.fAngle)*fr.fRadiusV + fr.pixV), 200);
   fr.fAngle += fr.fAngleAdd;
-  PutPixel9UBYTE_FIRE(cos(fr.fAngle)*fr.fRadiusU + fr.pixU,
-                      sin(fr.fAngle)*fr.fRadiusV + fr.pixV, 150);
+  PutPixel9UBYTE_FIRE((long) (cos(fr.fAngle)*fr.fRadiusU + fr.pixU),
+                      (long) (sin(fr.fAngle)*fr.fRadiusV + fr.pixV), 150);
   fr.fAngle += fr.fAngleAdd;
 }
 
@@ -610,7 +655,7 @@ void InitializeFireFall(CTextureEffectSource *ptes,
     PIX pixU0, PIX pixV0, PIX pixU1, PIX pixV1)
 {
   FireFall &ff =
-    ((FireFall&) ptes->tes_tespEffectSourceProperties.tesp_achDummy);
+    (*((FireFall *) ptes->tes_tespEffectSourceProperties.tesp_achDummy));
   ff.pixU = pixU0;
   ff.pixV = pixV0;
   if (pixU0==pixU1) {
@@ -632,7 +677,7 @@ void InitializeFireFall(CTextureEffectSource *ptes,
 void AnimateFireFall(CTextureEffectSource *ptes)
 {
   FireFall &ff =
-    ((FireFall&) ptes->tes_tespEffectSourceProperties.tesp_achDummy);
+    (*((FireFall *) ptes->tes_tespEffectSourceProperties.tesp_achDummy));
   // animate fall points
   for (INDEX iIndex=0; iIndex<FIREFALL_POINTS; iIndex++) {
     FireFallPixel &ffp = ((FireFallPixel&) ptes->tes_atepPixels[iIndex]);
@@ -687,7 +732,7 @@ void InitializeFireFountain(CTextureEffectSource *ptes,
     PIX pixU0, PIX pixV0, PIX pixU1, PIX pixV1)
 {
   FireFountain &ff =
-    ((FireFountain&) ptes->tes_tespEffectSourceProperties.tesp_achDummy);
+    (*((FireFountain *) ptes->tes_tespEffectSourceProperties.tesp_achDummy));
   ff.pixU = pixU0;
   ff.pixV = pixV0;
   // fountain width
@@ -720,7 +765,7 @@ void InitializeFireFountain(CTextureEffectSource *ptes,
 void AnimateFireFountain(CTextureEffectSource *ptes)
 {
   FireFountain &ff =
-    ((FireFountain&) ptes->tes_tespEffectSourceProperties.tesp_achDummy);
+    (*((FireFountain *) ptes->tes_tespEffectSourceProperties.tesp_achDummy));
   // animate fountain points
   for (INDEX iIndex=0; iIndex<FIREFOUNTAIN_POINTS*2; iIndex+=2) {
     FireFountainPixel &ffp = ((FireFountainPixel&) ptes->tes_atepPixels[iIndex]);
@@ -770,7 +815,7 @@ void InitializeFireSideFountain(CTextureEffectSource *ptes,
     PIX pixU0, PIX pixV0, PIX pixU1, PIX pixV1)
 {
   FireSideFountain &fsf =
-    ((FireSideFountain&) ptes->tes_tespEffectSourceProperties.tesp_achDummy);
+    (*((FireSideFountain *) ptes->tes_tespEffectSourceProperties.tesp_achDummy));
   fsf.pixU = pixU0;
   fsf.pixV = pixV0;
   // fountain width
@@ -799,7 +844,7 @@ void InitializeFireSideFountain(CTextureEffectSource *ptes,
 void AnimateFireSideFountain(CTextureEffectSource *ptes)
 {
   FireSideFountain &fsf =
-    ((FireSideFountain&) ptes->tes_tespEffectSourceProperties.tesp_achDummy);
+    (*((FireSideFountain *) ptes->tes_tespEffectSourceProperties.tesp_achDummy));
   // animate fountain points
   for (INDEX iIndex=0; iIndex<FIRESIDEFOUNTAIN_POINTS*2; iIndex+=2) {
     FireSideFountainPixel &fsfp = ((FireSideFountainPixel&) ptes->tes_atepPixels[iIndex]);
@@ -846,7 +891,7 @@ void InitializeFireLightning(CTextureEffectSource *ptes,
     PIX pixU0, PIX pixV0, PIX pixU1, PIX pixV1)
 {
   FireLightning &fl =
-    ((FireLightning&) ptes->tes_tespEffectSourceProperties.tesp_achDummy);
+    (*((FireLightning *) ptes->tes_tespEffectSourceProperties.tesp_achDummy));
   fl.fpixUFrom = (FLOAT) pixU0;
   fl.fpixVFrom = (FLOAT) pixV0;
   if (pixU0==pixU1 && pixV0==pixV1) {
@@ -876,7 +921,7 @@ void AnimateFireLightning(CTextureEffectSource *ptes)
   ULONG ulDist;
 
   FireLightning &fl =
-    ((FireLightning&) ptes->tes_tespEffectSourceProperties.tesp_achDummy);
+    (*((FireLightning *) ptes->tes_tespEffectSourceProperties.tesp_achDummy));
   // last point -> starting point
   fLastU = fl.fpixUFrom;
   fLastV = fl.fpixVFrom;
@@ -936,7 +981,7 @@ void InitializeFireLightningBall(CTextureEffectSource *ptes,
     PIX pixU0, PIX pixV0, PIX pixU1, PIX pixV1)
 {
   FireLightningBall &flb =
-    ((FireLightningBall&) ptes->tes_tespEffectSourceProperties.tesp_achDummy);
+    (*((FireLightningBall *) ptes->tes_tespEffectSourceProperties.tesp_achDummy));
   flb.fpixU = (FLOAT) pixU0;
   flb.fpixV = (FLOAT) pixV0;
   if (pixU0==pixU1 && pixV0==pixV1) {
@@ -957,7 +1002,7 @@ void AnimateFireLightningBall(CTextureEffectSource *ptes)
   ULONG ulDist;
 
   FireLightningBall &flb =
-    ((FireLightningBall&) ptes->tes_tespEffectSourceProperties.tesp_achDummy);
+    (*((FireLightningBall *) ptes->tes_tespEffectSourceProperties.tesp_achDummy));
   for (int iBalls=0; iBalls<FIREBALL_LIGHTNINGS; iBalls++) {
     // last point -> starting point
     fLastU = flb.fpixU;
@@ -1031,7 +1076,7 @@ void InitializeFireSmoke(CTextureEffectSource *ptes,
     PIX pixU0, PIX pixV0, PIX pixU1, PIX pixV1)
 {
   FireSmoke &fs =
-    ((FireSmoke&) ptes->tes_tespEffectSourceProperties.tesp_achDummy);
+    (*((FireSmoke *) ptes->tes_tespEffectSourceProperties.tesp_achDummy));
   fs.fpixU = (FLOAT) pixU0;
   fs.fpixV = (FLOAT) pixV0;
   if (pixU0==pixU1 && pixV0==pixV1) {
@@ -1054,7 +1099,7 @@ void AnimateFireSmoke(CTextureEffectSource *ptes)
   UBYTE pixU, pixV;
 
   FireSmoke &fs =
-    ((FireSmoke&) ptes->tes_tespEffectSourceProperties.tesp_achDummy);
+    (*((FireSmoke *) ptes->tes_tespEffectSourceProperties.tesp_achDummy));
   // animate smoke points
   for (INDEX iIndex=0; iIndex<SMOKE_POINTS*2; iIndex+=2) {
     FireSmokePoint &fsp = ((FireSmokePoint&) ptes->tes_atepPixels[iIndex]);
@@ -1208,6 +1253,8 @@ static void AnimateWater( SLONG slDensity)
 
 #define PIXEL(u,v) pulTextureBase[ ((u)&(SLONG&)mmBaseWidthMask) + ((v)&(SLONG&)mmBaseHeightMask) *pixBaseWidth]
 
+static ULONG _slHeightMapStep_renderWater = 0;
+static PIX _pixBaseWidth_renderWater = 0;
 
 #pragma warning(disable: 4731)
 static void RenderWater(void)
@@ -1238,7 +1285,7 @@ static void RenderWater(void)
     SLONG slHeightMapStep, slHeightRowStep;
 
 #if ASMOPT == 1
-
+  #if (defined __MSVC_INLINE__)
     __asm {
       push    ebx
       bsf     ecx,D [_pixTexWidth]
@@ -1248,7 +1295,7 @@ static void RenderWater(void)
       mov     D [slHeightMapStep],eax
 
       bsf     edx,eax
-      add     edx,DISTORSION+2-1
+      add     edx,DISTORTION+2-1
       mov     D [mmShift],edx
 
       sub     eax,2
@@ -1309,12 +1356,108 @@ pixLoop:
       pop     ebx
     }
 
+  #elif (defined __GNU_INLINE__)
+    // rcg12152001 needed extra registers. :(
+    _slHeightMapStep_renderWater = slHeightMapStep;
+    _pixBaseWidth_renderWater = pixBaseWidth;
+
+    __asm__ __volatile__ (
+      "pushl  %%ebx                         \n\t"  // GCC needs this.
+      "movl   (" ASMSYM(_pixBaseWidth_renderWater) "),%%ebx \n\t"
+
+      "pushl  %%eax                         \n\t"  // pixBaseHeight
+      "pushl  %%ebx                         \n\t"  // pixBaseWidth
+      "pushl  %%ecx                         \n\t"  // pswHeightMap
+      "pushl  %%edx                         \n\t"  // pulTexture
+      "pushl  %%esi                         \n\t"  // pulTextureBase
+      "pushl  %%edi                         \n\t"  // slHeightRowStep
+
+      "bsfl     (" ASMSYM(_pixTexWidth) "), %%ecx       \n\t"
+      "decl     %%ecx                       \n\t"
+      "movl     (" ASMSYM(_pixBufferWidth) "), %%eax    \n\t"
+      "sarl     %%cl, %%eax                 \n\t"
+      "movl     %%eax, (" ASMSYM(_slHeightMapStep_renderWater) ")   \n\t"
+
+      "bsfl     %%eax, %%edx                \n\t"
+      "addl     $4, %%edx                   \n\t"
+      "movl     %%edx, (" ASMSYM(mmShift) ")            \n\t"
+
+      "subl     $2, %%eax                   \n\t"
+      "imul     (" ASMSYM(_pixBufferWidth) "), %%eax    \n\t"
+      "movl     %%eax, (%%esp)              \n\t"  // slHeightRowStep
+
+      "movl     16(%%esp), %%eax            \n\t"  // pixBaseWidth
+      "movl     20(%%esp), %%edx            \n\t"  // pixBaseHeight
+      "shll     $16, %%edx                  \n\t"
+      "orl      %%edx, %%eax                \n\t"
+      "subl     $0x00010001, %%eax          \n\t"
+      "movl     %%eax, (" ASMSYM(mmBaseMasks) ")        \n\t"
+
+      "movl     16(%%esp), %%eax            \n\t"  // pixBaseWidth
+      "shl      $16, %%eax                  \n\t"
+      "orl      $1, %%eax                   \n\t"
+      "movl     %%eax, (" ASMSYM(mmBaseWidth) ")        \n\t"
+
+      "movl     12(%%esp), %%ebx            \n\t"  // pswHeightMap
+      "movl     4(%%esp), %%esi             \n\t"  // pulTextureBase
+      "movl     8(%%esp), %%edi             \n\t"  // pulTexture
+      "pxor     %%mm6, %%mm6                \n\t"  // MM5 = 0 | 0 || pixV | pixU
+      "movl     (" ASMSYM(_pixBufferWidth) "), %%eax    \n\t"
+      "movl     (" ASMSYM(_pixTexHeight) "), %%edx      \n\t"
+
+      "0:                                   \n\t"  // rowLoop
+      "pushl    %%edx                       \n\t"
+      "movl     (" ASMSYM(_pixTexWidth) "), %%ecx       \n\t"
+      "1:                                   \n\t"  // pixLoop
+      "movd     (%%ebx), %%mm1              \n\t"
+      "movd     (%%ebx, %%eax, 2), %%mm3    \n\t"
+      "movq     %%mm1, %%mm2                \n\t"
+      "psubw    %%mm1, %%mm3                \n\t"
+      "pslld    $16, %%mm1                  \n\t"
+      "psubw    %%mm1, %%mm2                \n\t"
+      "pand     (" ASMSYM(mm00M0) "), %%mm2             \n\t"
+      "por      %%mm3, %%mm2                \n\t"
+      "psraw    (" ASMSYM(mmShift) "), %%mm2            \n\t"
+
+      "paddw    %%mm6, %%mm2                \n\t"
+      "pand     (" ASMSYM(mmBaseMasks) "), %%mm2        \n\t"
+      "pmaddwd  (" ASMSYM(mmBaseWidth) "), %%mm2        \n\t"
+      "movd     %%mm2, %%edx                \n\t"
+      "movl     (%%esi, %%edx, 4), %%edx    \n\t"
+      "movl     %%edx, (%%edi)              \n\t"
+
+      // advance to next texture pixel
+      "addl     (" ASMSYM(_slHeightMapStep_renderWater) "), %%ebx   \n\t"
+      "addl     $4, %%edi                   \n\t"
+      "paddd    (" ASMSYM(mm0001) "), %%mm6             \n\t"
+      "decl     %%ecx                       \n\t"
+      "jnz      1b                          \n\t"  // pixLoop
+
+      // advance to next texture row
+      "popl     %%edx                       \n\t"
+      "addl     (%%esp), %%ebx              \n\t"  // slHeightRowStep
+      "paddd    (" ASMSYM(mm0010) "), %%mm6             \n\t"
+      "decl     %%edx                       \n\t"
+      "jnz      0b                          \n\t"  // rowLoop
+      "addl     $24, %%esp                  \n\t"  // lose our locals...
+      "popl     %%ebx                       \n\t"  // restore GCC's register.
+      "emms                                 \n\t"
+        :  // no outputs.
+        : "a" (pixBaseHeight), "c" (pswHeightMap),
+          "d" (pulTexture), "S" (pulTextureBase), "D" (slHeightRowStep)
+        : "cc", "memory"
+    );
+
+  #else
+    #error fill in for your platform.
+  #endif
+
 #else
 
     PIX pixPos, pixDU, pixDV;
-    slHeightMapStep  = _pixBufferWidth/pixBaseWidth
+    slHeightMapStep  = _pixBufferWidth/pixBaseWidth;
     slHeightRowStep  = (slHeightMapStep-1)*_pixBufferWidth;
-    mmShift = DISTORSION+ FastLog2(slHeightMapStep) +2;
+    mmShift = DISTORTION+ FastLog2(slHeightMapStep) +2;
     for( PIX pixV=0; pixV<_pixTexHeight; pixV++)
     { // row loop
       for( PIX pixU=0; pixU<_pixTexWidth; pixU++)
@@ -1339,6 +1482,7 @@ pixLoop:
 
 #if ASMOPT == 1
 
+  #if (defined __MSVC_INLINE__)
     __asm {
       push    ebx
       bsf     eax,D [pixBaseWidth]
@@ -1371,7 +1515,7 @@ pixLoop2:
       punpckldq mm0,mm0
       psubd   mm1,mm0
       movq    mm0,mm6
-      pslld   mm0,DISTORSION+1+1
+      pslld   mm0,DISTORTION+1+1
       paddd   mm1,mm0               // MM1 = slV_00 | slU_00
 
       movd    mm2,D [ebx+ 4]
@@ -1383,7 +1527,7 @@ pixLoop2:
       psubd   mm2,mm0
       movq    mm0,mm6
       paddd   mm0,Q [mm1LO]
-      pslld   mm0,DISTORSION+1+1
+      pslld   mm0,DISTORTION+1+1
       paddd   mm2,mm0               // MM2 = slV_01 | slU_01
 
       movd    mm3,D [ebx+ eax*2 +2]
@@ -1395,7 +1539,7 @@ pixLoop2:
       psubd   mm3,mm0
       movq    mm0,mm6
       paddd   mm0,Q [mm1HI]
-      pslld   mm0,DISTORSION+1+1
+      pslld   mm0,DISTORTION+1+1
       paddd   mm3,mm0               // MM3 = slV_10 | slU_10
 
       movd    mm4,D [ebx+ eax*2 +4]
@@ -1407,11 +1551,11 @@ pixLoop2:
       psubd   mm4,mm0
       movq    mm0,mm6
       paddd   mm0,Q [mm1HILO]
-      pslld   mm0,DISTORSION+1+1
+      pslld   mm0,DISTORTION+1+1
       paddd   mm4,mm0               // MM4 = slV_11 | slU_11
 
       movq    mm0,mm1
-      psrad   mm0,DISTORSION+1+0
+      psrad   mm0,DISTORTION+1+0
       pand    mm0,Q [mmBaseMasks]
       movq    mm7,mm0
       psrlq   mm7,Q [mmBaseWidthShift]
@@ -1422,7 +1566,7 @@ pixLoop2:
 
       movq    mm0,mm1
       paddd   mm0,mm2
-      psrad   mm0,DISTORSION+1+1
+      psrad   mm0,DISTORTION+1+1
       pand    mm0,Q [mmBaseMasks]
       movq    mm7,mm0
       psrlq   mm7,Q [mmBaseWidthShift]
@@ -1433,7 +1577,7 @@ pixLoop2:
 
       movq    mm0,mm1
       paddd   mm0,mm3
-      psrad   mm0,DISTORSION+1+1
+      psrad   mm0,DISTORTION+1+1
       pand    mm0,Q [mmBaseMasks]
       movq    mm7,mm0
       psrlq   mm7,Q [mmBaseWidthShift]
@@ -1445,7 +1589,7 @@ pixLoop2:
       paddd   mm1,mm2
       paddd   mm1,mm3
       paddd   mm1,mm4
-      psrad   mm1,DISTORSION+1+2
+      psrad   mm1,DISTORTION+1+2
       pand    mm1,Q [mmBaseMasks]
       movq    mm7,mm1
       psrlq   mm7,Q [mmBaseWidthShift]
@@ -1470,6 +1614,154 @@ pixLoop2:
       pop     ebx
     }
 
+  #elif (defined __GNU_INLINE__)
+    __asm__ __volatile__ (
+      "pushl     %%ebx                              \n\t"  // GCC's register.
+      "movl      %%ecx, %%ebx                       \n\t"
+      "bsfl      %%eax, %%eax                       \n\t"  // pixBaseWidth
+      "movl      $32, %%edx                         \n\t"
+      "subl      %%eax, %%edx                       \n\t"
+      "movl      %%edx, (" ASMSYM(mmBaseWidthShift) ")         \n\t"
+
+      "movq      (" ASMSYM(mmBaseHeightMask) "), %%mm0          \n\t"
+      "psllq     $32, %%mm0                         \n\t"
+      "por       (" ASMSYM(mmBaseWidthMask) "), %%mm0           \n\t"
+      "movq      %%mm0, (" ASMSYM(mmBaseMasks) ")               \n\t"
+
+      "pxor      %%mm6, %%mm6                       \n\t" // MM6 = pixV|pixU
+
+      // (These registers were loaded here in the original version...)
+      //"movl      (pswHeightMap), %%ebx              \n\t"
+      //"movl      (pulTextureBase), %%esi            \n\t"
+      //"movl      (pulTexture), %%edi                \n\t"
+
+      "movl      (" ASMSYM(_pixBufferHeight) "), %%edx          \n\t"
+
+      "0:                                           \n\t" // rowLoop2
+      "pushl     %%edx                              \n\t"
+      "movl      (" ASMSYM(_pixTexWidth) "), %%edx              \n\t"
+      "movl      (" ASMSYM(_pixBufferWidth) "), %%ecx           \n\t"
+
+      "1:                                           \n\t" // pixLoop2
+      "mov       (" ASMSYM(_pixBufferWidth) "), %%eax           \n\t"
+
+      "movd      2(%%ebx), %%mm1                    \n\t"
+      "movd      0(%%ebx, %%eax, 2), %%mm0          \n\t"
+      "psllq     $32, %%mm0                         \n\t"
+      "por       %%mm0, %%mm1                       \n\t"
+      "movd      (%%ebx), %%mm0                     \n\t"
+      "punpckldq %%mm0, %%mm0                       \n\t"
+      "psubd     %%mm0, %%mm1                       \n\t"
+      "movq      %%mm6, %%mm0                       \n\t"
+      "pslld     $5, %%mm0                          \n\t"
+      "paddd     %%mm0, %%mm1                       \n\t" // MM1 = slV_00 | slU_00
+
+      "movd      4(%%ebx), %%mm2                    \n\t"
+      "movd      2(%%ebx, %%eax, 2), %%mm0          \n\t"
+      "psllq     $32, %%mm0                         \n\t"
+      "por       %%mm0, %%mm2                       \n\t"
+      "movd      2(%%ebx), %%mm0                    \n\t"
+      "punpckldq %%mm0, %%mm0                       \n\t"
+      "psubd     %%mm0, %%mm2                       \n\t"
+      "movq      %%mm6, %%mm0                       \n\t"
+      "paddd     (" ASMSYM(mm1LO) "), %%mm0                     \n\t"
+      "pslld     $5, %%mm0                          \n\t"
+      "paddd     %%mm0, %%mm2                       \n\t" // MM2 = slV_01 | slU_01
+
+      "movd      2(%%ebx, %%eax, 2), %%mm3          \n\t"
+      "movd      (%%ebx, %%eax, 4), %%mm0           \n\t"
+      "psllq     $32, %%mm0                         \n\t"
+      "por       %%mm0, %%mm3                       \n\t"
+      "movd      (%%ebx, %%eax, 2), %%mm0           \n\t"
+      "punpckldq %%mm0, %%mm0                       \n\t"
+      "psubd     %%mm0, %%mm3                       \n\t"
+      "movq      %%mm6, %%mm0                       \n\t"
+      "paddd     (" ASMSYM(mm1HI) "), %%mm0                     \n\t"
+      "pslld     $5, %%mm0                          \n\t"
+      "paddd     %%mm0, %%mm3                       \n\t" // MM3 = slV_10 | slU_10
+
+      "movd      4(%%ebx, %%eax, 2), %%mm4          \n\t"
+      "movd      2(%%ebx, %%eax, 4), %%mm0          \n\t"
+      "psllq     $32, %%mm0                         \n\t"
+      "por       %%mm0, %%mm4                       \n\t"
+      "movd      2(%%ebx, %%eax, 2), %%mm0          \n\t"
+      "punpckldq %%mm0, %%mm0                       \n\t"
+      "psubd     %%mm0, %%mm4                       \n\t"
+      "movq      %%mm6, %%mm0                       \n\t"
+      "paddd     (" ASMSYM(mm1HILO) "), %%mm0                   \n\t"
+      "pslld     $5, %%mm0                          \n\t"
+      "paddd     %%mm0, %%mm4                       \n\t" // MM4 = slV_11 | slU_11
+
+      "movq      %%mm1, %%mm0                       \n\t"
+      "psrad     $4, %%mm0                          \n\t"
+      "pand      (" ASMSYM(mmBaseMasks) "), %%mm0               \n\t"
+      "movq      %%mm0, %%mm7                       \n\t"
+      "psrlq     (" ASMSYM(mmBaseWidthShift) "), %%mm7          \n\t"
+      "paddd     %%mm7, %%mm0                       \n\t"
+      "movd      %%mm0, %%eax                       \n\t"
+      "movl      (%%esi, %%eax, 4), %%eax           \n\t"
+      "movl      %%eax, (%%edi)                     \n\t"
+
+      "movq      %%mm1, %%mm0                       \n\t"
+      "paddd     %%mm2, %%mm0                       \n\t"
+      "psrad     $5, %%mm0                          \n\t"
+      "pand      (" ASMSYM(mmBaseMasks) "), %%mm0               \n\t"
+      "movq      %%mm0, %%mm7                       \n\t"
+      "psrlq     (" ASMSYM(mmBaseWidthShift) "), %%mm7          \n\t"
+      "paddd     %%mm7, %%mm0                       \n\t"
+      "movd      %%mm0, %%eax                       \n\t"
+      "movl      (%%esi, %%eax, 4), %%eax           \n\t"
+      "movl      %%eax, 4(%%edi)                    \n\t"
+
+      "movq      %%mm1, %%mm0                       \n\t"
+      "paddd     %%mm3, %%mm0                       \n\t"
+      "psrad     $5, %%mm0                          \n\t"
+      "pand      (" ASMSYM(mmBaseMasks) "), %%mm0               \n\t"
+      "movq      %%mm0, %%mm7                       \n\t"
+      "psrlq     (" ASMSYM(mmBaseWidthShift) "), %%mm7          \n\t"
+      "paddd     %%mm7, %%mm0                       \n\t"
+      "movd      %%mm0, %%eax                       \n\t"
+      "movl      (%%esi, %%eax, 4), %%eax           \n\t"
+      "movl      %%eax, (%%edi, %%edx, 4)           \n\t"
+
+      "paddd     %%mm2, %%mm1                       \n\t"
+      "paddd     %%mm3, %%mm1                       \n\t"
+      "paddd     %%mm4, %%mm1                       \n\t"
+      "psrad     $6, %%mm1                          \n\t"
+      "pand      (" ASMSYM(mmBaseMasks) "), %%mm1               \n\t"
+      "movq      %%mm1, %%mm7                       \n\t"
+      "psrlq     (" ASMSYM(mmBaseWidthShift) "), %%mm7          \n\t"
+      "paddd     %%mm7, %%mm1                       \n\t"
+      "movd      %%mm1, %%eax                       \n\t"
+      "mov       (%%esi, %%eax, 4), %%eax           \n\t"
+      "mov       %%eax, 4(%%edi, %%edx, 4)          \n\t"
+
+      // advance to next texture pixels
+      "paddd     (" ASMSYM(mm1LO) "), %%mm6                     \n\t"
+      "addl      $8, %%edi                          \n\t"
+      "addl      $2, %%ebx                          \n\t"
+      "decl      %%ecx                              \n\t"
+      "jnz       1b                                 \n\t"  // pixLoop2
+
+      // advance to next texture row
+      "leal      (%%edi, %%edx, 4), %%edi           \n\t"
+      "popl      %%edx                              \n\t"
+      "paddd     (" ASMSYM(mm1HI) "), %%mm6                     \n\t"
+      "decl      %%edx                              \n\t"
+      "jnz       0b                                 \n\t"  // rowLoop2
+      "popl      %%ebx                              \n\t"  // GCC's value.
+      "emms                                         \n\t"
+        : // no outputs.
+        : "a" (pixBaseWidth), "c" (pswHeightMap),
+          "S" (pulTextureBase), "D" (pulTexture)
+        : "edx", "cc", "memory"
+    );
+
+  #else
+    #error fill in for you platform.
+  #endif
+
+
 #else
 
     SLONG slU_00, slU_01, slU_10, slU_11;
@@ -1478,19 +1770,19 @@ pixLoop2:
     { // row loop
       for( PIX pixU=0; pixU<_pixBufferWidth; pixU++)
       { // texel loop
-        slU_00 = pswHeightMap[_pixBufferWidth*0+1] - pswHeightMap[_pixBufferWidth*0+0] + ((pixU+0)<<(DISTORSION+1+1));
-        slV_00 = pswHeightMap[_pixBufferWidth*1+0] - pswHeightMap[_pixBufferWidth*0+0] + ((pixV+0)<<(DISTORSION+1+1));
-        slU_01 = pswHeightMap[_pixBufferWidth*0+2] - pswHeightMap[_pixBufferWidth*0+1] + ((pixU+1)<<(DISTORSION+1+1));
-        slV_01 = pswHeightMap[_pixBufferWidth*1+1] - pswHeightMap[_pixBufferWidth*0+1] + ((pixV+0)<<(DISTORSION+1+1));
-        slU_10 = pswHeightMap[_pixBufferWidth*1+1] - pswHeightMap[_pixBufferWidth*1+0] + ((pixU+0)<<(DISTORSION+1+1));
-        slV_10 = pswHeightMap[_pixBufferWidth*2+0] - pswHeightMap[_pixBufferWidth*1+0] + ((pixV+1)<<(DISTORSION+1+1));
-        slU_11 = pswHeightMap[_pixBufferWidth*1+2] - pswHeightMap[_pixBufferWidth*1+1] + ((pixU+1)<<(DISTORSION+1+1));
-        slV_11 = pswHeightMap[_pixBufferWidth*2+1] - pswHeightMap[_pixBufferWidth*1+1] + ((pixV+1)<<(DISTORSION+1+1));
+        slU_00 = pswHeightMap[_pixBufferWidth*0+1] - pswHeightMap[_pixBufferWidth*0+0] + ((pixU+0)<<(DISTORTION+1+1));
+        slV_00 = pswHeightMap[_pixBufferWidth*1+0] - pswHeightMap[_pixBufferWidth*0+0] + ((pixV+0)<<(DISTORTION+1+1));
+        slU_01 = pswHeightMap[_pixBufferWidth*0+2] - pswHeightMap[_pixBufferWidth*0+1] + ((pixU+1)<<(DISTORTION+1+1));
+        slV_01 = pswHeightMap[_pixBufferWidth*1+1] - pswHeightMap[_pixBufferWidth*0+1] + ((pixV+0)<<(DISTORTION+1+1));
+        slU_10 = pswHeightMap[_pixBufferWidth*1+1] - pswHeightMap[_pixBufferWidth*1+0] + ((pixU+0)<<(DISTORTION+1+1));
+        slV_10 = pswHeightMap[_pixBufferWidth*2+0] - pswHeightMap[_pixBufferWidth*1+0] + ((pixV+1)<<(DISTORTION+1+1));
+        slU_11 = pswHeightMap[_pixBufferWidth*1+2] - pswHeightMap[_pixBufferWidth*1+1] + ((pixU+1)<<(DISTORTION+1+1));
+        slV_11 = pswHeightMap[_pixBufferWidth*2+1] - pswHeightMap[_pixBufferWidth*1+1] + ((pixV+1)<<(DISTORTION+1+1));
 
-        pulTexture[_pixTexWidth*0+0] = PIXEL( (slU_00                     ) >>(DISTORSION+1  ), (slV_00                     ) >>(DISTORSION+1  ) );
-        pulTexture[_pixTexWidth*0+1] = PIXEL( (slU_00+slU_01              ) >>(DISTORSION+1+1), (slV_00+slV_01              ) >>(DISTORSION+1+1) );
-        pulTexture[_pixTexWidth*1+0] = PIXEL( (slU_00       +slU_10       ) >>(DISTORSION+1+1), (slV_00       +slV_10       ) >>(DISTORSION+1+1) );
-        pulTexture[_pixTexWidth*1+1] = PIXEL( (slU_00+slU_01+slU_10+slU_11) >>(DISTORSION+1+2), (slV_00+slV_01+slV_10+slV_11) >>(DISTORSION+1+2) );
+        pulTexture[_pixTexWidth*0+0] = PIXEL( (slU_00                     ) >>(DISTORTION+1  ), (slV_00                     ) >>(DISTORTION+1  ) );
+        pulTexture[_pixTexWidth*0+1] = PIXEL( (slU_00+slU_01              ) >>(DISTORTION+1+1), (slV_00+slV_01              ) >>(DISTORTION+1+1) );
+        pulTexture[_pixTexWidth*1+0] = PIXEL( (slU_00       +slU_10       ) >>(DISTORTION+1+1), (slV_00       +slV_10       ) >>(DISTORTION+1+1) );
+        pulTexture[_pixTexWidth*1+1] = PIXEL( (slU_00+slU_01+slU_10+slU_11) >>(DISTORTION+1+2), (slV_00+slV_01+slV_10+slV_11) >>(DISTORTION+1+2) );
 
         // advance to next texel
         pulTexture+=2;
@@ -1507,6 +1799,7 @@ pixLoop2:
 
 #if ASMOPT == 1
 
+  #if (defined __MSVC_INLINE__)
     __asm {
       push    ebx
       bsf     eax,D [pixBaseWidth]
@@ -1539,7 +1832,7 @@ pixLoop4:
       punpckldq mm0,mm0
       psubd   mm1,mm0
       movq    mm0,mm6
-      pslld   mm0,DISTORSION+1+1
+      pslld   mm0,DISTORTION+1+1
       paddd   mm1,mm0               // MM1 = slV_00 | slU_00
 
       movd    mm2,D [ebx+ 4]
@@ -1551,7 +1844,7 @@ pixLoop4:
       psubd   mm2,mm0
       movq    mm0,mm6
       paddd   mm0,Q [mm1LO]
-      pslld   mm0,DISTORSION+1+1
+      pslld   mm0,DISTORTION+1+1
       paddd   mm2,mm0               // MM2 = slV_01 | slU_01
 
       movd    mm3,D [ebx+ eax*2 +2]
@@ -1563,7 +1856,7 @@ pixLoop4:
       psubd   mm3,mm0
       movq    mm0,mm6
       paddd   mm0,Q [mm1HI]
-      pslld   mm0,DISTORSION+1+1
+      pslld   mm0,DISTORTION+1+1
       paddd   mm3,mm0               // MM3 = slV_10 | slU_10
 
       movd    mm4,D [ebx+ eax*2 +4]
@@ -1575,12 +1868,12 @@ pixLoop4:
       psubd   mm4,mm0
       movq    mm0,mm6
       paddd   mm0,Q [mm1HILO]
-      pslld   mm0,DISTORSION+1+1
+      pslld   mm0,DISTORTION+1+1
       paddd   mm4,mm0               // MM4 = slV_11 | slU_11
 
       // texel 00
       movq    mm0,mm1
-      psrad   mm0,DISTORSION
+      psrad   mm0,DISTORTION
       pand    mm0,Q [mmBaseMasks]
       movq    mm7,mm0
       psrlq   mm7,Q [mmBaseWidthShift]
@@ -1593,7 +1886,7 @@ pixLoop4:
       paddd   mm0,mm1
       paddd   mm0,mm1
       paddd   mm0,mm2
-      psrad   mm0,DISTORSION+2
+      psrad   mm0,DISTORTION+2
       pand    mm0,Q [mmBaseMasks]
       movq    mm7,mm0
       psrlq   mm7,Q [mmBaseWidthShift]
@@ -1604,7 +1897,7 @@ pixLoop4:
       // texel 02
       movq    mm0,mm1
       paddd   mm0,mm2
-      psrad   mm0,DISTORSION+1
+      psrad   mm0,DISTORTION+1
       pand    mm0,Q [mmBaseMasks]
       movq    mm7,mm0
       psrlq   mm7,Q [mmBaseWidthShift]
@@ -1617,7 +1910,7 @@ pixLoop4:
       paddd   mm0,mm2
       paddd   mm0,mm2
       paddd   mm0,mm2
-      psrad   mm0,DISTORSION+2
+      psrad   mm0,DISTORTION+2
       pand    mm0,Q [mmBaseMasks]
       movq    mm7,mm0
       psrlq   mm7,Q [mmBaseWidthShift]
@@ -1631,7 +1924,7 @@ pixLoop4:
       paddd   mm0,mm1
       paddd   mm0,mm1
       paddd   mm0,mm3
-      psrad   mm0,DISTORSION+2
+      psrad   mm0,DISTORTION+2
       pand    mm0,Q [mmBaseMasks]
       movq    mm7,mm0
       psrlq   mm7,Q [mmBaseWidthShift]
@@ -1650,7 +1943,7 @@ pixLoop4:
       paddd   mm0,mm3
       paddd   mm0,mm3
       paddd   mm0,mm4
-      psrad   mm0,DISTORSION+4
+      psrad   mm0,DISTORTION+4
       pand    mm0,Q [mmBaseMasks]
       movq    mm7,mm0
       psrlq   mm7,Q [mmBaseWidthShift]
@@ -1667,7 +1960,7 @@ pixLoop4:
       paddd   mm0,mm2
       paddd   mm0,mm3
       paddd   mm0,mm4
-      psrad   mm0,DISTORSION+3
+      psrad   mm0,DISTORTION+3
       pand    mm0,Q [mmBaseMasks]
       movq    mm7,mm0
       psrlq   mm7,Q [mmBaseWidthShift]
@@ -1686,7 +1979,7 @@ pixLoop4:
       paddd   mm0,mm4
       paddd   mm0,mm4
       paddd   mm0,mm4
-      psrad   mm0,DISTORSION+4
+      psrad   mm0,DISTORTION+4
       pand    mm0,Q [mmBaseMasks]
       movq    mm7,mm0
       psrlq   mm7,Q [mmBaseWidthShift]
@@ -1698,7 +1991,7 @@ pixLoop4:
       // texel 20
       movq    mm0,mm1
       paddd   mm0,mm3
-      psrad   mm0,DISTORSION+1
+      psrad   mm0,DISTORTION+1
       pand    mm0,Q [mmBaseMasks]
       movq    mm7,mm0
       psrlq   mm7,Q [mmBaseWidthShift]
@@ -1715,7 +2008,7 @@ pixLoop4:
       paddd   mm0,mm3
       paddd   mm0,mm3
       paddd   mm0,mm4
-      psrad   mm0,DISTORSION+3
+      psrad   mm0,DISTORTION+3
       pand    mm0,Q [mmBaseMasks]
       movq    mm7,mm0
       psrlq   mm7,Q [mmBaseWidthShift]
@@ -1728,7 +2021,7 @@ pixLoop4:
       paddd   mm0,mm2
       paddd   mm0,mm3
       paddd   mm0,mm4
-      psrad   mm0,DISTORSION+2
+      psrad   mm0,DISTORTION+2
       pand    mm0,Q [mmBaseMasks]
       movq    mm7,mm0
       psrlq   mm7,Q [mmBaseWidthShift]
@@ -1745,7 +2038,7 @@ pixLoop4:
       paddd   mm0,mm4
       paddd   mm0,mm4
       paddd   mm0,mm4
-      psrad   mm0,DISTORSION+3
+      psrad   mm0,DISTORTION+3
       pand    mm0,Q [mmBaseMasks]
       movq    mm7,mm0
       psrlq   mm7,Q [mmBaseWidthShift]
@@ -1760,7 +2053,7 @@ pixLoop4:
       paddd   mm0,mm3
       paddd   mm0,mm3
       paddd   mm0,mm3
-      psrad   mm0,DISTORSION+2
+      psrad   mm0,DISTORTION+2
       pand    mm0,Q [mmBaseMasks]
       movq    mm7,mm0
       psrlq   mm7,Q [mmBaseWidthShift]
@@ -1779,7 +2072,7 @@ pixLoop4:
       paddd   mm0,mm4
       paddd   mm0,mm4
       paddd   mm0,mm4
-      psrad   mm0,DISTORSION+4
+      psrad   mm0,DISTORTION+4
       pand    mm0,Q [mmBaseMasks]
       movq    mm7,mm0
       psrlq   mm7,Q [mmBaseWidthShift]
@@ -1796,7 +2089,7 @@ pixLoop4:
       paddd   mm0,mm3
       paddd   mm0,mm2
       paddd   mm0,mm1
-      psrad   mm0,DISTORSION+3
+      psrad   mm0,DISTORTION+3
       pand    mm0,Q [mmBaseMasks]
       movq    mm7,mm0
       psrlq   mm7,Q [mmBaseWidthShift]
@@ -1815,7 +2108,7 @@ pixLoop4:
       paddd   mm0,mm3
       paddd   mm0,mm3
       paddd   mm0,mm3
-      psrad   mm0,DISTORSION+4
+      psrad   mm0,DISTORTION+4
       pand    mm0,Q [mmBaseMasks]
       movq    mm7,mm0
       psrlq   mm7,Q [mmBaseWidthShift]
@@ -1840,6 +2133,367 @@ pixLoop4:
       pop     ebx
     }
 
+  #elif (defined __GNU_INLINE__)
+    __asm__ __volatile__ (
+      "pushl     %%ebx                         \n\t"  // GCC's register.
+      "movl      %%ecx, %%ebx                  \n\t"
+      "bsfl      %%eax, %%eax                  \n\t"
+      "movl      $32, %%edx                    \n\t"
+      "subl      %%eax, %%edx                  \n\t"
+      "movl      %%edx, (" ASMSYM(mmBaseWidthShift) ")     \n\t"
+
+      "movq      (" ASMSYM(mmBaseHeightMask) "), %%mm0     \n\t"
+      "psllq     $32, %%mm0                    \n\t"
+      "por       (" ASMSYM(mmBaseWidthMask) "), %%mm0      \n\t"
+      "movq      %%mm0, (" ASMSYM(mmBaseMasks) ")          \n\t"
+
+      "pxor      %%mm6, %%mm6                  \n\t" // MM6 = pixV|pixU
+
+      // (These registers were loaded here in the original version...)
+      //"movl      (pswHeightMap), %%ebx         \n\t"
+      //"movl      (pulTextureBase), %%esi       \n\t"
+      //"movl      (pulTexture), %%edi           \n\t"
+
+      "movl      (" ASMSYM(_pixBufferHeight) "), %%edx     \n\t"
+      "0:                                      \n\t" // rowLoop4
+      "pushl     %%edx                         \n\t"
+      "movl      (" ASMSYM(_pixBufferWidth) "), %%ecx      \n\t"
+      "1:                                      \n\t" // pixLoop4
+      "movl      (" ASMSYM(_pixBufferWidth) "), %%eax      \n\t"
+      "movl      (" ASMSYM(_pixTexWidth) "), %%edx         \n\t"
+
+      "movd      2(%%ebx), %%mm1               \n\t"
+      "movd      (%%ebx, %%eax, 2), %%mm0      \n\t"
+      "psllq     $32, %%mm0                    \n\t"
+      "por       %%mm0, %%mm1                  \n\t"
+      "movd      (%%ebx), %%mm0                \n\t"
+      "punpckldq %%mm0, %%mm0                  \n\t"
+      "psubd     %%mm0, %%mm1                  \n\t"
+      "movq      %%mm6, %%mm0                  \n\t"
+      "pslld     $5, %%mm0                     \n\t"
+      "paddd     %%mm0, %%mm1                  \n\t" // MM1 = slV_00 | slU_00
+
+      "movd      4(%%ebx), %%mm2               \n\t"
+      "movd      2(%%ebx, %%eax, 2), %%mm0     \n\t"
+      "psllq     $32, %%mm0                    \n\t"
+      "por       %%mm0, %%mm2                  \n\t"
+      "movd      2(%%ebx), %%mm0               \n\t"
+      "punpckldq %%mm0, %%mm0                  \n\t"
+      "psubd     %%mm0, %%mm2                  \n\t"
+      "movq      %%mm6, %%mm0                  \n\t"
+      "paddd     (" ASMSYM(mm1LO) "), %%mm0                \n\t"
+      "pslld     $5, %%mm0                     \n\t"
+      "paddd     %%mm0, %%mm2                  \n\t" // MM2 = slV_01 | slU_01
+
+      "movd      2(%%ebx, %%eax, 2), %%mm3     \n\t"
+      "movd      (%%ebx, %%eax, 4), %%mm0      \n\t"
+      "psllq     $32, %%mm0                    \n\t"
+      "por       %%mm0, %%mm3                  \n\t"
+      "movd      (%%ebx, %%eax, 2), %%mm0      \n\t"
+      "punpckldq %%mm0, %%mm0                  \n\t"
+      "psubd     %%mm0, %%mm3                  \n\t"
+      "movq      %%mm6, %%mm0                  \n\t"
+      "paddd     (" ASMSYM(mm1HI) "), %%mm0                \n\t"
+      "pslld     $5, %%mm0                     \n\t"
+      "paddd     %%mm0, %%mm3                  \n\t" // MM3 = slV_10 | slU_10
+
+      "movd      4(%%ebx, %%eax, 2), %%mm4     \n\t"
+      "movd      2(%%ebx, %%eax, 4), %%mm0     \n\t"
+      "psllq     $32, %%mm0                    \n\t"
+      "por       %%mm0, %%mm4                  \n\t"
+      "movd      2(%%ebx, %%eax, 2), %%mm0     \n\t"
+      "punpckldq %%mm0, %%mm0                  \n\t"
+      "psubd     %%mm0, %%mm4                  \n\t"
+      "movq      %%mm6, %%mm0                  \n\t"
+      "paddd     (" ASMSYM(mm1HILO) "), %%mm0              \n\t"
+      "pslld     $5, %%mm0                     \n\t"
+      "paddd     %%mm0, %%mm4                  \n\t" // MM4 = slV_11 | slU_11
+
+      // texel 00
+      "movq      %%mm1, %%mm0                  \n\t"
+      "psrad     $3, %%mm0                     \n\t"
+      "pand      (" ASMSYM(mmBaseMasks) "), %%mm0          \n\t"
+      "movq      %%mm0, %%mm7                  \n\t"
+      "psrlq     (" ASMSYM(mmBaseWidthShift) "), %%mm7     \n\t"
+      "paddd     %%mm7, %%mm0                  \n\t"
+      "movd      %%mm0, %%eax                  \n\t"
+      "movl      (%%esi, %%eax, 4), %%eax      \n\t"
+      "movl      %%eax, (%%edi)                \n\t"
+
+      // texel 01
+      "movq      %%mm1, %%mm0                  \n\t"
+      "paddd     %%mm1, %%mm0                  \n\t"
+      "paddd     %%mm1, %%mm0                  \n\t"
+      "paddd     %%mm2, %%mm0                  \n\t"
+      "psrad     $5, %%mm0                     \n\t"
+      "pand      (" ASMSYM(mmBaseMasks) "), %%mm0          \n\t"
+      "movq      %%mm0, %%mm7                  \n\t"
+      "psrlq     (" ASMSYM(mmBaseWidthShift) "), %%mm7     \n\t"
+      "paddd     %%mm7, %%mm0                  \n\t"
+      "movd      %%mm0, %%eax                  \n\t"
+      "movl      (%%esi, %%eax, 4), %%eax      \n\t"
+      "movl      %%eax, 4(%%edi)               \n\t"
+
+      // texel 02
+      "movq      %%mm1, %%mm0                  \n\t"
+      "paddd     %%mm2, %%mm0                  \n\t"
+      "psrad     $4, %%mm0                     \n\t"
+      "pand      (" ASMSYM(mmBaseMasks) "), %%mm0          \n\t"
+      "movq      %%mm0, %%mm7                  \n\t"
+      "psrlq     (" ASMSYM(mmBaseWidthShift) "), %%mm7     \n\t"
+      "paddd     %%mm7, %%mm0                  \n\t"
+      "movd      %%mm0, %%eax                  \n\t"
+      "movl      (%%esi, %%eax, 4), %%eax      \n\t"
+      "movl      %%eax, 8(%%edi)               \n\t"
+
+      // texel 03
+      "movq      %%mm1, %%mm0                  \n\t"
+      "paddd     %%mm2, %%mm0                  \n\t"
+      "paddd     %%mm2, %%mm0                  \n\t"
+      "paddd     %%mm2, %%mm0                  \n\t"
+      "psrad     $5, %%mm0                     \n\t"
+      "pand      (" ASMSYM(mmBaseMasks) "), %%mm0          \n\t"
+      "movq      %%mm0, %%mm7                  \n\t"
+      "psrlq     (" ASMSYM(mmBaseWidthShift) "), %%mm7     \n\t"
+      "paddd     %%mm7, %%mm0                  \n\t"
+      "movd      %%mm0, %%eax                  \n\t"
+      "movl      (%%esi, %%eax, 4), %%eax      \n\t"
+      "movl      %%eax, 12(%%edi)              \n\t"
+
+      // texel 10
+      "movq      %%mm1, %%mm0                  \n\t"
+      "paddd     %%mm1, %%mm0                  \n\t"
+      "paddd     %%mm1, %%mm0                  \n\t"
+      "paddd     %%mm3, %%mm0                  \n\t"
+      "psrad     $5, %%mm0                     \n\t"
+      "pand      (" ASMSYM(mmBaseMasks) "), %%mm0          \n\t"
+      "movq      %%mm0, %%mm7                  \n\t"
+      "psrlq     (" ASMSYM(mmBaseWidthShift) "), %%mm7     \n\t"
+      "paddd     %%mm7, %%mm0                  \n\t"
+      "movd      %%mm0, %%eax                  \n\t"
+      "movl      (%%esi, %%eax, 4), %%eax      \n\t"
+      "movl      %%eax, (%%edi, %%edx, 4)      \n\t"
+
+      // texel 11
+      "movq      %%mm1, %%mm0                  \n\t"
+      "pslld     $3, %%mm0                     \n\t"
+      "paddd     %%mm1, %%mm0                  \n\t"
+      "paddd     %%mm2, %%mm0                  \n\t"
+      "paddd     %%mm2, %%mm0                  \n\t"
+      "paddd     %%mm2, %%mm0                  \n\t"
+      "paddd     %%mm3, %%mm0                  \n\t"
+      "paddd     %%mm3, %%mm0                  \n\t"
+      "paddd     %%mm3, %%mm0                  \n\t"
+      "paddd     %%mm4, %%mm0                  \n\t"
+      "psrad     $7, %%mm0                     \n\t"
+      "pand      (" ASMSYM(mmBaseMasks) "), %%mm0          \n\t"
+      "movq      %%mm0, %%mm7                  \n\t"
+      "psrlq     (" ASMSYM(mmBaseWidthShift) "), %%mm7     \n\t"
+      "paddd     %%mm7, %%mm0                  \n\t"
+      "movd      %%mm0, %%eax                  \n\t"
+      "movl      (%%esi, %%eax, 4), %%eax      \n\t"
+      "movl      %%eax, 4(%%edi, %%edx, 4)     \n\t"
+
+      // texel 12
+      "movq      %%mm1, %%mm0                  \n\t"
+      "paddd     %%mm0, %%mm0                  \n\t"
+      "paddd     %%mm1, %%mm0                  \n\t"
+      "paddd     %%mm2, %%mm0                  \n\t"
+      "paddd     %%mm2, %%mm0                  \n\t"
+      "paddd     %%mm2, %%mm0                  \n\t"
+      "paddd     %%mm3, %%mm0                  \n\t"
+      "paddd     %%mm4, %%mm0                  \n\t"
+      "psrad     $6, %%mm0                     \n\t"
+      "pand      (" ASMSYM(mmBaseMasks) "), %%mm0          \n\t"
+      "movq      %%mm0, %%mm7                  \n\t"
+      "psrlq     (" ASMSYM(mmBaseWidthShift) "), %%mm7     \n\t"
+      "paddd     %%mm7, %%mm0                  \n\t"
+      "movd      %%mm0, %%eax                  \n\t"
+      "movl      (%%esi, %%eax, 4), %%eax      \n\t"
+      "movl      %%eax, 8(%%edi, %%edx, 4)     \n\t"
+
+      // texel 13
+      "movq      %%mm2, %%mm0                  \n\t"
+      "pslld     $3, %%mm0                     \n\t"
+      "paddd     %%mm2, %%mm0                  \n\t"
+      "paddd     %%mm1, %%mm0                  \n\t"
+      "paddd     %%mm1, %%mm0                  \n\t"
+      "paddd     %%mm1, %%mm0                  \n\t"
+      "paddd     %%mm3, %%mm0                  \n\t"
+      "paddd     %%mm4, %%mm0                  \n\t"
+      "paddd     %%mm4, %%mm0                  \n\t"
+      "paddd     %%mm4, %%mm0                  \n\t"
+      "psrad     $7, %%mm0                     \n\t"
+      "pand      (" ASMSYM(mmBaseMasks) "), %%mm0          \n\t"
+      "movq      %%mm0, %%mm7                  \n\t"
+      "psrlq     (" ASMSYM(mmBaseWidthShift) "), %%mm7     \n\t"
+      "paddd     %%mm7, %%mm0                  \n\t"
+      "movd      %%mm0, %%eax                  \n\t"
+      "movl      (%%esi, %%eax, 4), %%eax      \n\t"
+      "movl      %%eax, 12(%%edi, %%edx, 4)    \n\t"
+
+      // texel 20
+      "movq      %%mm1, %%mm0                  \n\t"
+      "paddd     %%mm3, %%mm0                  \n\t"
+      "psrad     $4, %%mm0                     \n\t"
+      "pand      (" ASMSYM(mmBaseMasks) "), %%mm0          \n\t"
+      "movq      %%mm0, %%mm7                  \n\t"
+      "psrlq     (" ASMSYM(mmBaseWidthShift) "), %%mm7     \n\t"
+      "paddd     %%mm7, %%mm0                  \n\t"
+      "movd      %%mm0, %%eax                  \n\t"
+      "movl      (%%esi, %%eax, 4), %%eax      \n\t"
+      "movl      %%eax, (%%edi, %%edx, 8)      \n\t"
+
+      // texel 21
+      "movq      %%mm1, %%mm0                  \n\t"
+      "paddd     %%mm1, %%mm0                  \n\t"
+      "paddd     %%mm1, %%mm0                  \n\t"
+      "paddd     %%mm2, %%mm0                  \n\t"
+      "paddd     %%mm3, %%mm0                  \n\t"
+      "paddd     %%mm3, %%mm0                  \n\t"
+      "paddd     %%mm3, %%mm0                  \n\t"
+      "paddd     %%mm4, %%mm0                  \n\t"
+      "psrad     $6, %%mm0                     \n\t"
+      "pand      (" ASMSYM(mmBaseMasks) "), %%mm0          \n\t"
+      "movq      %%mm0, %%mm7                  \n\t"
+      "psrlq     (" ASMSYM(mmBaseWidthShift) "), %%mm7     \n\t"
+      "paddd     %%mm7, %%mm0                  \n\t"
+      "movd      %%mm0, %%eax                  \n\t"
+      "movl      (%%esi, %%eax, 4), %%eax      \n\t"
+      "movl      %%eax, 4(%%edi, %%edx, 8)     \n\t"
+
+      // texel 22
+      "movq      %%mm1, %%mm0                  \n\t"
+      "paddd     %%mm2, %%mm0                  \n\t"
+      "paddd     %%mm3, %%mm0                  \n\t"
+      "paddd     %%mm4, %%mm0                  \n\t"
+      "psrad     $5, %%mm0                     \n\t"
+      "pand      (" ASMSYM(mmBaseMasks) "), %%mm0          \n\t"
+      "movq      %%mm0, %%mm7                  \n\t"
+      "psrlq     (" ASMSYM(mmBaseWidthShift) "), %%mm7     \n\t"
+      "paddd     %%mm7, %%mm0                  \n\t"
+      "movd      %%mm0, %%eax                  \n\t"
+      "movl      (%%esi, %%eax, 4), %%eax      \n\t"
+      "movl      %%eax, 8(%%edi, %%edx, 8)     \n\t"
+
+      // texel 23
+      "movq      %%mm1, %%mm0                  \n\t"
+      "paddd     %%mm2, %%mm0                  \n\t"
+      "paddd     %%mm2, %%mm0                  \n\t"
+      "paddd     %%mm2, %%mm0                  \n\t"
+      "paddd     %%mm3, %%mm0                  \n\t"
+      "paddd     %%mm4, %%mm0                  \n\t"
+      "paddd     %%mm4, %%mm0                  \n\t"
+      "paddd     %%mm4, %%mm0                  \n\t"
+      "psrad     $6, %%mm0                     \n\t"
+      "pand      (" ASMSYM(mmBaseMasks) "), %%mm0          \n\t"
+      "movq      %%mm0, %%mm7                  \n\t"
+      "psrlq     (" ASMSYM(mmBaseWidthShift) "), %%mm7     \n\t"
+      "paddd     %%mm7, %%mm0                  \n\t"
+      "movd      %%mm0, %%eax                  \n\t"
+      "movl      (%%esi, %%eax, 4), %%eax      \n\t"
+      "movl      %%eax, 12(%%edi, %%edx, 8)    \n\t"
+
+      "imull     $3, %%edx                     \n\t" // _pixTexWidth*=3
+
+      // texel 30
+      "movq      %%mm1, %%mm0                  \n\t"
+      "paddd     %%mm3, %%mm0                  \n\t"
+      "paddd     %%mm3, %%mm0                  \n\t"
+      "paddd     %%mm3, %%mm0                  \n\t"
+      "psrad     $5, %%mm0                     \n\t"
+      "pand      (" ASMSYM(mmBaseMasks) "), %%mm0          \n\t"
+      "movq      %%mm0, %%mm7                  \n\t"
+      "psrlq     (" ASMSYM(mmBaseWidthShift) "), %%mm7     \n\t"
+      "paddd     %%mm7, %%mm0                  \n\t"
+      "movd      %%mm0, %%eax                  \n\t"
+      "movl      (%%esi, %%eax, 4), %%eax      \n\t"
+      "movl      %%eax, (%%edi, %%edx, 4)      \n\t"
+
+      // texel 31
+      "movq      %%mm3, %%mm0                  \n\t"
+      "pslld     $3, %%mm0                     \n\t"
+      "paddd     %%mm3, %%mm0                  \n\t"
+      "paddd     %%mm1, %%mm0                  \n\t"
+      "paddd     %%mm1, %%mm0                  \n\t"
+      "paddd     %%mm1, %%mm0                  \n\t"
+      "paddd     %%mm2, %%mm0                  \n\t"
+      "paddd     %%mm4, %%mm0                  \n\t"
+      "paddd     %%mm4, %%mm0                  \n\t"
+      "paddd     %%mm4, %%mm0                  \n\t"
+      "psrad     $7, %%mm0                     \n\t"
+      "pand      (" ASMSYM(mmBaseMasks) "), %%mm0          \n\t"
+      "movq      %%mm0, %%mm7                  \n\t"
+      "psrlq     (" ASMSYM(mmBaseWidthShift) "), %%mm7     \n\t"
+      "paddd     %%mm7, %%mm0                  \n\t"
+      "movd      %%mm0, %%eax                  \n\t"
+      "movl      (%%esi, %%eax, 4), %%eax      \n\t"
+      "movl      %%eax, 4(%%edi, %%edx, 4)     \n\t"
+
+      // texel 32
+      "movq      %%mm4, %%mm0                  \n\t"
+      "paddd     %%mm0, %%mm0                  \n\t"
+      "paddd     %%mm4, %%mm0                  \n\t"
+      "paddd     %%mm3, %%mm0                  \n\t"
+      "paddd     %%mm3, %%mm0                  \n\t"
+      "paddd     %%mm3, %%mm0                  \n\t"
+      "paddd     %%mm2, %%mm0                  \n\t"
+      "paddd     %%mm1, %%mm0                  \n\t"
+      "psrad     $6, %%mm0                     \n\t"
+      "pand      (" ASMSYM(mmBaseMasks) "), %%mm0          \n\t"
+      "movq      %%mm0, %%mm7                  \n\t"
+      "psrlq     (" ASMSYM(mmBaseWidthShift) "), %%mm7     \n\t"
+      "paddd     %%mm7, %%mm0                  \n\t"
+      "movd      %%mm0, %%eax                  \n\t"
+      "movl      (%%esi, %%eax, 4), %%eax      \n\t"
+      "movl      %%eax, 8(%%edi, %%edx, 4)     \n\t"
+
+      // texel 33
+      "movq      %%mm4, %%mm0                  \n\t"
+      "pslld     $3, %%mm0                     \n\t"
+      "paddd     %%mm4, %%mm0                  \n\t"
+      "paddd     %%mm1, %%mm0                  \n\t"
+      "paddd     %%mm2, %%mm0                  \n\t"
+      "paddd     %%mm2, %%mm0                  \n\t"
+      "paddd     %%mm2, %%mm0                  \n\t"
+      "paddd     %%mm3, %%mm0                  \n\t"
+      "paddd     %%mm3, %%mm0                  \n\t"
+      "paddd     %%mm3, %%mm0                  \n\t"
+      "psrad     $7, %%mm0                     \n\t"
+      "pand      (" ASMSYM(mmBaseMasks) "), %%mm0          \n\t"
+      "movq      %%mm0, %%mm7                  \n\t"
+      "psrlq     (" ASMSYM(mmBaseWidthShift) "), %%mm7     \n\t"
+      "paddd     %%mm7, %%mm0                  \n\t"
+      "movd      %%mm0, %%eax                  \n\t"
+      "movl      (%%esi, %%eax, 4), %%eax      \n\t"
+      "movl      %%eax, 12(%%edi, %%edx, 4)    \n\t"
+
+      // advance to next texture pixels
+      "paddd     (" ASMSYM(mm1LO) "), %%mm6                \n\t"
+      "addl      $16, %%edi                    \n\t"
+      "addl      $2, %%ebx                     \n\t"
+      "decl      %%ecx                         \n\t"
+      "jnz       1b                            \n\t"  // pixLoop4
+
+      // advance to next texture row
+      "leal      (%%edi, %%edx, 4), %%edi      \n\t"// +=[_pixTexWidth]*3
+      "popl      %%edx                         \n\t"
+      "paddd     (" ASMSYM(mm1HI) "), %%mm6                \n\t"
+      "decl      %%edx                         \n\t"
+      "jnz       0b                            \n\t"  // rowLoop4
+      "popl      %%ebx                         \n\t"  // Restore GCC's value.
+      "emms                                    \n\t"
+        : // no outputs.
+        : "a" (pixBaseWidth), "c" (pswHeightMap),
+          "S" (pulTextureBase), "D" (pulTexture)
+        : "edx", "cc", "memory"
+    );
+
+
+  #else
+    #error fill in for you platform.
+  #endif
+
 #else
 
     SLONG slU_00, slU_01, slU_10, slU_11;
@@ -1849,38 +2503,38 @@ pixLoop4:
     { // row loop
       for( PIX pixU=0; pixU<_pixBufferWidth; pixU++)
       { // texel loop
-        slU_00 = pswHeightMap[_pixBufferWidth*0+1] - pswHeightMap[_pixBufferWidth*0+0] + ((pixU+0)<<(DISTORSION+2));
-        slV_00 = pswHeightMap[_pixBufferWidth*1+0] - pswHeightMap[_pixBufferWidth*0+0] + ((pixV+0)<<(DISTORSION+2));
-        slU_01 = pswHeightMap[_pixBufferWidth*0+2] - pswHeightMap[_pixBufferWidth*0+1] + ((pixU+1)<<(DISTORSION+2));
-        slV_01 = pswHeightMap[_pixBufferWidth*1+1] - pswHeightMap[_pixBufferWidth*0+1] + ((pixV+0)<<(DISTORSION+2));
-        slU_10 = pswHeightMap[_pixBufferWidth*1+1] - pswHeightMap[_pixBufferWidth*1+0] + ((pixU+0)<<(DISTORSION+2));
-        slV_10 = pswHeightMap[_pixBufferWidth*2+0] - pswHeightMap[_pixBufferWidth*1+0] + ((pixV+1)<<(DISTORSION+2));
-        slU_11 = pswHeightMap[_pixBufferWidth*1+2] - pswHeightMap[_pixBufferWidth*1+1] + ((pixU+1)<<(DISTORSION+2));
-        slV_11 = pswHeightMap[_pixBufferWidth*2+1] - pswHeightMap[_pixBufferWidth*1+1] + ((pixV+1)<<(DISTORSION+2));
+        slU_00 = pswHeightMap[_pixBufferWidth*0+1] - pswHeightMap[_pixBufferWidth*0+0] + ((pixU+0)<<(DISTORTION+2));
+        slV_00 = pswHeightMap[_pixBufferWidth*1+0] - pswHeightMap[_pixBufferWidth*0+0] + ((pixV+0)<<(DISTORTION+2));
+        slU_01 = pswHeightMap[_pixBufferWidth*0+2] - pswHeightMap[_pixBufferWidth*0+1] + ((pixU+1)<<(DISTORTION+2));
+        slV_01 = pswHeightMap[_pixBufferWidth*1+1] - pswHeightMap[_pixBufferWidth*0+1] + ((pixV+0)<<(DISTORTION+2));
+        slU_10 = pswHeightMap[_pixBufferWidth*1+1] - pswHeightMap[_pixBufferWidth*1+0] + ((pixU+0)<<(DISTORTION+2));
+        slV_10 = pswHeightMap[_pixBufferWidth*2+0] - pswHeightMap[_pixBufferWidth*1+0] + ((pixV+1)<<(DISTORTION+2));
+        slU_11 = pswHeightMap[_pixBufferWidth*1+2] - pswHeightMap[_pixBufferWidth*1+1] + ((pixU+1)<<(DISTORTION+2));
+        slV_11 = pswHeightMap[_pixBufferWidth*2+1] - pswHeightMap[_pixBufferWidth*1+1] + ((pixV+1)<<(DISTORTION+2));
 
-        pulTexture[_pixTexWidth*0+0] = PIXEL( (slU_00                                 ) >>(DISTORSION  ), (slV_00                                 ) >>(DISTORSION  ) );
-        pulTexture[_pixTexWidth*0+1] = PIXEL( (slU_00* 3+slU_01* 1                    ) >>(DISTORSION+2), (slV_00* 3+slV_01* 1                    ) >>(DISTORSION+2) );
-        pulTexture[_pixTexWidth*0+2] = PIXEL( (slU_00   +slU_01                       ) >>(DISTORSION+1), (slV_00   +slV_01                       ) >>(DISTORSION+1) );
-        pulTexture[_pixTexWidth*0+3] = PIXEL( (slU_00* 1+slU_01* 3                    ) >>(DISTORSION+2), (slV_00* 1+slV_01* 3                    ) >>(DISTORSION+2) );
+        pulTexture[_pixTexWidth*0+0] = PIXEL( (slU_00                                 ) >>(DISTORTION  ), (slV_00                                 ) >>(DISTORTION  ) );
+        pulTexture[_pixTexWidth*0+1] = PIXEL( (slU_00* 3+slU_01* 1                    ) >>(DISTORTION+2), (slV_00* 3+slV_01* 1                    ) >>(DISTORTION+2) );
+        pulTexture[_pixTexWidth*0+2] = PIXEL( (slU_00   +slU_01                       ) >>(DISTORTION+1), (slV_00   +slV_01                       ) >>(DISTORTION+1) );
+        pulTexture[_pixTexWidth*0+3] = PIXEL( (slU_00* 1+slU_01* 3                    ) >>(DISTORTION+2), (slV_00* 1+slV_01* 3                    ) >>(DISTORTION+2) );
 
-        pulTexture[_pixTexWidth*1+0] = PIXEL( (slU_00* 3          +slU_10* 1          ) >>(DISTORSION+2), (slV_00* 3          +slV_10             ) >>(DISTORSION+2) );
-        pulTexture[_pixTexWidth*1+1] = PIXEL( (slU_00* 9+slU_01* 3+slU_10* 3+slU_11* 1) >>(DISTORSION+4), (slV_00* 9+slV_01* 3+slV_10* 3+slV_11* 1) >>(DISTORSION+4) );
-        pulTexture[_pixTexWidth*1+2] = PIXEL( (slU_00* 3+slU_01* 3+slU_10* 1+slU_11* 1) >>(DISTORSION+3), (slV_00* 3+slV_01* 3+slV_10* 1+slV_11* 1) >>(DISTORSION+3) );
-        pulTexture[_pixTexWidth*1+3] = PIXEL( (slU_00* 3+slU_01* 9+slU_10* 1+slU_11* 3) >>(DISTORSION+4), (slV_00* 3+slV_01* 9+slV_10* 1+slV_11* 3) >>(DISTORSION+4) );
+        pulTexture[_pixTexWidth*1+0] = PIXEL( (slU_00* 3          +slU_10* 1          ) >>(DISTORTION+2), (slV_00* 3          +slV_10             ) >>(DISTORTION+2) );
+        pulTexture[_pixTexWidth*1+1] = PIXEL( (slU_00* 9+slU_01* 3+slU_10* 3+slU_11* 1) >>(DISTORTION+4), (slV_00* 9+slV_01* 3+slV_10* 3+slV_11* 1) >>(DISTORTION+4) );
+        pulTexture[_pixTexWidth*1+2] = PIXEL( (slU_00* 3+slU_01* 3+slU_10* 1+slU_11* 1) >>(DISTORTION+3), (slV_00* 3+slV_01* 3+slV_10* 1+slV_11* 1) >>(DISTORTION+3) );
+        pulTexture[_pixTexWidth*1+3] = PIXEL( (slU_00* 3+slU_01* 9+slU_10* 1+slU_11* 3) >>(DISTORTION+4), (slV_00* 3+slV_01* 9+slV_10* 1+slV_11* 3) >>(DISTORTION+4) );
 
-        pulTexture[_pixTexWidth*2+0] = PIXEL( (slU_00             +slU_10             ) >>(DISTORSION+1), (slV_00             +slV_10             ) >>(DISTORSION+1) );
-        pulTexture[_pixTexWidth*2+1] = PIXEL( (slU_00* 3+slU_01* 1+slU_10* 3+slU_11* 1) >>(DISTORSION+3), (slV_00* 3+slV_01* 1+slV_10* 3+slV_11* 1) >>(DISTORSION+3) );
-        pulTexture[_pixTexWidth*2+2] = PIXEL( (slU_00   +slU_01   +slU_10   +slU_11   ) >>(DISTORSION+2), (slV_00   +slV_01   +slV_10   +slV_11   ) >>(DISTORSION+2) );
-        pulTexture[_pixTexWidth*2+3] = PIXEL( (slU_00* 1+slU_01* 3+slU_10* 1+slU_11* 3) >>(DISTORSION+3), (slV_00* 1+slV_01* 3+slV_10* 1+slV_11* 3) >>(DISTORSION+3) );
+        pulTexture[_pixTexWidth*2+0] = PIXEL( (slU_00             +slU_10             ) >>(DISTORTION+1), (slV_00             +slV_10             ) >>(DISTORTION+1) );
+        pulTexture[_pixTexWidth*2+1] = PIXEL( (slU_00* 3+slU_01* 1+slU_10* 3+slU_11* 1) >>(DISTORTION+3), (slV_00* 3+slV_01* 1+slV_10* 3+slV_11* 1) >>(DISTORTION+3) );
+        pulTexture[_pixTexWidth*2+2] = PIXEL( (slU_00   +slU_01   +slU_10   +slU_11   ) >>(DISTORTION+2), (slV_00   +slV_01   +slV_10   +slV_11   ) >>(DISTORTION+2) );
+        pulTexture[_pixTexWidth*2+3] = PIXEL( (slU_00* 1+slU_01* 3+slU_10* 1+slU_11* 3) >>(DISTORTION+3), (slV_00* 1+slV_01* 3+slV_10* 1+slV_11* 3) >>(DISTORTION+3) );
 
-        pulTexture[_pixTexWidth*3+0] = PIXEL( (slU_00* 1          +slU_10* 3          ) >>(DISTORSION+2), (slV_00* 1          +slV_10* 3          ) >>(DISTORSION+2) );
-        pulTexture[_pixTexWidth*3+1] = PIXEL( (slU_00* 3+slU_01* 1+slU_10* 9+slU_11* 3) >>(DISTORSION+4), (slV_00* 3+slV_01* 1+slV_10* 9+slV_11* 3) >>(DISTORSION+4) );
-        pulTexture[_pixTexWidth*3+2] = PIXEL( (slU_00* 1+slU_01* 1+slU_10* 3+slU_11* 3) >>(DISTORSION+3), (slV_00* 1+slV_01* 1+slV_10* 3+slV_11* 3) >>(DISTORSION+3) );
-        pulTexture[_pixTexWidth*3+3] = PIXEL( (slU_00* 1+slU_01* 3+slU_10* 3+slU_11* 9) >>(DISTORSION+4), (slV_00* 1+slV_01* 3+slV_10* 3+slV_11* 9) >>(DISTORSION+4) );
+        pulTexture[_pixTexWidth*3+0] = PIXEL( (slU_00* 1          +slU_10* 3          ) >>(DISTORTION+2), (slV_00* 1          +slV_10* 3          ) >>(DISTORTION+2) );
+        pulTexture[_pixTexWidth*3+1] = PIXEL( (slU_00* 3+slU_01* 1+slU_10* 9+slU_11* 3) >>(DISTORTION+4), (slV_00* 3+slV_01* 1+slV_10* 9+slV_11* 3) >>(DISTORTION+4) );
+        pulTexture[_pixTexWidth*3+2] = PIXEL( (slU_00* 1+slU_01* 1+slU_10* 3+slU_11* 3) >>(DISTORTION+3), (slV_00* 1+slV_01* 1+slV_10* 3+slV_11* 3) >>(DISTORTION+3) );
+        pulTexture[_pixTexWidth*3+3] = PIXEL( (slU_00* 1+slU_01* 3+slU_10* 3+slU_11* 9) >>(DISTORTION+4), (slV_00* 1+slV_01* 3+slV_10* 3+slV_11* 9) >>(DISTORTION+4) );
 
         // advance to next texel
         pulTexture+=4;
-        pHeightMap++;
+        pswHeightMap++;
       }
       pulTexture+=_pixTexWidth*3;
     }
@@ -2258,6 +2912,7 @@ static void AnimateFire( SLONG slDensity)
 
 #if ASMOPT == 1
 
+ #if (defined __MSVC_INLINE__)
   __asm {
     push    ebx
     mov     edi,D [ulRNDSeed] ;// EDI = randomizer
@@ -2307,6 +2962,67 @@ pixDone:
     pop     ebx
   }
 
+ #elif (defined __GNU_INLINE__)
+  __asm__ __volatile__ (
+    "pushl   %%ebx                                \n\t"   // GCC's register.
+    "xorl    %%ebx, %%ebx                         \n\t"
+    "pushl   %%edx                                \n\t"   // slColumnModulo
+    "pushl   %%ecx                                \n\t"   // slBufferMask
+    "pushl   %%eax                                \n\t"   // slDensity
+
+    "0:                                           \n\t" // colLoopFM
+    "movl     (" ASMSYM(_pixBufferHeight) "), %%ecx           \n\t"
+    "subl     $2, %%ecx                           \n\t"
+
+    "1:                                           \n\t" // rowLoopFM
+    "movl     (" ASMSYM(_pixBufferWidth) "), %%edx            \n\t"
+    "addl     %%esi, %%edx                        \n\t"
+    "movzbl   (%%ebx, %%edx), %%eax               \n\t"
+    "addl     (" ASMSYM(_pixBufferWidth) "), %%edx            \n\t"
+    "movzbl   (%%ebx, %%edx), %%edx               \n\t"
+    "addl     %%edx, %%eax                        \n\t"
+    "shrl     $1, %%eax                           \n\t"
+    "cmpl     (%%esp), %%eax                      \n\t"
+    "jg       doCalc_animateFire                  \n\t"
+    "movb     $0, (%%esi, %%ebx)                  \n\t"
+    "jmp      pixDone_animateFire                 \n\t"
+
+    "doCalc_animateFire:                          \n\t"
+    "movl     %%edi, %%edx                        \n\t"
+    "sarl     $16, %%edx                          \n\t"
+    "andl     (%%esp), %%edx                      \n\t"
+    "subl     %%edx, %%eax                        \n\t"
+    "movsbl   " ASMSYM(asbMod3Sub1Table) "(%%edx), %%edx      \n\t"
+    "addl     %%ebx, %%edx                        \n\t"
+    "andl     4(%%esp), %%edx                     \n\t"  // slBufferMask
+    "movb     %%al, (%%esi, %%edx)                \n\t"
+    "imull    $262147, %%edi                      \n\t"
+
+    "pixDone_animateFire:                         \n\t"
+    // advance to next row
+    "addl     (" ASMSYM(_pixBufferWidth) "), %%ebx            \n\t"
+    "decl     %%ecx                               \n\t"
+    "jnz      1b                                  \n\t"  // rowLoopFM
+
+    // advance to next column
+    "subl     8(%%esp), %%ebx                     \n\t"  // slColumnModulo
+    "cmpl     (" ASMSYM(_pixBufferWidth) "), %%ebx            \n\t"
+    "jl       0b                                  \n\t"  // colLoopFM
+
+    // all done
+    "movl     %%edi, (" ASMSYM(ulRNDSeed) ")                  \n\t"
+    "addl     $12, %%esp                          \n\t"  // lose our locals.
+    "popl     %%ebx                               \n\t"  // Restore GCC's var.
+        : // no outputs.
+        : "a" (slDensity), "c" (slBufferMask),
+          "d" (slColumnModulo), "D" (ulRNDSeed), "S" (pubNew)
+        : "cc", "memory"
+  );
+
+ #else
+   #error fill in for you platform.
+ #endif
+
 #else
 
   // inner rectangle (without 1 pixel border)
@@ -2336,6 +3052,8 @@ pixDone:
 
 //////////////////////////// displace texture
 
+static UBYTE *_pubHeat_RenderPlasmaFire = NULL;
+
 static void RenderPlasmaFire(void)
 {
 //  _sfStats.StartTimer(CStatForm::STI_EFFECTRENDER);
@@ -2353,6 +3071,7 @@ static void RenderPlasmaFire(void)
 
 #if ASMOPT == 1
 
+ #if (defined __MSVC_INLINE__)
   __asm {
     push    ebx
     mov     ebx,D [pubHeat]
@@ -2380,6 +3099,45 @@ pixLoopF:
     jnz     rowLoopF
     pop     ebx
   }
+ #elif (defined __GNU_INLINE__)
+  _pubHeat_RenderPlasmaFire = pubHeat;  // ran out of registers.  :/
+  __asm__ __volatile__ (
+    "pushl    %%ebx                      \n\t"
+    "movl     (" ASMSYM(_pubHeat_RenderPlasmaFire) "),%%ebx \n\t"
+    "pushl    %%eax                      \n\t" // slHeatRowStep
+    "pushl    %%edx                      \n\t" // slHeatMapStep
+    "pushl    %%ecx                      \n\t" // slBaseMipShift
+    "movl     (" ASMSYM(_pixTexHeight) "), %%ecx     \n\t"
+    "0:                                  \n\t" // rowLoopF
+    "pushl    %%ecx                      \n\t"
+    "movl     (" ASMSYM(_pixTexWidth) "), %%edx      \n\t"
+    "movl     4(%%esp), %%ecx            \n\t" // slBaseMipShift
+    "1:                                  \n\t" // pixLoopF
+    "movzbl   (%%ebx), %%eax             \n\t"
+    "shrl     %%cl, %%eax                \n\t"
+    "movl     (%%esi, %%eax, 4), %%eax   \n\t"
+    "movl     %%eax, (%%edi)             \n\t"
+    // advance to next pixel
+    "addl     8(%%esp), %%ebx            \n\t" // slHeatMapStep
+    "addl     $4, %%edi                  \n\t"
+    "decl     %%edx                      \n\t"
+    "jnz      1b                         \n\t" // pixLoopF
+    // advance to next row
+    "popl     %%ecx                      \n\t"
+    "addl     8(%%esp), %%ebx            \n\t" // slHeatRowStep
+    "decl     %%ecx                      \n\t"
+    "jnz      0b                         \n\t" // rowLoopF
+    "addl     $12, %%esp                 \n\t" // lose our locals.
+    "popl     %%ebx                      \n\t" // restore GCC's register.
+        : // no outputs.
+        : "S" (pulTextureBase), "D" (pulTexture),
+          "c" (slBaseMipShift), "a" (slHeatRowStep), "d" (slHeatMapStep)
+        : "cc", "memory"
+  );
+
+ #else
+   #error fill in for you platform.
+ #endif
 
 #else
 
@@ -2502,18 +3260,18 @@ struct TextureEffectSourceType atestFire[] = {
 };
 
 
-void AWaterFast(void)   { AnimateWater(2); };
-void AWaterMedium(void) { AnimateWater(3); };
-void AWaterSlow(void)   { AnimateWater(5); };
+inline void AWaterFast(void)   { AnimateWater(2); };
+inline void AWaterMedium(void) { AnimateWater(3); };
+inline void AWaterSlow(void)   { AnimateWater(5); };
 
-void APlasma(void)         { AnimatePlasma(4, ptNormal);   };
-void APlasmaUp(void)       { AnimatePlasma(4, ptUp);       };
-void APlasmaUpTile(void)   { AnimatePlasma(4, ptUpTile);   };
-void APlasmaDown(void)     { AnimatePlasma(5, ptDown);     };
-void APlasmaDownTile(void) { AnimatePlasma(5, ptDownTile); };
-void APlasmaUpSlow(void)   { AnimatePlasma(6, ptUp);       };
+inline void APlasma(void)         { AnimatePlasma(4, ptNormal);   };
+inline void APlasmaUp(void)       { AnimatePlasma(4, ptUp);       };
+inline void APlasmaUpTile(void)   { AnimatePlasma(4, ptUpTile);   };
+inline void APlasmaDown(void)     { AnimatePlasma(5, ptDown);     };
+inline void APlasmaDownTile(void) { AnimatePlasma(5, ptDownTile); };
+inline void APlasmaUpSlow(void)   { AnimatePlasma(6, ptUp);       };
 
-void AFire(void) { AnimateFire(15); };
+inline void AFire(void) { AnimateFire(15); };
 
 
 struct TextureEffectGlobalType _ategtTextureEffectGlobalPresets[] = {

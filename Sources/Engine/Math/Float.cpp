@@ -13,9 +13,70 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include "Engine/StdH.h"
 
 #include <Engine/Math/Float.h>
+
+#if (defined __GNU_INLINE__)
+#define MCW_PC		0x0300
+#define _MCW_PC     MCW_PC
+#define _PC_24		0x0000
+#define _PC_53		0x0200
+#define _PC_64		0x0300
+
+inline ULONG _control87(WORD newcw, WORD mask)
+{
+#if __POWERPC__
+    static WORD fpw=_PC_64;
+    if (mask != 0)
+    {
+        fpw &= ~mask;
+        fpw |= (newcw & mask);
+    }
+    return(fpw);
+#else
+    WORD fpw = 0;
+
+    // get the current FPU control word...
+    __asm__ __volatile__ ("fstcw %0" : "=m" (fpw) : : "memory");
+
+    if (mask != 0)
+    {
+        fpw &= ~mask;
+        fpw |= (newcw & mask);
+        __asm__ __volatile__ (" fldcw %0" : : "m" (fpw) : "memory");
+    }
+    return(fpw);
+#endif
+}
+
+// (for intel compiler...)
+#elif ((defined __MSVC_INLINE__) && (!defined _MSC_VER))
+#define MCW_PC		0x0300
+#define _MCW_PC     MCW_PC
+#define _PC_24		0x0000
+#define _PC_53		0x0200
+#define _PC_64		0x0300
+
+inline ULONG _control87(WORD newcw, WORD mask)
+{
+    WORD fpw = 0;
+
+    // get the current FPU control word...
+    __asm fstcw word ptr [fpw];
+
+    if (mask != 0)
+    {
+        fpw &= ~mask;
+        fpw |= (newcw & mask);
+        __asm fldcw word ptr [fpw];
+    }
+    return(fpw);
+}
+
+#elif (!defined _MSC_VER)
+#error Implement for your platform, or add a stub conditional here.
+#endif
 
 /* Get current precision setting of FPU. */
 enum FPUPrecisionType GetFPUPrecision(void)
@@ -108,7 +169,11 @@ BOOL IsValidFloat(float f)
 
 BOOL IsValidDouble(double f)
 {
+#ifdef _MSC_VER
   return _finite(f) && (*(unsigned __int64*)&f)!=0xcdcdcdcdcdcdcdcdI64;
+#else
+  return _finite(f) && (*(unsigned long long*)&f)!=0xcdcdcdcdcdcdcdcdll;
+#endif
 /*  int iClass = _fpclass(f);
   return
     iClass==_FPCLASS_NN ||

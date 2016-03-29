@@ -60,7 +60,7 @@ private:
 // this file just defines TIMER_PROFILING as 1 or 0
 #include <Engine/Base/ProfilingEnabled.h>
 
-#endif ENGINE_INTERNAL
+#endif //ENGINE_INTERNAL
 
 /*
  * Class for gathering and reporting profiling information.
@@ -165,6 +165,19 @@ public:
 
   /* Get percentage of module time in application time. */
   double GetModulePercentage(void);
+
+#else
+
+   // !!! FIXME : rcg10102001 I needed to add these to compile
+   // !!! FIXME :  Engine/Classes/MovableEntity.es. What am I doing wrong?
+  inline void IncrementCounter(INDEX iCounter, INDEX ctAdd=1) {}
+  inline void StartTimer(INDEX iTimer) {};
+  inline void StopTimer(INDEX iTimer) {};
+  inline void IncrementTimerAveragingCounter(INDEX iTimer, INDEX ctAdd=1) {};
+  inline void SetCounterName_internal(INDEX iCounter, const CTString &strName) {};
+  inline void SetTimerName_internal(INDEX iTimer, const CTString &strName, const CTString &strAveragingName) {};
+  #define SETCOUNTERNAME(a,b) SetCounterName_internal(a,"")
+  #define SETTIMERNAME(a,b,c) SetTimerName_internal(a,"","")
 
 #endif // ENGINE_INTERNAL
 

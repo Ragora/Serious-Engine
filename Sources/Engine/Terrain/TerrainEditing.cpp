@@ -13,7 +13,7 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include <Engine/StdH.h>
 #include <Engine/Terrain/Terrain.h>
 #include <Engine/Terrain/TerrainRender.h>
 #include <Engine/Terrain/TerrainEditing.h>
@@ -184,13 +184,13 @@ void ShowSelectionInternal(CTerrain *ptrTerrain, Rect &rcExtract, CTextureData *
   GFXColor *pacolBrush = (GFXColor*)&ptdBrush->td_pulFrames[iFirst];
 
   // Fill vertex colors for selection preview
-  SLONG slStrength = Clamp(Abs(fStrenght),0.0f,1.0f) * 256.0f;
+  SLONG slStrength = (SLONG) (Clamp(Abs(fStrenght),0.0f,1.0f) * 256.0f);
   // for each row
   for(INDEX iy=0;iy<pixHeight;iy++) {
     // for each col
     for(INDEX ix=0;ix<pixWidth;ix++) {
-      pacolColor->abgr = colSelection.abgr;
-      pacolColor->a    = (pacolBrush->r*slStrength)>>8;
+      pacolColor->ul.abgr = colSelection.ul.abgr;
+      pacolColor->ub.a    = (pacolBrush->ub.r*slStrength)>>8;
       pacolColor++;
       pacolBrush++;
     }

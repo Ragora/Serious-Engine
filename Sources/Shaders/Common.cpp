@@ -13,7 +13,7 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include "Shaders/StdH.h"
 #include <Shaders/Common.h>
 
 void DoSpecularLayer(INDEX iSpeculaTexture,INDEX iSpecularColor)
@@ -21,7 +21,7 @@ void DoSpecularLayer(INDEX iSpeculaTexture,INDEX iSpecularColor)
   GFXVertex4 *paVertices = shaGetVertexArray();
   GFXNormal *paNormals = shaGetNormalArray();
   INDEX ctVertices = shaGetVertexCount();
-  FLOAT3D &vLightDir = -shaGetLightDirection().Normalize();
+  FLOAT3D vLightDir = -shaGetLightDirection().Normalize();
   COLOR colLight = ByteSwap(shaGetLightColor());
   COLOR colAmbient = ByteSwap(shaGetAmbientColor());
   GFXTexCoord *ptcUVMap = shaGetNewTexCoordArray();
@@ -48,8 +48,8 @@ void DoSpecularLayer(INDEX iSpeculaTexture,INDEX iSpecularColor)
 
 
   // for each vertex
-  INDEX ivx=0;
-  for(;ivx<ctVertices;ivx++) {
+  INDEX ivx;
+  for(ivx=0;ivx<ctVertices;ivx++) {
     // reflect light vector around vertex normal in object space
     GFXNormal &nor = paNormals[ivx];
     FLOAT3D vNot = FLOAT3D(nor.nx,nor.ny,nor.nz);
@@ -64,15 +64,15 @@ void DoSpecularLayer(INDEX iSpeculaTexture,INDEX iSpecularColor)
     RotateVector(fRV.vector,mObjToView);
     // map reflected vector to texture
     const FLOAT f1oFM = 0.5f / sqrt(2+2*fRV(3));  // was 2*sqrt(2+2*fRVz)
-    ptcUVMap[ivx].s = fRV(1)*f1oFM +0.5f;
-    ptcUVMap[ivx].t = fRV(2)*f1oFM +0.5f;
+    ptcUVMap[ivx].st.s = fRV(1)*f1oFM +0.5f;
+    ptcUVMap[ivx].st.t = fRV(2)*f1oFM +0.5f;
   }
 
   GFXColor colSrfSpec = shaGetColor(iSpecularColor);
   colSrfSpec.AttenuateRGB( (shaGetModelColor()&CT_AMASK)>>CT_ASHIFT);
-  colSrfSpec.r = ClampUp( (colSrfSpec.r *slLR)>>8, 255L);
-  colSrfSpec.g = ClampUp( (colSrfSpec.g *slLG)>>8, 255L);
-  colSrfSpec.b = ClampUp( (colSrfSpec.b *slLB)>>8, 255L);
+  colSrfSpec.ub.r = ClampUp( (colSrfSpec.ub.r *slLR)>>8, 255L);
+  colSrfSpec.ub.g = ClampUp( (colSrfSpec.ub.g *slLG)>>8, 255L);
+  colSrfSpec.ub.b = ClampUp( (colSrfSpec.ub.b *slLB)>>8, 255L);
 
   GFXColor *pcolSpec = shaGetNewColorArray();
   GFXColor *pcolBase = shaGetColorArray();;
@@ -80,10 +80,10 @@ void DoSpecularLayer(INDEX iSpeculaTexture,INDEX iSpecularColor)
   // for each vertex in the surface
   for(ivx=0;ivx<ctVertices;ivx++) {
     // set specular color
-    const SLONG slShade = pcolBase[ivx].a;
-    pcolSpec[ivx].abgr =    (((colSrfSpec.r)*slShade)>>8)
-                          | (((colSrfSpec.g)*slShade)&0x0000FF00)
-                          |((((colSrfSpec.b)*slShade)<<8)&0x00FF0000);
+    const SLONG slShade = pcolBase[ivx].ub.a;
+    pcolSpec[ivx].ul.abgr =    (((colSrfSpec.ub.r)*slShade)>>8)
+                             | (((colSrfSpec.ub.g)*slShade)&0x0000FF00)
+                             |((((colSrfSpec.ub.b)*slShade)<<8)&0x00FF0000);
   }
   
 
@@ -135,15 +135,15 @@ void DoReflectionLayer(INDEX iReflectionTexture,INDEX iReflectionColor,BOOL bFul
     // map reflected vector to texture 
     // NOTE: using X and Z axes, so that singularity gets on -Y axis (where it will least probably be seen)
     const FLOAT f1oFM = 0.5f / sqrt(2+2*fRVy);  
-    ptcUVMap[ivx].s = fRVx*f1oFM +0.5f;
-    ptcUVMap[ivx].t = fRVz*f1oFM +0.5f;
+    ptcUVMap[ivx].st.s = fRVx*f1oFM +0.5f;
+    ptcUVMap[ivx].st.t = fRVz*f1oFM +0.5f;
   }
 
   GFXColor *pcolReflection = shaGetNewColorArray();
   
   // get model reflection color
   GFXColor colSrfRefl;
-  colSrfRefl.abgr = ByteSwap(shaGetColor(iReflectionColor));
+  colSrfRefl.ul.abgr = ByteSwap(shaGetColor(iReflectionColor));
   colSrfRefl.AttenuateA((shaGetModelColor()&CT_AMASK)>>CT_ASHIFT);
 
   if(bFullBright) {

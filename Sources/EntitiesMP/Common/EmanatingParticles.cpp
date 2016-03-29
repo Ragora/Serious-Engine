@@ -13,7 +13,7 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include "EntitiesMP/StdH/StdH.h"
 
 #define ID_EMITER_VER "EMT0"
 
@@ -31,12 +31,32 @@ CEmittedParticle::CEmittedParticle(void)
 
 void CEmittedParticle::Write_t( CTStream &strm)
 {
-  strm.WriteRawChunk_t( this, sizeof(CEmittedParticle));
+  strm<<ep_vLastPos;
+  strm<<ep_vPos;
+  strm<<ep_fLastRot;
+  strm<<ep_fRot;
+  strm<<ep_fRotSpeed;
+  strm<<ep_vSpeed;
+  strm<<ep_colLastColor;
+  strm<<ep_colColor;
+  strm<<ep_tmEmitted;
+  strm<<ep_tmLife;
+  strm<<ep_fStretch;
 }
 
 void CEmittedParticle::Read_t( CTStream &strm)
 {
-  strm.ReadRawChunk_t( this, sizeof(CEmittedParticle));
+  strm>>ep_vLastPos;
+  strm>>ep_vPos;
+  strm>>ep_fLastRot;
+  strm>>ep_fRot;
+  strm>>ep_fRotSpeed;
+  strm>>ep_vSpeed;
+  strm>>ep_colLastColor;
+  strm>>ep_colColor;
+  strm>>ep_tmEmitted;
+  strm>>ep_tmLife;
+  strm>>ep_fStretch;
 }
 
 CEmiter::CEmiter(void)

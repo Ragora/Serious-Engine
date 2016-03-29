@@ -13,17 +13,26 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include "Engine/StdH.h"
 
 #include <Engine/Base/Profiling.h>
 
 #include <Engine/Templates/StaticArray.cpp>
-template CStaticArray<CProfileCounter>;
-template CStaticArray<CProfileTimer>;
+template class CStaticArray<CProfileCounter>;
+template class CStaticArray<CProfileTimer>;
 
+#if (defined USE_PORTABLE_C)
+#include <sys/time.h>
+#endif
 
 static inline __int64 ReadTSC_profile(void)
 {
+#if (defined USE_PORTABLE_C)
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  return( (((__int64) tv.tv_sec) * 1000) + (((__int64) tv.tv_usec) / 1000) );
+
+#elif (defined __MSVC_INLINE__)
   __int64 mmRet;
   __asm {
     rdtsc
@@ -31,6 +40,22 @@ static inline __int64 ReadTSC_profile(void)
     mov   dword ptr [mmRet+4],edx
   }
   return mmRet;
+
+#elif (defined __GNU_INLINE__)
+  __int64 mmRet;
+  __asm__ __volatile__ (
+    "rdtsc                    \n\t"
+    "movl   %%eax, 0(%%esi)   \n\t"
+    "movl   %%edx, 4(%%esi)   \n\t"
+        :
+        : "S" (&mmRet)
+        : "memory", "eax", "edx"
+  );
+  return(mmRet);
+
+#else
+  #error Please implement for your platform/compiler.
+#endif
 }
 
 
@@ -72,7 +97,15 @@ void CProfileForm::CalibrateProfilingTimers(void)
 
 #define REPEATCOUNT 10000
   // measure how much it takes to start and stop timer
-  __int64 llMinStartStopTime(0x7fffffffffffffff);
+
+// rcg10102001 gcc needs the "ll" postfix for numbers this big.
+#if (defined __GNUC__)
+  #define BIGBIGNUMBER 0x7fffffffffffffffll;
+#else
+  #define BIGBIGNUMBER 0x7fffffffffffffff;
+#endif
+
+  __int64 llMinStartStopTime = BIGBIGNUMBER;
   {for (INDEX i=0; i<REPEATCOUNT; i++) {
     pfCalibration.Reset();
     pfCalibration.StartTimer(ETI_TOTAL);
@@ -88,7 +121,7 @@ void CProfileForm::CalibrateProfilingTimers(void)
   _tvStartStopEpsilon = llMinStartStopTime;
 
   // measure how much it takes to start timer
-  __int64 llMinStartTime(0x7fffffffffffffff);
+  __int64 llMinStartTime = BIGBIGNUMBER;
   {for (INDEX i=0; i<REPEATCOUNT; i++) {
     pfCalibration.Reset();
     pfCalibration.StartTimer(ETI_TOTAL);
@@ -106,7 +139,8 @@ void CProfileForm::CalibrateProfilingTimers(void)
   _tvStartEpsilon = llMinStartTime;
 
   // measure how much it takes to stop timer
-  __int64 llMinStopTime(0x7fffffffffffffff);
+
+  __int64 llMinStopTime = BIGBIGNUMBER;
   {for (INDEX i=0; i<REPEATCOUNT; i++) {
     pfCalibration.Reset();
     pfCalibration.StartTimer(ETI_TOTAL);
@@ -154,7 +188,7 @@ CProfileForm::CProfileForm(
   FOREACHINSTATICARRAY(pf_aptTimers, CProfileTimer, itpt) {
     // clear the timer
     itpt->pt_tvElapsed.Clear();
-    itpt->pt_tvStarted.tv_llValue = -__int64(1);
+    itpt->pt_tvStarted.tv_llValue = (__int64) -1;
     itpt->pt_ctAveraging = 0;
   }
 }
@@ -210,7 +244,7 @@ void CProfileForm::StopTimer_internal(INDEX iTimer)
   if (pf_ctRunningTimers==0) {
     pf_tvOverAllElapsed += tvNow-pf_tvOverAllStarted;
   }
-  IFDEBUG(pt.pt_tvStarted.tv_llValue = -__int64(1));
+  IFDEBUG(pt.pt_tvStarted.tv_llValue = (__int64) -1);
   _tvCurrentProfilingEpsilon += _tvStopEpsilon;
 }
 
@@ -272,7 +306,7 @@ void CProfileForm::Reset(void)
   FOREACHINSTATICARRAY(pf_aptTimers, CProfileTimer, itpt) {
     // clear the timer
     itpt->pt_tvElapsed.Clear();
-    itpt->pt_tvStarted.tv_llValue = -__int64(1);
+    itpt->pt_tvStarted.tv_llValue = (__int64) -1;
     itpt->pt_ctAveraging = 0;
   }
 }
@@ -284,7 +318,7 @@ void CProfileCounter::Report(char *&strBuffer, INDEX ctAveragingCount)
     ctAveragingCount = 1;
   }
   strBuffer += sprintf(strBuffer, "%-45s: %7d %7.2f\n",
-    pc_strName, pc_ctCount, (double)pc_ctCount/ctAveragingCount);
+    (const char *) pc_strName, pc_ctCount, (double)pc_ctCount/ctAveragingCount);
 }
 
 /* Print one timer in report. */
@@ -298,7 +332,7 @@ void CProfileTimer::Report(char *&strBuffer,
 
   if (pt_strAveragingName=="") {
     strBuffer += sprintf(strBuffer, "%-45s: %6.2f%% %6.2f%% %6.2f ms\n",
-      pt_strName,
+      (const char *) pt_strName,
       pt_tvElapsed.GetSeconds()/tvAppElapsed.GetSeconds()*100,
       pt_tvElapsed.GetSeconds()/tvModElapsed.GetSeconds()*100,
       pt_tvElapsed.GetSeconds()/ctAveragingCount*1000
@@ -309,12 +343,12 @@ void CProfileTimer::Report(char *&strBuffer,
       ctLocalAveraging = 1;
     }
     strBuffer += sprintf(strBuffer, "%-45s: %6.2f%% %6.2f%% %6.2f ms (%4.0fc/%s x%d)\n",
-      pt_strName,
+      (const char *) pt_strName,
       pt_tvElapsed.GetSeconds()/tvAppElapsed.GetSeconds()*100,
       pt_tvElapsed.GetSeconds()/tvModElapsed.GetSeconds()*100,
       pt_tvElapsed.GetSeconds()/ctAveragingCount*1000,
       pt_tvElapsed.GetSeconds()/ctLocalAveraging*_pTimer->tm_llCPUSpeedHZ,
-      pt_strAveragingName,
+      (const char *) pt_strAveragingName,
       pt_ctAveraging/ctAveragingCount
       );
   }
@@ -341,7 +375,9 @@ void CProfileForm::Report(CTString &strReport)
   CTimerValue tvModuleElapsed = pf_tvOverAllElapsed;
   // print the main header
   strBuffer += sprintf(strBuffer, "%s profile for last %d %s:\n",
-    pf_strTitle, GetAveragingCounter(), pf_strAveragingUnits);
+    (const char *) pf_strTitle,
+    GetAveragingCounter(),
+    (const char *) pf_strAveragingUnits);
 
   // print header for timers
   strBuffer += sprintf(strBuffer,

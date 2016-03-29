@@ -13,7 +13,7 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include <Engine/StdH.h>
 #include "Mesh.h"
 
 #define MESH_VERSION  12
@@ -45,7 +45,7 @@ struct SortArray
   CStaticArray<struct VertexLocator> sa_aMorphMapList;
 };
 
-CStaticArray <struct SortArray> _aSortArray;
+static CStaticArray <struct SortArray> _aSortArray;
 CStaticArray <INDEX> _aiOptimizedIndex;
 CStaticArray <INDEX> _aiSortedIndex;
 
@@ -112,7 +112,7 @@ void ChangeSurfaceShader_t(MeshSurface &msrf,CTString fnNewShader)
     msrf.msrf_ShadingParams.sp_afFloats.Expand(ctNewFloats);
     // set new floats to 0
     for(INDEX ifl=ctOldFloats;ifl<ctNewFloats;ifl++) {
-      msrf.msrf_ShadingParams.sp_afFloats[ifl] = 1;
+      msrf.msrf_ShadingParams.sp_afFloats[ifl] = 0;
     }
   }
 }
@@ -167,8 +167,8 @@ void CMesh::OptimizeLod(MeshLOD &mLod)
     _aiSortedIndex[iv] = iv;
   }
   // loop each surface and expand SurfaceList in SortArray
-  int is=0;
-  for(;is<ctSurfaces;is++)
+  int is;
+  for(is=0;is<ctSurfaces;is++)
   {
     INDEX ctts=mLod.mlod_aSurfaces[is].msrf_aTriangles.Count();
     for(int its=0;its<ctts;its++)
@@ -273,8 +273,8 @@ void CMesh::OptimizeLod(MeshLOD &mLod)
     INDEX iMaxIndex = -1;
     INDEX ctts=msrf.msrf_aTriangles.Count();
     // for each triangle in this surface
-    INDEX its=0;
-    for(;its<ctts;its++)
+    INDEX its;
+    for(its=0;its<ctts;its++)
     {
       MeshTriangle &mtTriangle = msrf.msrf_aTriangles[its];
       // for each vertex in triangle
@@ -309,8 +309,8 @@ void CMesh::OptimizeLod(MeshLOD &mLod)
   // remap weightmaps
   mshOptimized.mlod_aWeightMaps.New(ctWeightMaps);
   // expand wertex veights array for each vertex
-  INDEX ivx=0;
-  for(;ivx<ctNewVertices;ivx++)
+  INDEX ivx;
+  for(ivx=0;ivx<ctNewVertices;ivx++)
   {
     INDEX ioptVx = _aiOptimizedIndex[ivx];
     for(INDEX iwl=0;iwl<_aSortArray[ioptVx].sa_aWeightMapList.Count();iwl++)
@@ -375,8 +375,8 @@ void CMesh::OptimizeLod(MeshLOD &mLod)
 
 INDEX AreVerticesDiferent(INDEX iCurentIndex, INDEX iLastIndex)
 {
-#define CHECK(x,y) if(((x)-(y))!=0) return ((x)-(y))
-#define CHECKF(x,y) if(((x)-(y))!=0) return Sgn((x)-(y))
+#define CHECK(x,y) if(((x)-(y))!=0) return (INDEX) ((x)-(y))
+#define CHECKF(x,y) if(((x)-(y))!=0) return (INDEX) Sgn((x)-(y))
   
   // check surfaces
   CHECK(_aSortArray[iCurentIndex].sa_iSurfaceIndex,_aSortArray[iLastIndex].sa_iSurfaceIndex);
@@ -451,8 +451,8 @@ void CMesh::NormalizeWeightsInLod(MeshLOD &mlod)
   // create array for weights
   aWeightFactors.New(ctvtx);
   memset(&aWeightFactors[0],0,sizeof(aWeightFactors[0])*ctvtx);
-  int iwm=0;
-  for(;iwm<ctwm;iwm++)
+  int iwm;
+  for(iwm=0;iwm<ctwm;iwm++)
   {
     MeshWeightMap &mwm = mlod.mlod_aWeightMaps[iwm];
     for(int iww=0;iww<mwm.mwm_aVertexWeight.Count();iww++)
@@ -727,10 +727,12 @@ void CMesh::Read_t(CTStream *istrFile)
     // create vertex and normal arrays
     mLod.mlod_aVertices.New(ctVx);
     mLod.mlod_aNormals.New(ctVx);
-    // read wertices
-    istrFile->Read_t(&mLod.mlod_aVertices[0],sizeof(MeshVertex)*ctVx);
+    // read vertices
+    for (INDEX i = 0; i < ctVx; i++)
+      (*istrFile)>>mLod.mlod_aVertices[i];
     // read normals
-    istrFile->Read_t(&mLod.mlod_aNormals[0],sizeof(MeshNormal)*ctVx);
+    for (INDEX i = 0; i < ctVx; i++)
+      (*istrFile)>>mLod.mlod_aNormals[i];
 
     // read uvmaps count
     (*istrFile)>>ctUV;
@@ -745,7 +747,8 @@ void CMesh::Read_t(CTStream *istrFile)
       // create array for uvmaps texcordinates
       mLod.mlod_aUVMaps[iuv].muv_aTexCoords.New(ctVx);
       // read uvmap texcordinates
-      istrFile->Read_t(&mLod.mlod_aUVMaps[iuv].muv_aTexCoords[0],sizeof(MeshTexCoord)*ctVx);
+      for (INDEX i = 0; i < ctVx; i++)
+        (*istrFile)>>mLod.mlod_aUVMaps[iuv].muv_aTexCoords[i];
     }
     // read surfaces count
     (*istrFile)>>ctSf;
@@ -768,7 +771,8 @@ void CMesh::Read_t(CTStream *istrFile)
       // create triangles array
       mLod.mlod_aSurfaces[isf].msrf_aTriangles.New(ctTris);
       // read triangles
-      istrFile->Read_t(&mLod.mlod_aSurfaces[isf].msrf_aTriangles[0],sizeof(MeshTriangle)*ctTris);
+      for (INDEX i = 0; i < ctTris; i++)
+        (*istrFile)>>mLod.mlod_aSurfaces[isf].msrf_aTriangles[i];
 
       // read bool that this surface has a shader
       INDEX bShaderExists;
@@ -877,7 +881,8 @@ void CMesh::Read_t(CTStream *istrFile)
       // create wertex weight array
       mLod.mlod_aWeightMaps[iwm].mwm_aVertexWeight.New(ctWw);
       // read wertex weights
-      istrFile->Read_t(&mLod.mlod_aWeightMaps[iwm].mwm_aVertexWeight[0],sizeof(MeshVertexWeight)*ctWw);
+      for (INDEX i = 0; i < ctWw; i++)
+        (*istrFile)>>mLod.mlod_aWeightMaps[iwm].mwm_aVertexWeight[i];
     }
 
     // read morphmap count
@@ -898,7 +903,8 @@ void CMesh::Read_t(CTStream *istrFile)
       // create morps sets array
       mLod.mlod_aMorphMaps[imm].mmp_aMorphMap.New(ctms);
       // read morph sets
-      istrFile->Read_t(&mLod.mlod_aMorphMaps[imm].mmp_aMorphMap[0],sizeof(MeshVertexMorph)*ctms);
+      for (INDEX i = 0; i < ctms; i++)
+        (*istrFile)>>mLod.mlod_aMorphMaps[imm].mmp_aMorphMap[i];
     }
   }
 }

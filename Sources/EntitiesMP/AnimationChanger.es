@@ -64,7 +64,7 @@ functions:
   const CTString &GetDescription(void) const {
     ((CTString&)m_strDescription).PrintF("-><none>");
     if (m_penTarget!=NULL) {
-      ((CTString&)m_strDescription).PrintF("->%s", m_penTarget->GetName());
+      ((CTString&)m_strDescription).PrintF("->%s", (const char *) m_penTarget->GetName());
     }
     return m_strDescription;
   }
@@ -89,11 +89,11 @@ functions:
     // if modelholder
     if (IsOfClass(penTarget, "ModelHolder2")) {
       CModelHolder2 *penModel = (CModelHolder2*)&*penTarget;
-      if (slPropertyOffset==offsetof(CAnimationChanger, m_iModelAnim)) {
+      if (slPropertyOffset==_offsetof(CAnimationChanger, m_iModelAnim)) {
         return penModel->GetModelObject()->GetData();
-      } else if (slPropertyOffset==offsetof(CAnimationChanger, m_iTextureAnim)) {
+      } else if (slPropertyOffset==_offsetof(CAnimationChanger, m_iTextureAnim)) {
         return penModel->GetModelObject()->mo_toTexture.GetData();
-      } else if (slPropertyOffset==offsetof(CAnimationChanger, m_iLightAnim)) {
+      } else if (slPropertyOffset==_offsetof(CAnimationChanger, m_iLightAnim)) {
         return penModel->m_aoLightAnimation.GetData();
       }
 
@@ -101,11 +101,11 @@ functions:
     } else if (IsOfClass(penTarget, "Light")) {
       CLight *penLight = (CLight*)&*penTarget;
 
-      if (slPropertyOffset==offsetof(CAnimationChanger, m_iLightAnim))
+      if (slPropertyOffset==_offsetof(CAnimationChanger, m_iLightAnim))
       {
         return penLight->m_aoLightAnimation.GetData();
       }
-      else if (slPropertyOffset==offsetof(CAnimationChanger, m_iAmbientLightAnim))
+      else if (slPropertyOffset==_offsetof(CAnimationChanger, m_iAmbientLightAnim))
       {
         return penLight->m_aoAmbientLightAnimation.GetData();
       }

@@ -13,9 +13,24 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+// !!! FIXME : rcg12162001 This file really needs to be ripped apart and
+// !!! FIXME : rcg12162001  into platform/driver specific subdirectories.
+
+
+// !!! FIXME : rcg10132001 what is this file?
+#ifdef PLATFORM_WIN32
+#include "initguid.h"
+#endif
+
+// !!! FIXME : Move all the SDL stuff to a different file...
+#ifdef PLATFORM_UNIX
+#include "SDL.h"
+#endif
+
+#include <Engine/StdH.h>
 #include "initguid.h"
 
+#include <Engine/Engine.h>
 #include <Engine/Sound/SoundLibrary.h>
 #include <Engine/Base/Translation.h>
 
@@ -38,18 +53,20 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <Engine/Templates/StaticArray.cpp>
 #include <Engine/Templates/StaticStackArray.cpp>
 
-template CStaticArray<CSoundListener>;
+template class CStaticArray<CSoundListener>;
 
+#ifdef _MSC_VER
 #pragma comment(lib, "winmm.lib")
+#endif
 
 // pointer to global sound library object
 CSoundLibrary *_pSound = NULL;
 
 
 // console variables
-extern FLOAT snd_tmMixAhead  = 0.2f; // mix-ahead in seconds
-extern FLOAT snd_fSoundVolume = 1.0f;   // master volume for sound playing [0..1]
-extern FLOAT snd_fMusicVolume = 1.0f;   // master volume for music playing [0..1]
+FLOAT snd_tmMixAhead  = 0.2f; // mix-ahead in seconds
+FLOAT snd_fSoundVolume = 1.0f;   // master volume for sound playing [0..1]
+FLOAT snd_fMusicVolume = 1.0f;   // master volume for music playing [0..1]
 // NOTES: 
 // - these 3d sound parameters have been set carefully, take extreme if changing !
 // - ears distance of 20cm causes phase shift of up to 0.6ms which is very noticable
@@ -57,17 +74,17 @@ extern FLOAT snd_fMusicVolume = 1.0f;   // master volume for music playing [0..1
 // - pan strength needs not to be very strong, since lrfilter has panning-like influence also
 // - if down filter is too large, it makes too much influence even on small elevation changes
 //   and messes the situation completely
-extern FLOAT snd_fDelaySoundSpeed   = 1E10;   // sound speed used for delay [m/s]
-extern FLOAT snd_fDopplerSoundSpeed = 330.0f; // sound speed used for doppler [m/s]
-extern FLOAT snd_fEarsDistance = 0.2f;   // distance between listener's ears
-extern FLOAT snd_fPanStrength  = 0.1f;   // panning modifier (0=none, 1= full)
-extern FLOAT snd_fLRFilter = 3.0f;   // filter for left-right
-extern FLOAT snd_fBFilter  = 5.0f;   // filter for back
-extern FLOAT snd_fUFilter  = 1.0f;   // filter for up
-extern FLOAT snd_fDFilter  = 3.0f;   // filter for down
+FLOAT snd_fDelaySoundSpeed   = 1E10;   // sound speed used for delay [m/s]
+FLOAT snd_fDopplerSoundSpeed = 330.0f; // sound speed used for doppler [m/s]
+FLOAT snd_fEarsDistance = 0.2f;   // distance between listener's ears
+FLOAT snd_fPanStrength  = 0.1f;   // panning modifier (0=none, 1= full)
+FLOAT snd_fLRFilter = 3.0f;   // filter for left-right
+FLOAT snd_fBFilter  = 5.0f;   // filter for back
+FLOAT snd_fUFilter  = 1.0f;   // filter for up
+FLOAT snd_fDFilter  = 3.0f;   // filter for down
 
-ENGINE_API extern INDEX snd_iFormat = 3;
-extern INDEX snd_bMono = FALSE;
+ENGINE_API INDEX snd_iFormat = 3;
+INDEX snd_bMono = FALSE;
 static INDEX snd_iDevice = -1;
 static INDEX snd_iInterface = 2;   // 0=WaveOut, 1=DirectSound, 2=EAX
 static INDEX snd_iMaxOpenRetries = 3;
@@ -78,9 +95,12 @@ static FLOAT snd_fEAXPanning = 0.0f;
 static FLOAT snd_fNormalizer = 0.9f;
 static FLOAT _fLastNormalizeValue = 1;
 
+#ifdef PLATFORM_WIN32
 extern HWND  _hwndMain; // global handle for application window
 static HWND  _hwndCurrent = NULL;
 static HINSTANCE _hInstDS = NULL;
+#endif
+
 static INDEX _iWriteOffset  = 0;
 static INDEX _iWriteOffset2 = 0;
 static BOOL  _bMuted  = FALSE;
@@ -106,6 +126,249 @@ static BOOL _bOpened = FALSE;
  * ----------------------------
 **/
 
+// rcg12162001 Simple Directmedia Layer sound implementation.
+#ifdef PLATFORM_UNIX
+
+static Uint8 sdl_silence = 0;
+static volatile SLONG sdl_backbuffer_allocation = 0;
+static Uint8 *sdl_backbuffer = NULL;
+static volatile SLONG sdl_backbuffer_pos = 0;
+static volatile SLONG sdl_backbuffer_remain = 0;
+
+static void sdl_audio_callback(void *userdata, Uint8 *stream, int len)
+{
+  ASSERT(!_bDedicatedServer);
+  ASSERT(sdl_backbuffer != NULL);
+  ASSERT(sdl_backbuffer_remain <= sdl_backbuffer_allocation);
+  ASSERT(sdl_backbuffer_remain >= 0);
+  ASSERT(sdl_backbuffer_pos < sdl_backbuffer_allocation);
+  ASSERT(sdl_backbuffer_pos >= 0);
+
+      // "avail" is just the byte count before the end of the buffer.
+      // "cpysize" is how many bytes can actually be copied.
+  int avail = sdl_backbuffer_allocation - sdl_backbuffer_pos;
+  int cpysize = (len < sdl_backbuffer_remain) ? len : sdl_backbuffer_remain;
+  Uint8 *src = sdl_backbuffer + sdl_backbuffer_pos;
+
+  if (avail < cpysize)  // Copy would pass end of ring buffer?
+    cpysize = avail;
+
+  if (cpysize > 0) {
+    memcpy(stream, src, cpysize);  // move first block to SDL stream.
+    sdl_backbuffer_remain -= cpysize;
+    ASSERT(sdl_backbuffer_remain >= 0);
+    len -= cpysize;
+    ASSERT(len >= 0);
+    stream += cpysize;
+    sdl_backbuffer_pos += cpysize;
+  } // if
+
+  // See if we need to rotate to start of ring buffer...
+  ASSERT(sdl_backbuffer_pos <= sdl_backbuffer_allocation);
+  if (sdl_backbuffer_pos == sdl_backbuffer_allocation) {
+    sdl_backbuffer_pos = 0;
+
+    // we might need to feed SDL more data now...
+    if (len > 0) {
+      cpysize = (len < sdl_backbuffer_remain) ? len : sdl_backbuffer_remain;
+      if (cpysize > 0) {
+        memcpy(stream, sdl_backbuffer, cpysize);  // move 2nd block.
+        sdl_backbuffer_pos += cpysize;
+        ASSERT(sdl_backbuffer_pos < sdl_backbuffer_allocation);
+        sdl_backbuffer_remain -= cpysize;
+        ASSERT(sdl_backbuffer_remain >= 0);
+        len -= cpysize;
+        ASSERT(len >= 0);
+        stream += cpysize;
+      } // if
+    } // if
+  } // if
+
+  // SDL _still_ needs more data than we've got! Fill with silence. (*shrug*)
+  if (len > 0) {
+      ASSERT(sdl_backbuffer_remain == 0);
+      memset(stream, sdl_silence, len);
+  } // if
+} // sdl_audio_callback
+
+
+// initialize the SDL audio subsystem.
+
+static BOOL StartUp_SDLaudio( CSoundLibrary &sl, BOOL bReport=TRUE)
+{
+  bReport=TRUE;  // !!! FIXME ...how do you configure this externally?
+
+  // not using DirectSound (obviously)
+  sl.sl_bUsingDirectSound = FALSE;
+  sl.sl_bUsingEAX = FALSE;
+  snd_iDevice = 0;
+  if( bReport) CPrintF(TRANS("SDL audio initialization ...\n"));
+
+  ASSERT(!_bDedicatedServer);
+  if (_bDedicatedServer) {
+    CPrintF("Dedicated server; not initializing audio.\n");
+    return FALSE;
+  }
+
+  SDL_AudioSpec desired;
+  memset(&desired, '\0', sizeof (SDL_AudioSpec));
+  Sint16 bps = sl.sl_SwfeFormat.wBitsPerSample;
+  if (bps <= 8)
+    desired.format = AUDIO_U8;
+  else if (bps <= 16)
+    desired.format = AUDIO_S16LSB;
+  else {
+    CPrintF(TRANS("Unsupported bits-per-sample: %d\n"), bps);
+    return FALSE;
+  }
+  desired.freq = sl.sl_SwfeFormat.nSamplesPerSec;
+
+    // I dunno if this is the best idea, but I'll give it a try...
+    //  should probably check a cvar for this...
+  if (desired.freq <= 11025)
+    desired.samples = 512;
+  else if (desired.freq <= 22050)
+    desired.samples = 1024;
+  else if (desired.freq <= 44100)
+    desired.samples = 2048;
+  else
+    desired.samples = 4096;  // (*shrug*)
+
+  desired.channels = sl.sl_SwfeFormat.nChannels;
+  desired.userdata = &sl;
+  desired.callback = sdl_audio_callback;
+
+  if (SDL_Init(SDL_INIT_AUDIO) == -1) {
+    CPrintF( TRANS("SDL_Init(SDL_INIT_AUDIO) error: %s\n"), SDL_GetError());
+    return FALSE;
+  }
+
+  // !!! FIXME rcg12162001 We force SDL to convert the audio stream on the
+  // !!! FIXME rcg12162001  fly to match sl.sl_SwfeFormat, but I'm curious
+  // !!! FIXME rcg12162001  if the Serious Engine can handle it if we changed
+  // !!! FIXME rcg12162001  sl.sl_SwfeFormat to match what the audio hardware
+  // !!! FIXME rcg12162001  can handle. I'll have to check later.
+  if (SDL_OpenAudio(&desired, NULL) != 0) {
+    CPrintF( TRANS("SDL_OpenAudio() error: %s\n"), SDL_GetError());
+    SDL_QuitSubSystem(SDL_INIT_AUDIO);
+    return FALSE;
+  }
+
+  sdl_silence = desired.silence;
+  sdl_backbuffer_allocation = (desired.size * 2);
+  sdl_backbuffer = (Uint8 *)AllocMemory(sdl_backbuffer_allocation);
+  sdl_backbuffer_remain = 0;
+  sdl_backbuffer_pos = 0;
+
+  // report success
+  if( bReport) {
+    char achDriverName[128];
+    SDL_AudioDriverName(achDriverName, sizeof (achDriverName));
+    CPrintF( TRANS("  opened device: %s\n"), "SDL audio stream");
+    CPrintF( TRANS("  %dHz, %dbit, %s\n"), 
+             sl.sl_SwfeFormat.nSamplesPerSec,
+             sl.sl_SwfeFormat.wBitsPerSample,
+             achDriverName);
+  }
+
+  // determine whole mixer buffer size from mixahead console variable
+  sl.sl_slMixerBufferSize = (SLONG)(ceil(snd_tmMixAhead*sl.sl_SwfeFormat.nSamplesPerSec) *
+                            sl.sl_SwfeFormat.wBitsPerSample/8 * sl.sl_SwfeFormat.nChannels);
+  // align size to be next multiply of WAVEOUTBLOCKSIZE
+  sl.sl_slMixerBufferSize += WAVEOUTBLOCKSIZE - (sl.sl_slMixerBufferSize % WAVEOUTBLOCKSIZE);
+  // decoder buffer always works at 44khz
+  sl.sl_slDecodeBufferSize = sl.sl_slMixerBufferSize *
+                           ((44100+sl.sl_SwfeFormat.nSamplesPerSec-1)/sl.sl_SwfeFormat.nSamplesPerSec);
+  if( bReport) {
+    CPrintF(TRANS("  parameters: %d Hz, %d bit, stereo, mix-ahead: %gs\n"),
+            sl.sl_SwfeFormat.nSamplesPerSec, sl.sl_SwfeFormat.wBitsPerSample, snd_tmMixAhead);
+    CPrintF(TRANS("  output buffers: %d x %d bytes\n"), 2, desired.size);
+    CPrintF(TRANS("  mpx decode: %d bytes\n"), sl.sl_slDecodeBufferSize);
+  }
+
+  // initialize mixing and decoding buffer
+  sl.sl_pslMixerBuffer  = (SLONG*)AllocMemory( sl.sl_slMixerBufferSize *2); // (*2 because of 32-bit buffer)
+  sl.sl_pswDecodeBuffer = (SWORD*)AllocMemory( sl.sl_slDecodeBufferSize+4); // (+4 because of linear interpolation of last samples)
+
+  // the audio callback can now safely fill the audio stream with silence
+  //  until there is actual audio data to mix...
+  SDL_PauseAudio(0);
+
+  // done
+  return TRUE;
+} // StartUp_SDLaudio
+
+
+// SDL audio shutdown procedure
+static void ShutDown_SDLaudio( CSoundLibrary &sl)
+{
+  if (!SDL_WasInit(SDL_INIT_AUDIO))
+    return;
+
+  SDL_PauseAudio(1);
+
+  if (sdl_backbuffer != NULL) {
+    FreeMemory(sdl_backbuffer);
+    sdl_backbuffer = NULL;
+  }
+
+  if (sl.sl_pslMixerBuffer != NULL) {
+    FreeMemory( sl.sl_pslMixerBuffer);
+    sl.sl_pslMixerBuffer = NULL;
+  }
+
+  if (sl.sl_pswDecodeBuffer != NULL) {
+    FreeMemory(sl.sl_pswDecodeBuffer);
+    sl.sl_pswDecodeBuffer = NULL;
+  }
+
+  SDL_CloseAudio();
+  SDL_QuitSubSystem(SDL_INIT_AUDIO);
+} // ShutDown_SDLaudio
+
+
+// SDL_LockAudio() must be in effect when calling this!
+//  ...and stay in effect until after CopyMixerBuffer_SDLaudio() is called!
+static SLONG PrepareSoundBuffer_SDLaudio( CSoundLibrary &sl)
+{
+  ASSERT(sdl_backbuffer_remain >= 0);
+  ASSERT(sdl_backbuffer_remain <= sdl_backbuffer_allocation);
+  return(sdl_backbuffer_allocation - sdl_backbuffer_remain);
+} // PrepareSoundBuffer_SDLaudio
+
+
+// SDL_LockAudio() must be in effect when calling this!
+//  ...and have been in effect since PrepareSoundBuffer_SDLaudio was called!
+static void CopyMixerBuffer_SDLaudio( CSoundLibrary &sl, SLONG datasize)
+{
+  ASSERT((sdl_backbuffer_allocation - sdl_backbuffer_remain) >= datasize);
+
+  SLONG fillpos = sdl_backbuffer_pos + sdl_backbuffer_remain;
+  if (fillpos > sdl_backbuffer_allocation)
+    fillpos -= sdl_backbuffer_allocation;
+
+  SLONG cpysize = datasize;
+  if ( (cpysize + fillpos) > sdl_backbuffer_allocation)
+    cpysize = sdl_backbuffer_allocation - fillpos;
+
+  Uint8 *src = sdl_backbuffer + fillpos;
+  CopyMixerBuffer_stereo(0, src, cpysize);
+  datasize -= cpysize;
+  sdl_backbuffer_remain += cpysize;
+  if (datasize > 0) {  // rotate to start of ring buffer?
+    CopyMixerBuffer_stereo(cpysize, sdl_backbuffer, datasize);
+    sdl_backbuffer_remain += datasize;
+  } // if
+
+  ASSERT(sdl_backbuffer_remain <= sdl_backbuffer_allocation);
+} // CopyMixerBuffer_SDLaudio
+
+
+#endif  // defined PLATFORM_UNIX  (SDL audio implementation)
+
+
+
+
 /*
  *  Construct uninitialized sound library.
  */
@@ -126,6 +389,8 @@ CSoundLibrary::CSoundLibrary(void)
   sl_pslMixerBuffer   = NULL;
   sl_pswDecodeBuffer  = NULL;
   sl_pubBuffersMemory = NULL;
+
+#ifdef PLATFORM_WIN32
   // clear wave out data
   sl_hwoWaveOut = NULL;
 
@@ -139,6 +404,8 @@ CSoundLibrary::CSoundLibrary(void)
   sl_pDSListener    = NULL;
   sl_pDSSourceLeft  = NULL;
   sl_pDSSourceRight = NULL;
+#endif
+
   sl_bUsingDirectSound = FALSE;
   sl_bUsingEAX = FALSE;
 }
@@ -191,7 +458,7 @@ static void SndPostFunc(void *pArgs)
  *  some internal functions
  */
 
-
+#ifdef PLATFORM_WIN32
 // DirectSound shutdown procedure
 static void ShutDown_dsound( CSoundLibrary &sl)
 {
@@ -255,6 +522,7 @@ static void ShutDown_dsound( CSoundLibrary &sl)
     sl.sl_pswDecodeBuffer = NULL;
   }
 }
+#endif
 
 
 /*
@@ -303,7 +571,7 @@ static void SetLibraryFormat( CSoundLibrary &sl)
 }
 
 
-
+#ifdef PLATFORM_WIN32
 static BOOL DSFail( CSoundLibrary &sl, char *strError) 
 {
   CPrintF(strError);
@@ -680,7 +948,7 @@ static BOOL StartUp_waveout( CSoundLibrary &sl, BOOL bReport=TRUE)
   // done
   return TRUE;
 }
-
+#endif
 
 
 
@@ -714,6 +982,7 @@ static void SetFormat_internal( CSoundLibrary &sl, CSoundLibrary::SoundFormat Es
   snd_iInterface = Clamp( snd_iInterface, 0L, 2L);
 
   BOOL bSoundOK = FALSE;
+#ifdef PLATFORM_WIN32
   if( snd_iInterface==2) {
     // if wanted, 1st try to set EAX
     bSoundOK = StartUp_dsound( sl, bReport);  
@@ -728,6 +997,9 @@ static void SetFormat_internal( CSoundLibrary &sl, CSoundLibrary::SoundFormat Es
     bSoundOK = StartUp_waveout( sl, bReport); 
     snd_iInterface = 0; // mark that DirectSound didn't make it
   }
+#else
+    bSoundOK = StartUp_SDLaudio(sl, bReport);
+#endif
 
   // if didn't make it by now
   if( bReport) CPrintF("\n");
@@ -754,29 +1026,37 @@ void CSoundLibrary::Init(void)
   // synchronize access to sounds
   CTSingleLock slSounds(&sl_csSound, TRUE);
 
-  _pShell->DeclareSymbol( "void SndPostFunc(INDEX);", &SndPostFunc);
+  _pShell->DeclareSymbol( "void SndPostFunc(INDEX);", (void *) &SndPostFunc);
 
-  _pShell->DeclareSymbol( "           user INDEX snd_bMono;", &snd_bMono);
-  _pShell->DeclareSymbol( "persistent user FLOAT snd_fEarsDistance;",      &snd_fEarsDistance);
-  _pShell->DeclareSymbol( "persistent user FLOAT snd_fDelaySoundSpeed;",   &snd_fDelaySoundSpeed);
-  _pShell->DeclareSymbol( "persistent user FLOAT snd_fDopplerSoundSpeed;", &snd_fDopplerSoundSpeed);
-  _pShell->DeclareSymbol( "persistent user FLOAT snd_fPanStrength;", &snd_fPanStrength);
-  _pShell->DeclareSymbol( "persistent user FLOAT snd_fLRFilter;",    &snd_fLRFilter);
-  _pShell->DeclareSymbol( "persistent user FLOAT snd_fBFilter;",     &snd_fBFilter);
-  _pShell->DeclareSymbol( "persistent user FLOAT snd_fUFilter;",     &snd_fUFilter);
-  _pShell->DeclareSymbol( "persistent user FLOAT snd_fDFilter;",     &snd_fDFilter);
-  _pShell->DeclareSymbol( "persistent user FLOAT snd_fSoundVolume;", &snd_fSoundVolume);
-  _pShell->DeclareSymbol( "persistent user FLOAT snd_fMusicVolume;", &snd_fMusicVolume);
-  _pShell->DeclareSymbol( "persistent user FLOAT snd_fNormalizer;",  &snd_fNormalizer);
-  _pShell->DeclareSymbol( "persistent user FLOAT snd_tmMixAhead post:SndPostFunc;", &snd_tmMixAhead);
-  _pShell->DeclareSymbol( "persistent user INDEX snd_iInterface post:SndPostFunc;", &snd_iInterface);
-  _pShell->DeclareSymbol( "persistent user INDEX snd_iDevice post:SndPostFunc;", &snd_iDevice);
-  _pShell->DeclareSymbol( "persistent user INDEX snd_iFormat post:SndPostFunc;", &snd_iFormat);
-  _pShell->DeclareSymbol( "persistent user INDEX snd_iMaxExtraChannels;", &snd_iMaxExtraChannels);
-  _pShell->DeclareSymbol( "persistent user INDEX snd_iMaxOpenRetries;",   &snd_iMaxOpenRetries);
-  _pShell->DeclareSymbol( "persistent user FLOAT snd_tmOpenFailDelay;",   &snd_tmOpenFailDelay);
-  _pShell->DeclareSymbol( "persistent user FLOAT snd_fEAXPanning;", &snd_fEAXPanning);
-  
+  _pShell->DeclareSymbol( "           user INDEX snd_bMono;", (void *) &snd_bMono);
+  _pShell->DeclareSymbol( "persistent user FLOAT snd_fEarsDistance;",      (void *) &snd_fEarsDistance);
+  _pShell->DeclareSymbol( "persistent user FLOAT snd_fDelaySoundSpeed;",   (void *) &snd_fDelaySoundSpeed);
+  _pShell->DeclareSymbol( "persistent user FLOAT snd_fDopplerSoundSpeed;", (void *) &snd_fDopplerSoundSpeed);
+  _pShell->DeclareSymbol( "persistent user FLOAT snd_fPanStrength;", (void *) &snd_fPanStrength);
+  _pShell->DeclareSymbol( "persistent user FLOAT snd_fLRFilter;",    (void *) &snd_fLRFilter);
+  _pShell->DeclareSymbol( "persistent user FLOAT snd_fBFilter;",     (void *) &snd_fBFilter);
+  _pShell->DeclareSymbol( "persistent user FLOAT snd_fUFilter;",     (void *) &snd_fUFilter);
+  _pShell->DeclareSymbol( "persistent user FLOAT snd_fDFilter;",     (void *) &snd_fDFilter);
+  _pShell->DeclareSymbol( "persistent user FLOAT snd_fSoundVolume;", (void *) &snd_fSoundVolume);
+  _pShell->DeclareSymbol( "persistent user FLOAT snd_fMusicVolume;", (void *) &snd_fMusicVolume);
+  _pShell->DeclareSymbol( "persistent user FLOAT snd_fNormalizer;",  (void *) &snd_fNormalizer);
+  _pShell->DeclareSymbol( "persistent user FLOAT snd_tmMixAhead post:SndPostFunc;", (void *) &snd_tmMixAhead);
+  _pShell->DeclareSymbol( "persistent user INDEX snd_iInterface post:SndPostFunc;", (void *) &snd_iInterface);
+  _pShell->DeclareSymbol( "persistent user INDEX snd_iDevice post:SndPostFunc;", (void *) &snd_iDevice);
+  _pShell->DeclareSymbol( "persistent user INDEX snd_iFormat post:SndPostFunc;", (void *) &snd_iFormat);
+  _pShell->DeclareSymbol( "persistent user INDEX snd_iMaxExtraChannels;", (void *) &snd_iMaxExtraChannels);
+  _pShell->DeclareSymbol( "persistent user INDEX snd_iMaxOpenRetries;",   (void *) &snd_iMaxOpenRetries);
+  _pShell->DeclareSymbol( "persistent user FLOAT snd_tmOpenFailDelay;",   (void *) &snd_tmOpenFailDelay);
+  _pShell->DeclareSymbol( "persistent user FLOAT snd_fEAXPanning;", (void *) &snd_fEAXPanning);
+
+// !!! FIXME : rcg12162001 This should probably be done everywhere, honestly.
+#ifdef PLATFORM_UNIX
+  if (_bDedicatedServer) {
+    CPrintF(TRANS("Dedicated server; not initializing sound.\n"));
+    return;
+  }
+#endif
+
   // print header
   CPrintF(TRANS("Initializing sound...\n"));
 
@@ -784,8 +1064,12 @@ void CSoundLibrary::Init(void)
   SetFormat(SF_NONE);
 
   // initialize any installed sound decoders
+
   CSoundDecoder::InitPlugins();
 
+  sl_ctWaveDevices = 0;  // rcg11012005 valgrind fix.
+
+#ifdef PLATFORM_WIN32
   // get number of devices
   INDEX ctDevices = waveOutGetNumDevs();
   CPrintF(TRANS("  Detected devices: %d\n"), ctDevices);
@@ -805,6 +1089,8 @@ void CSoundLibrary::Init(void)
       woc.dwFormats, woc.wChannels, woc.dwSupport);
   }
   // done
+#endif
+
   CPrintF("\n");
 }
 
@@ -812,7 +1098,14 @@ void CSoundLibrary::Init(void)
 /*
  *  Clear Sound Library
  */
-void CSoundLibrary::Clear(void) {
+void CSoundLibrary::Clear(void)
+{
+// !!! FIXME : rcg12162001 This should probably be done everywhere, honestly.
+#ifdef PLATFORM_UNIX
+  if (_bDedicatedServer)
+    return;
+#endif
+
   // access to the list of handlers must be locked
   CTSingleLock slHooks(&_pTimer->tm_csHooks, TRUE);
   // synchronize access to sounds
@@ -835,6 +1128,12 @@ void CSoundLibrary::Clear(void) {
 /* Clear Library WaveOut */
 void CSoundLibrary::ClearLibrary(void)
 {
+// !!! FIXME : rcg12162001 This should probably be done everywhere, honestly.
+#ifdef PLATFORM_UNIX
+  if (_bDedicatedServer)
+    return;
+#endif
+
   // access to the list of handlers must be locked
   CTSingleLock slHooks(&_pTimer->tm_csHooks, TRUE);
 
@@ -846,6 +1145,10 @@ void CSoundLibrary::ClearLibrary(void)
     _pTimer->RemHandler(&sl_thTimerHandler);
   }
 
+  sl_bUsingDirectSound = FALSE;
+  sl_bUsingEAX = FALSE;
+
+#ifdef PLATFORM_WIN32
   // shut down direct sound buffers (if needed)
   ShutDown_dsound(*this);
 
@@ -877,6 +1180,10 @@ void CSoundLibrary::ClearLibrary(void)
   // free extra channel handles
   sl_ahwoExtra.PopAll();
 
+#else
+  ShutDown_SDLaudio(*this);
+#endif
+
   // free memory
   if( sl_pslMixerBuffer!=NULL) {
     FreeMemory( sl_pslMixerBuffer);
@@ -897,6 +1204,7 @@ void CSoundLibrary::ClearLibrary(void)
 BOOL CSoundLibrary::SetEnvironment( INDEX iEnvNo, FLOAT fEnvSize/*=0*/)
 {
   if( !sl_bUsingEAX) return FALSE;
+#ifdef PLATFORM_WIN32
   // trim values
   if( iEnvNo<0   || iEnvNo>25)   iEnvNo=1;
   if( fEnvSize<1 || fEnvSize>99) fEnvSize=8;
@@ -905,6 +1213,7 @@ BOOL CSoundLibrary::SetEnvironment( INDEX iEnvNo, FLOAT fEnvSize/*=0*/)
   if( hResult != DS_OK) return DSFail( *this, TRANS("  ! EAX error: Cannot set environment.\n"));
   hResult = sl_pKSProperty->Set( DSPROPSETID_EAX_ListenerProperties, DSPROPERTY_EAXLISTENER_ENVIRONMENTSIZE, NULL, 0, &fEnvSize, sizeof(FLOAT));
   if( hResult != DS_OK) return DSFail( *this, TRANS("  ! EAX error: Cannot set environment size.\n"));
+#endif
   return TRUE;
 }
 
@@ -915,6 +1224,13 @@ void CSoundLibrary::Mute(void)
   // stop all IFeel effects
   IFeel_StopEffect(NULL);
 
+// !!! FIXME : rcg12162001 This should probably be done everywhere, honestly.
+#ifdef PLATFORM_UNIX
+  if (_bDedicatedServer)
+    return;
+#endif
+
+#ifdef PLATFORM_WIN32
   // erase direct sound buffer (waveout will shut-up by itself), but skip if there's no more sound library
   if( this==NULL || !sl_bUsingDirectSound) return;
 
@@ -937,6 +1253,14 @@ void CSoundLibrary::Mute(void)
     memset( lpData, 0, dwSize);
     sl_pDSSecondary2->Unlock( lpData, dwSize, NULL, 0);
   } 
+
+#else
+  SDL_LockAudio();
+  _bMuted = TRUE;
+  sdl_backbuffer_remain = 0;  // ditch pending audio data...
+  sdl_backbuffer_pos = 0;
+  SDL_UnlockAudio();
+#endif
 }
 
 
@@ -948,6 +1272,14 @@ void CSoundLibrary::Mute(void)
  */
 CSoundLibrary::SoundFormat CSoundLibrary::SetFormat( CSoundLibrary::SoundFormat EsfNew, BOOL bReport/*=FALSE*/)
 {
+// !!! FIXME : rcg12162001 Do this for all platforms?
+#ifdef PLATFORM_UNIX
+  if (_bDedicatedServer) {
+    sl_EsfFormat = SF_NONE;
+    return(sl_EsfFormat);
+  }
+#endif
+
   // access to the list of handlers must be locked
   CTSingleLock slHooks(&_pTimer->tm_csHooks, TRUE);
   // synchronize access to sounds
@@ -988,11 +1320,20 @@ CSoundLibrary::SoundFormat CSoundLibrary::SetFormat( CSoundLibrary::SoundFormat 
 /* Update all 3d effects and copy internal data. */
 void CSoundLibrary::UpdateSounds(void)
 {
+// !!! FIXME : rcg12162001 This should probably be done everywhere, honestly.
+#ifdef PLATFORM_UNIX
+  if (_bDedicatedServer)
+    return;
+#endif
+
   // see if we have valid handle for direct sound and eventually reinit sound
+#ifdef PLATFORM_WIN32
   if( sl_bUsingDirectSound && _hwndCurrent!=_hwndMain) {
     _hwndCurrent = _hwndMain;
     SetFormat( sl_EsfFormat);
   }
+#endif
+
   _bMuted = FALSE; // enable mixer
   _sfStats.StartTimer(CStatForm::STI_SOUNDUPDATE);
   _pfSoundProfile.StartTimer(CSoundProfile::PTI_UPDATESOUNDS);
@@ -1000,8 +1341,10 @@ void CSoundLibrary::UpdateSounds(void)
   // synchronize access to sounds
   CTSingleLock slSounds( &sl_csSound, TRUE);
 
+#ifdef PLATFORM_WIN32
   // make sure that the buffers are playing
   if( sl_bUsingDirectSound) DSPlayBuffers(*this);
+#endif
 
   // determine number of listeners and get listener
   INDEX ctListeners=0;
@@ -1026,6 +1369,7 @@ void CSoundLibrary::UpdateSounds(void)
   }
 
   // adjust panning if needed
+#ifdef PLATFORM_WIN32
   snd_fEAXPanning = Clamp( snd_fEAXPanning, -1.0f, +1.0f);
   if( sl_bUsingEAX && _fLastPanning!=snd_fEAXPanning)
   { // determine new panning
@@ -1041,6 +1385,7 @@ void CSoundLibrary::UpdateSounds(void)
     hr3 = sl_pDSListener->CommitDeferredSettings();
     if( hr1!=DS_OK || hr2!=DS_OK || hr3!=DS_OK) DSFail( *this, TRANS("  ! DirectSound3D error: Cannot set 3D position.\n"));
   }
+#endif
 
   // for each sound
   {FOREACHINLIST( CSoundData, sd_Node, sl_ClhAwareList, itCsdSoundData) {
@@ -1086,6 +1431,12 @@ void CSoundLibrary::UpdateSounds(void)
  */
 void CSoundTimerHandler::HandleTimer(void)
 {
+// !!! FIXME : rcg12162001 This should probably be done everywhere, honestly.
+#ifdef PLATFORM_UNIX
+  if (_bDedicatedServer)
+    return;
+#endif
+
   /* memory leak checking routines
   ASSERT( _CrtCheckMemory());
   ASSERT( _CrtIsMemoryBlock( (void*)_pSound->sl_pswDecodeBuffer,
@@ -1108,6 +1459,7 @@ void CSoundTimerHandler::HandleTimer(void)
 static LPVOID _lpData, _lpData2;
 static DWORD  _dwSize, _dwSize2;
 
+#ifdef PLATFORM_WIN32
 static void CopyMixerBuffer_dsound( CSoundLibrary &sl, SLONG slMixedSize)
 {
   LPVOID lpData;
@@ -1246,11 +1598,18 @@ static SLONG PrepareSoundBuffer_waveout( CSoundLibrary &sl)
   ASSERT( slDataToMix <= sl.sl_slMixerBufferSize);
   return slDataToMix;
 }
+#endif
 
   
 /* Update Mixer */
 void CSoundLibrary::MixSounds(void)
 {
+// !!! FIXME : rcg12162001 This should probably be done everywhere, honestly.
+#ifdef PLATFORM_UNIX
+  if (_bDedicatedServer)
+    return;
+#endif
+
   // synchronize access to sounds
   CTSingleLock slSounds( &sl_csSound, TRUE);
 
@@ -1263,15 +1622,24 @@ void CSoundLibrary::MixSounds(void)
 
   // seek available buffer(s) for next crop of samples
   SLONG slDataToMix;
+
+#ifdef PLATFORM_WIN32
   if( sl_bUsingDirectSound) { // using direct sound
     slDataToMix = PrepareSoundBuffer_dsound( *this);
   } else { // using wave out 
     slDataToMix = PrepareSoundBuffer_waveout(*this);
   }
+#else
+  SDL_LockAudio();
+  slDataToMix = PrepareSoundBuffer_SDLaudio(*this);
+#endif
 
   // skip mixing if all sound buffers are still busy playing
   ASSERT( slDataToMix>=0);
   if( slDataToMix<=0) {
+    #ifdef PLATFORM_UNIX
+      SDL_UnlockAudio();
+    #endif
     _pfSoundProfile.StopTimer(CSoundProfile::PTI_MIXSOUNDS);
     _sfStats.StopTimer(CStatForm::STI_SOUNDMIXING);
     return;
@@ -1312,11 +1680,16 @@ void CSoundLibrary::MixSounds(void)
   // _bOpened = TRUE;
 
   // copy mixer buffer to buffers buffer(s)
+#ifdef PLATFORM_WIN32
   if( sl_bUsingDirectSound) { // using direct sound
     CopyMixerBuffer_dsound( *this, slDataToMix);
   } else { // using wave out 
     CopyMixerBuffer_waveout(*this);
   }
+#else
+  CopyMixerBuffer_SDLaudio(*this, slDataToMix);
+  SDL_UnlockAudio();
+#endif
 
   // all done
   _pfSoundProfile.StopTimer(CSoundProfile::PTI_MIXSOUNDS);
@@ -1331,7 +1704,14 @@ void CSoundLibrary::MixSounds(void)
 /*
  *  Add sound in sound aware list
  */
-void CSoundLibrary::AddSoundAware(CSoundData &CsdAdd) {
+void CSoundLibrary::AddSoundAware(CSoundData &CsdAdd)
+{
+// !!! FIXME : rcg12162001 This should probably be done everywhere, honestly.
+#ifdef PLATFORM_UNIX
+  if (_bDedicatedServer)
+    return;
+#endif
+
   // add sound to list tail
   sl_ClhAwareList.AddTail(CsdAdd.sd_Node);
 };
@@ -1339,7 +1719,14 @@ void CSoundLibrary::AddSoundAware(CSoundData &CsdAdd) {
 /*
  *  Remove a display mode aware object.
  */
-void CSoundLibrary::RemoveSoundAware(CSoundData &CsdRemove) {
+void CSoundLibrary::RemoveSoundAware(CSoundData &CsdRemove)
+{
+// !!! FIXME : rcg12162001 This should probably be done everywhere, honestly.
+#ifdef PLATFORM_UNIX
+  if (_bDedicatedServer)
+    return;
+#endif
+
   // remove it from list
   CsdRemove.sd_Node.Remove();
 };
@@ -1347,6 +1734,12 @@ void CSoundLibrary::RemoveSoundAware(CSoundData &CsdRemove) {
 // listen from this listener this frame
 void CSoundLibrary::Listen(CSoundListener &sl)
 {
+// !!! FIXME : rcg12162001 This should probably be done everywhere, honestly.
+#ifdef PLATFORM_UNIX
+  if (_bDedicatedServer)
+    return;
+#endif
+
   // just add it to list
   if (sl.sli_lnInActiveListeners.IsLinked()) {
     sl.sli_lnInActiveListeners.Remove();

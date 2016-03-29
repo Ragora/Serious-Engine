@@ -15,6 +15,16 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 // common headers for flesh entity classes
 
+#ifndef SE_INCL_ENTITIESMP_COMMON_H
+#define SE_INCL_ENTITIESMP_COMMON_H
+#ifdef PRAGMA_ONCE
+#pragma once
+#endif
+
+#if 0
+#include <EntitiesMP/Debris.h>   /* rcg01202003 need enum definition... */
+#include <EntitiesMP/KeyItem.h>  /* rcg01202003 need enum definition... */
+#endif
 
 #define SURFACE_SAND 9
 #define SURFACE_WATER 12
@@ -135,6 +145,7 @@ struct EntityStats {
   INDEX es_ctAmmount;
   FLOAT es_fValue;
   INDEX es_iScore;
+  inline void Clear() { es_strName.Clear(); }
 };
 
 // statistics data for player stats management
@@ -154,6 +165,27 @@ struct DECL_DLL PlayerStats {
     ps_tmTime = 0.0f;
   }
 };
+
+static inline CTStream &operator>>(CTStream &strm, PlayerStats &ps)
+{
+  strm>>ps.ps_iScore;
+  strm>>ps.ps_iKills;
+  strm>>ps.ps_iDeaths;
+  strm>>ps.ps_iSecrets;
+  strm>>ps.ps_tmTime;
+  return strm;
+}
+
+static inline CTStream &operator<<(CTStream &strm, const PlayerStats &ps)
+{
+  strm<<ps.ps_iScore;
+  strm<<ps.ps_iKills;
+  strm<<ps.ps_iDeaths;
+  strm<<ps.ps_iSecrets;
+  strm<<ps.ps_tmTime;
+  return strm;
+}
+
 
 // get info position for entity
 DECL_DLL void GetEntityInfoPosition(CEntity *pen, FLOAT *pf, FLOAT3D &vPos);
@@ -217,8 +249,8 @@ DECL_DLL const char *PrintStack(CEntity *pen);
 // debris spawning
 DECL_DLL void Debris_Begin(
   EntityInfoBodyType Eeibt, 
-  enum DebrisParticlesType dptParticles,
-  enum BasicEffectType  betStain,
+  int /*enum DebrisParticlesType*/ dptParticles,
+  int /*enum BasicEffectType*/  betStain,
   FLOAT fEntitySize,             // entity size in meters
   const FLOAT3D &vSpeed,
   const FLOAT3D &vSpawnerSpeed,  // how fast was the entity moving
@@ -252,8 +284,8 @@ DECL_DLL CEntityPointer Debris_Spawn_Independent(
   ANGLE3D aRotation);
 DECL_DLL CEntityPointer Debris_Spawn_Template(
   EntityInfoBodyType eibt,
-  enum DebrisParticlesType dptParticles,
-  enum BasicEffectType betStain,
+  int /*enum DebrisParticlesType*/ dptParticles,
+  int /*enum BasicEffectType*/ betStain,
   class CModelHolder2 *penmhDestroyed,
   CEntity *penComponents,
   class CModelHolder2 *penmh2,
@@ -276,7 +308,7 @@ DECL_DLL void PrintCenterMessage(CEntity *penThis, CEntity *penTarget,
   const CTString &strMessage, TIME tmLength, enum MessageSound mssSound);
 
 // get name of a key item
-DECL_DLL const char *GetKeyName(enum KeyItemType kit);
+DECL_DLL const char *GetKeyName(int /*enum KeyItemType*/ kit);
 
 // get session properties
 DECL_DLL inline const CSessionProperties *GetSP(void)
@@ -317,3 +349,7 @@ void SpawnHitTypeEffect(CEntity *pen, enum BulletHitType bhtType, BOOL bSound, F
   FLOAT3D vIncommingBulletDir, FLOAT3D vDistance);
 
 #define FRndIn(a, b) (a + FRnd()*(b - a))
+
+#endif  // include-once blocker.
+
+

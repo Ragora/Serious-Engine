@@ -13,7 +13,7 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include "Engine/StdH.h"
 
 #include <Engine/Base/Console.h>
 #include <Engine/Network/PlayerTarget.h>
@@ -67,7 +67,7 @@ void CActionBuffer::AddAction(const CPlayerAction &pa)
   ab_lhActions.AddTail(pae->ae_ln);
 
   // sort the list
-  ab_lhActions.Sort(&qsort_CompareActions, offsetof(CActionEntry, ae_ln));
+  ab_lhActions.Sort(&qsort_CompareActions, _offsetof(CActionEntry, ae_ln));
 
   //CPrintF("Buffered: %d (after add)\n", ab_lhActions.Count());
 }

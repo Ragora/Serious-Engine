@@ -13,7 +13,7 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include <Engine/StdH.h>
 
 #include <Engine/Entities/Entity.h>
 #include <Engine/Entities/EntityClass.h>
@@ -888,7 +888,7 @@ void CEntity::Teleport(const CPlacement3D &plNew, BOOL bTelefrag /*=TRUE*/)
         CEntity *ppenObstacleDummy;
         if (pmme->CheckForCollisionNow(pmme->en_iCollisionBox, &ppenObstacleDummy)) {
           CPrintF("Entity '%s' was teleported inside a wall at (%g,%g,%g)!\n", 
-            GetName(), 
+            (const char *) GetName(),
             en_plPlacement.pl_PositionVector(1),
             en_plPlacement.pl_PositionVector(2),
             en_plPlacement.pl_PositionVector(3));
@@ -1011,7 +1011,7 @@ void CEntity::FallDownToFloor( void)
 
 
 extern CEntity *_penLightUpdating;
-extern BOOL _bDontDiscardLinks = FALSE;
+BOOL _bDontDiscardLinks = FALSE;
 
 // internal repositioning function
 void CEntity::SetPlacement_internal(const CPlacement3D &plNew, const FLOATmatrix3D &mRotation,
@@ -1445,8 +1445,8 @@ void CEntity::FindShadingInfo(void)
     INDEX iMipLevel = bsm.sm_iFirstMipLevel;
     FLOAT fpixU = FLOAT(vmexShadow(1)+bsm.sm_mexOffsetX)*(1.0f/(1<<iMipLevel));
     FLOAT fpixV = FLOAT(vmexShadow(2)+bsm.sm_mexOffsetY)*(1.0f/(1<<iMipLevel));
-    en_psiShadingInfo->si_pixShadowU = floor(fpixU);
-    en_psiShadingInfo->si_pixShadowV = floor(fpixV);
+    en_psiShadingInfo->si_pixShadowU = (PIX) floor(fpixU);
+    en_psiShadingInfo->si_pixShadowV = (PIX) floor(fpixV);
     en_psiShadingInfo->si_fUDRatio = fpixU-en_psiShadingInfo->si_pixShadowU;
     en_psiShadingInfo->si_fLRRatio = fpixV-en_psiShadingInfo->si_pixShadowV;
 
@@ -1457,8 +1457,8 @@ void CEntity::FindShadingInfo(void)
     en_psiShadingInfo->si_vNearPoint = _vNearPoint;
     
     FLOAT2D vTc = CalculateShadingTexCoords(_ptrTerrainNear,_vNearPoint);
-    en_psiShadingInfo->si_pixShadowU = floor(vTc(1));
-    en_psiShadingInfo->si_pixShadowV = floor(vTc(2));
+    en_psiShadingInfo->si_pixShadowU = (PIX) floor(vTc(1));
+    en_psiShadingInfo->si_pixShadowV = (PIX) floor(vTc(2));
     en_psiShadingInfo->si_fLRRatio   = vTc(1) - en_psiShadingInfo->si_pixShadowU;
     en_psiShadingInfo->si_fUDRatio   = vTc(2) - en_psiShadingInfo->si_pixShadowV;
 
@@ -2369,7 +2369,7 @@ void CEntity::SetModel(const CTFileName &fnmModel)
     // if failed
     } catch(char *strErrorDefault) {
       FatalError(TRANS("Cannot load default model '%s':\n%s"),
-        (CTString&)fnmDefault, strErrorDefault);
+        (const char *) (CTString&)fnmDefault, strErrorDefault);
     }
   }
   UpdateSpatialRange();
@@ -2432,7 +2432,7 @@ BOOL CEntity::SetSkaModel(const CTString &fnmModel)
     // if failed
     } catch(char *strErrorDefault) {
       FatalError(TRANS("Cannot load default model '%s':\n%s"),
-        (CTString&)fnmDefault, strErrorDefault);
+        (const char *) (CTString&)fnmDefault, strErrorDefault);
     }
     // set colision info for default model
     SetSkaColisionInfo();
@@ -2489,7 +2489,7 @@ void CEntity::SetModelMainTexture(const CTFileName &fnmTexture)
     // if failed
     } catch(char *strErrorDefault) {
       FatalError(TRANS("Cannot load default texture '%s':\n%s"),
-        (CTString&)fnmDefault, strErrorDefault);
+        (const char *) (CTString&)fnmDefault, strErrorDefault);
     }
   }
 }
@@ -2956,7 +2956,7 @@ void CEntity::PlaySound(CSoundObject &so, const CTFileName &fnmSound, SLONG slPl
     // if failed
     } catch(char *strErrorDefault) {
       FatalError(TRANS("Cannot load default sound '%s':\n%s"),
-        (CTString&)fnmDefault, strErrorDefault);
+        (const char *) (CTString&)fnmDefault, strErrorDefault);
     }
   }
 }
@@ -3284,7 +3284,7 @@ void CEntity::Read_t( CTStream *istr) // throw char *
            >>en_ulCollisionFlags
            >>en_ulSpawnFlags
            >>en_ulFlags;
-    (*istr).Read_t(&en_mRotation, sizeof(en_mRotation));
+    (*istr)>>en_mRotation;
   } else if (istr->PeekID_t()==CChunkID("ENT3")) { // entity v3
     istr->ExpectID_t("ENT3");
     (*istr)>>(ULONG &)en_RenderType
@@ -3292,7 +3292,7 @@ void CEntity::Read_t( CTStream *istr) // throw char *
            >>en_ulCollisionFlags
            >>en_ulSpawnFlags
            >>en_ulFlags;
-    (*istr).Read_t(&en_mRotation, sizeof(en_mRotation));
+    (*istr)>>en_mRotation;
   } else if (istr->PeekID_t()==CChunkID("ENT2")) { // entity v2
     istr->ExpectID_t("ENT2");
     (*istr)>>(ULONG &)en_RenderType
@@ -3495,7 +3495,7 @@ void CEntity::DumpSync_t(CTStream &strm, INDEX iExtensiveSyncCheck)  // throw ch
     strm.FPrintF_t("*** DELETED ***\n");
   }
   strm.FPrintF_t("class: '%s'\n", GetClass()->ec_pdecDLLClass->dec_strName);
-  strm.FPrintF_t("name: '%s'\n", GetName());
+  strm.FPrintF_t("name: '%s'\n", (const char *) GetName());
   if (iExtensiveSyncCheck>0) {
     strm.FPrintF_t("en_ulFlags:          0x%08X\n", en_ulFlags&~
       (ENF_SELECTED|ENF_INRENDERING|ENF_VALIDSHADINGINFO|ENF_FOUNDINGRIDSEARCH|ENF_WILLBEPREDICTED|ENF_PREDICTABLE));
@@ -3797,7 +3797,7 @@ void CRationalEntity::Write_t( CTStream *ostr) // throw char *
 void CRationalEntity::SetTimerAt(TIME timeAbsolute)
 {
   // must never set think back in time, except for special 'never' time
-  ASSERTMSG(timeAbsolute>_pTimer->CurrentTick() ||
+  ASSERTMSG(timeAbsolute>=_pTimer->CurrentTick() ||
     timeAbsolute==THINKTIME_NEVER, "Do not SetThink() back in time!");
   // set the timer
   en_timeTimer = timeAbsolute;
@@ -3894,7 +3894,7 @@ void CRationalEntity::Return(SLONG slThisState, const CEntityEvent &eeReturn)
 // print stack to debug output
 const char *CRationalEntity::PrintStackDebug(void)
 {
-  _RPT2(_CRT_WARN, "-- stack of '%s'@%gs\n", GetName(), _pTimer->CurrentTick());
+  _RPT2(_CRT_WARN, "-- stack of '%s'@%gs\n", (const char *) GetName(), _pTimer->CurrentTick());
 
   INDEX ctStates = en_stslStateStack.Count();
   for(INDEX iState=ctStates-1; iState>=0; iState--) {

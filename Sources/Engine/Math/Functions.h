@@ -54,7 +54,7 @@ inline Type Lerp( const Type x0, const Type x1, const FLOAT fRatio)
 {
        if( fRatio==0) return x0;
   else if( fRatio==1) return x1;
-  else return x0+(x1-x0)*fRatio;
+  else return ((Type) (x0+(x1-x0)*fRatio));
 }
 
 template<class Type>
@@ -287,7 +287,7 @@ inline FLOAT FastRcp( const FLOAT f)
 inline ULONG NormFloatToByte( const FLOAT f)
 {
     /* rcg10042001 !!! FIXME: Move this elsewhere. */
-#ifdef _MSC_VER
+#ifdef __MSVC_INLINE__
   const FLOAT f255 = 255.0f;
   ULONG ulRet;
   __asm {
@@ -297,8 +297,8 @@ inline ULONG NormFloatToByte( const FLOAT f)
   }
   return ulRet;
 #else
-  assert((f >= 0.0) && (f <= 1.0));
-  return( (ULONG) (f * 255.0) );
+  assert((f >= 0.0f) && (f <= 1.0f));
+  return( (ULONG) (f * 255.0f) );
 #endif
 }
 
@@ -313,9 +313,9 @@ inline FLOAT NormByteToFloat( const ULONG ul)
 inline SLONG FloatToInt( FLOAT f)
 {
 #if (defined USE_PORTABLE_C)
-  return((SLONG) f);  /* best of luck to you. */
+  return((SLONG) (f + 0.5f));  /* best of luck to you. */
 
-#elif (defined _MSC_VER)
+#elif (defined __MSVC_INLINE__)
   SLONG slRet;
   __asm {
     fld    D [f]
@@ -323,13 +323,13 @@ inline SLONG FloatToInt( FLOAT f)
   }
   return slRet;
 
-#elif (defined __GNUC__)
+#elif (defined __GNU_INLINE__)
   SLONG slRet;
   __asm__ __volatile__ (
-    "flds     (%%ebx)   \n\t"
+    "flds     (%%eax)   \n\t"
     "fistpl   (%%esi)   \n\t"
         :
-        : "b" (&f), "S" (&slRet)
+        : "a" (&f), "S" (&slRet)
         : "memory"
   );
   return(slRet);
@@ -341,9 +341,10 @@ inline SLONG FloatToInt( FLOAT f)
 // log base 2 of any float numero
 inline FLOAT Log2( FLOAT f) {
 #if (defined USE_PORTABLE_C)
-  return (FLOAT)(log10(x)*3.321928094887);  // log10(x)/log10(2)
+  // !!! FIXME: What's wrong with log2()?
+  return (FLOAT)(log10(f)*3.321928094887);  // log10(x)/log10(2)
 
-#elif (defined _MSC_VER)
+#elif (defined __MSVC_INLINE__)
   FLOAT fRet;
   _asm {
     fld1
@@ -353,15 +354,15 @@ inline FLOAT Log2( FLOAT f) {
   }
   return fRet;
 
-#elif (defined __GNUC__)
+#elif (defined __GNU_INLINE__)
   FLOAT fRet;
   __asm__ __volatile__ (
     "fld1               \n\t"
-    "flds     (%%ebx)   \n\t"
+    "flds     (%%eax)   \n\t"
     "fyl2x              \n\t"
     "fstps    (%%esi)   \n\t"
         :
-        : "b" (&f), "S" (&fRet)
+        : "a" (&f), "S" (&fRet)
         : "memory"
   );
   return(fRet);
@@ -375,9 +376,18 @@ inline FLOAT Log2( FLOAT f) {
 inline SLONG FastLog2( SLONG x)
 {
 #if (defined USE_PORTABLE_C)
-  #error write me.
+  register SLONG val = x;
+  register SLONG retval = 0;
+  while (retval < 32)
+  {
+    if (val & (1 << retval))
+        return retval;
+    retval++;
+  }
 
-#elif (defined _MSC_VER)
+  return 0;
+
+#elif (defined __MSVC_INLINE__)
   SLONG slRet;
   __asm {
     bsr   eax,D [x]
@@ -385,13 +395,12 @@ inline SLONG FastLog2( SLONG x)
   }
   return slRet;
 
-#elif (defined __GNUC__)
+#elif (defined __GNU_INLINE__)
   SLONG slRet;
   __asm__ __volatile__ (
-    "bsrl  (%%ebx), %%eax     \n\t"
-    "movl   %%eax, (%%esi)    \n\t"
-        :
-        : "b" (&x), "S" (&slRet)
+    "bsrl   %%ecx, %%eax      \n\t"
+        : "=a" (slRet)
+        : "c" (x)
         : "memory"
   );
   return(slRet);
@@ -404,9 +413,10 @@ inline SLONG FastLog2( SLONG x)
 inline SLONG FastMaxLog2( SLONG x)
 { 
 #if (defined USE_PORTABLE_C)
-  #error write me.
+printf("CHECK THIS: %s:%d\n", __FILE__, __LINE__);
+  return((SLONG) log2((double) x));
 
-#elif (defined _MSC_VER)
+#elif (defined __MSVC_INLINE__)
   SLONG slRet;
   __asm {
     bsr   eax,D [x]
@@ -417,16 +427,15 @@ inline SLONG FastMaxLog2( SLONG x)
   }
   return slRet;
 
-#elif (defined __GNUC__)
+#elif (defined __GNU_INLINE__)
   SLONG slRet;
   __asm__ __volatile__ (
-    "bsrl  (%%ebx), %%eax     \n\t"
-    "bsfl  (%%ebx), %%edx     \n\t"
+    "bsrl  %%ecx, %%eax     \n\t"
+    "bsfl  %%ecx, %%edx     \n\t"
     "cmpl  %%eax, %%edx       \n\t"
     "adcl  $0, %%eax          \n\t"
-    "movl  %%eax, (%%esi)     \n\t"
-        :
-        : "b" (&x), "S" (&slRet)
+        : "=a" (slRet)
+        : "c" (x)
         : "memory"
   );
   return(slRet);
@@ -450,7 +459,7 @@ inline FLOAT Sqrt( FLOAT x) { return (FLOAT)sqrt( ClampDn( x, 0.0f)); }
 #define ANGLE_SNAP (0.25f)   //0x0010
 // Wrap angle to be between 0 and 360 degrees
 inline ANGLE WrapAngle(ANGLE a) {
-  return (ANGLE) fmod( fmod(a,360.0f) + 360.0f, 360.0f);  // 0..360
+  return (ANGLE) fmod( fmod(a,360.0) + 360.0, 360.0);  // 0..360
 }
 
 // Normalize angle to be between -180 and +180 degrees
@@ -574,6 +583,6 @@ inline FLOAT CalculateRatio(FLOAT fCurr, FLOAT fMin, FLOAT fMax, FLOAT fFadeInRa
 #undef W
 #undef B
 
-
 #endif  /* include-once check. */
+
 

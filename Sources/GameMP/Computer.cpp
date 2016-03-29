@@ -17,6 +17,10 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "LCDDrawing.h"
 #include "CompMessage.h"
 
+#ifdef PLATFORM_UNIX
+#include <Engine/Base/SDL/SDLEvents.h>
+#endif
+
 extern CGame *_pGame;
 
 static const FLOAT tmComputerFade   = 1.0f;  // how many seconds it takes computer to fade in/out
@@ -24,11 +28,11 @@ static FLOAT fComputerFadeValue     = 0.0f;  // faded value of computer (0..1)
 static CTimerValue tvComputerLast;
 static CTimerValue _tvMessageAppear;
 static CPlayer *_ppenPlayer = NULL;
-extern FLOAT _fMsgAppearFade = 0.0f;
-extern FLOAT _fMsgAppearDelta = 0.0f;
+FLOAT _fMsgAppearFade = 0.0f;
+FLOAT _fMsgAppearDelta = 0.0f;
 
 // player statistics are set here
-extern CTString _strStatsDetails = "";
+CTString _strStatsDetails = "";
 
 // mouse cursor position
 static PIX2D _vpixMouse;
@@ -102,7 +106,7 @@ static COLOR MouseOverColor(const PIXaabbox2D &box, COLOR colNone,
                             COLOR colOff, COLOR colOn)
 {
   if (box>=_vpixMouse) {
-    return LCDBlinkingColor(colOff, colOn);
+    return _pGame->LCDBlinkingColor(colOff, colOn);
   } else {
     return colNone;
   }
@@ -126,7 +130,7 @@ static PIXaabbox2D GetSliderBox(INDEX iFirst, INDEX iVisible, INDEX iTotal,
   PIX pixFull = boxFull.Size()(2);
   PIX pixSize = PIX(pixFull*fSize);
   pixSize = ClampDn(pixSize, boxFull.Size()(1));
-  PIX pixTop = pixFull*(FLOAT(iFirst)/iTotal)+boxFull.Min()(2);
+  PIX pixTop = (PIX) (pixFull*(FLOAT(iFirst)/iTotal)+boxFull.Min()(2));
   PIX pixI0 = boxFull.Min()(1);
   PIX pixI1 = boxFull.Max()(1);
   return PIXaabbox2D(PIX2D(pixI0, pixTop), PIX2D(pixI1, pixTop+pixSize));
@@ -234,7 +238,7 @@ void LastUnreadMessage(void)
     }
   }
   if (!bFound) {
-    _iActiveMessage = ClampDn<INDEX>(_acmMessages.Count()-1, 0);
+    _iActiveMessage = ClampDn((long) _acmMessages.Count()-1, (long) 0);
   }
   SyncScrollWithActive();
 }
@@ -453,33 +457,33 @@ static void UpdateSize(CDrawPort *pdp)
 
   // remember font size
   CFontData *pfd = _pfdConsoleFont;
-  _pixCharSizeI = pfd->fd_pixCharWidth  + pfd->fd_pixCharSpacing;
-  _pixCharSizeJ = pfd->fd_pixCharHeight + pfd->fd_pixLineSpacing;
-  _pixCharSize2I = _pixCharSizeI*_fScaling2;
-  _pixCharSize2J = _pixCharSizeJ*_fScaling2;
-  _pixCharSizeI = _pixCharSizeI*_fScaling;
-  _pixCharSizeJ = _pixCharSizeJ*_fScaling;
+  _pixCharSizeI = (PIX) (pfd->fd_pixCharWidth  + pfd->fd_pixCharSpacing);
+  _pixCharSizeJ = (PIX) (pfd->fd_pixCharHeight + pfd->fd_pixLineSpacing);
+  _pixCharSize2I = (PIX) (_pixCharSizeI*_fScaling2);
+  _pixCharSize2J = (PIX) (_pixCharSizeJ*_fScaling2);
+  _pixCharSizeI = (PIX) (_pixCharSizeI*_fScaling);
+  _pixCharSizeJ = (PIX) (_pixCharSizeJ*_fScaling);
 
-  _pixMarginI = 5*_fScaling2;
-  _pixMarginJ = 5*_fScaling2;
-  PIX pixBoxMarginI = 10*_fScaling2;
-  PIX pixBoxMarginJ = 10*_fScaling2;
+  _pixMarginI = (PIX) (5*_fScaling2);
+  _pixMarginJ = (PIX) (5*_fScaling2);
+  PIX pixBoxMarginI = (PIX) (10*_fScaling2);
+  PIX pixBoxMarginJ = (PIX) (10*_fScaling2);
 
-  PIX pixJ0Dn = pixBoxMarginJ;
-  PIX pixJ1Up = pixJ0Dn+_pixCharSize2J+_pixMarginI*2;
-  PIX pixJ1Dn = pixJ1Up+pixBoxMarginJ;
-  PIX pixJ2Up = pixJ1Dn+_pixCharSize2J*6*2+pixBoxMarginJ;
-  PIX pixJ2Dn = pixJ2Up+pixBoxMarginJ;
-  PIX pixJ3Up = _pixSizeJ-pixBoxMarginJ;
+  PIX pixJ0Dn = (PIX) (pixBoxMarginJ);
+  PIX pixJ1Up = (PIX) (pixJ0Dn+_pixCharSize2J+_pixMarginI*2);
+  PIX pixJ1Dn = (PIX) (pixJ1Up+pixBoxMarginJ);
+  PIX pixJ2Up = (PIX) (pixJ1Dn+_pixCharSize2J*6*2+pixBoxMarginJ);
+  PIX pixJ2Dn = (PIX) (pixJ2Up+pixBoxMarginJ);
+  PIX pixJ3Up = (PIX) (_pixSizeJ-pixBoxMarginJ);
 
-  PIX pixI0Rt = pixBoxMarginI;
-  PIX pixI1Lt = pixI0Rt+_pixCharSize2I*20+pixBoxMarginI;
-  PIX pixI1Rt = pixI1Lt+pixBoxMarginI;
-  PIX pixI2Lt = _pixSizeI/2-pixBoxMarginI/2;
-  PIX pixI2Rt = _pixSizeI/2+pixBoxMarginI/2;
-  PIX pixI4Lt = _pixSizeI-pixBoxMarginI;
-  PIX pixI3Rt = pixI4Lt-pixBoxMarginI*2-_pixCharSize2I*10;
-  PIX pixI3Lt = pixI3Rt-pixBoxMarginI;
+  PIX pixI0Rt = (PIX) (pixBoxMarginI);
+  PIX pixI1Lt = (PIX) (pixI0Rt+_pixCharSize2I*20+pixBoxMarginI);
+  PIX pixI1Rt = (PIX) (pixI1Lt+pixBoxMarginI);
+  PIX pixI2Lt = (PIX) (_pixSizeI/2-pixBoxMarginI/2);
+  PIX pixI2Rt = (PIX) (_pixSizeI/2+pixBoxMarginI/2);
+  PIX pixI4Lt = (PIX) (_pixSizeI-pixBoxMarginI);
+  PIX pixI3Rt = (PIX) (pixI4Lt-pixBoxMarginI*2-_pixCharSize2I*10);
+  PIX pixI3Lt = (PIX) (pixI3Rt-pixBoxMarginI);
 
   // calculate box sizes
   _boxTitle = PIXaabbox2D( PIX2D(0, pixJ0Dn-1), PIX2D(pixI3Lt, pixJ1Up));
@@ -530,10 +534,10 @@ void PrintButton(CDrawPort *pdp, INDEX iButton)
   if (!dpButton.Lock()) {
     return;
   } 
-  LCDSetDrawport(&dpButton);
+  _pGame->LCDSetDrawport(&dpButton);
   _pGame->LCDRenderCompGrid();
-  LCDRenderClouds2();
-  LCDScreenBoxOpenLeft(_colBoxes);
+  _pGame->LCDRenderClouds2();
+  _pGame->LCDScreenBoxOpenLeft(_colBoxes);
 
   SetFont2(&dpButton);
 
@@ -580,7 +584,7 @@ void PrintTitle(CDrawPort *pdp)
   SetFont2(pdp);
   CTString strTitle;
   strTitle.PrintF(TRANS("NETRICSA v2.01 - personal version for: %s"), 
-    _ppenPlayer->GetPlayerName());
+    (const char *) _ppenPlayer->GetPlayerName());
   pdp->PutText( strTitle, _pixMarginI*3, _pixMarginJ-2*_fScaling2+1, _colMedium);
 }
 
@@ -613,20 +617,20 @@ void PrintMessageList(CDrawPort *pdp)
       col = _colLight;
     }
     if (GetMsgListBox(i-_iFirstMessageOnScreen)>=_vpixMouse) {
-      col = LCDBlinkingColor(_colLight, _colMedium);
+      col = _pGame->LCDBlinkingColor(_colLight, _colMedium);
     }
     pdp->PutText( _acmMessages[i].cm_strSubject, pixTextX, pixYLine, col);
     pixYLine+=_pixCharSizeJ;
   }
 
   PIXaabbox2D boxSliderSpace = GetMsgSliderSpace();
-  LCDDrawBox(0,0,boxSliderSpace, _colBoxes);
+  _pGame->LCDDrawBox(0,0,boxSliderSpace, _colBoxes);
   PIXaabbox2D boxSlider = GetMsgSliderBox();
   COLOR col = _colBoxes;
   PIXaabbox2D boxSliderTrans = boxSlider;
   boxSliderTrans+=_boxMsgList.Min();
   if (boxSliderTrans>=_vpixMouse) {
-    col = LCDBlinkingColor(_colLight, _colDark);
+    col = _pGame->LCDBlinkingColor(_colLight, _colDark);
   }
   pdp->Fill( boxSlider.Min()(1)+2,  boxSlider.Min()(2)+2,
              boxSlider.Size()(1)-4, boxSlider.Size()(2)-4, col);
@@ -699,13 +703,13 @@ void PrintMessageText(CDrawPort *pdp)
   }
 
   PIXaabbox2D boxSliderSpace = GetTextSliderSpace();
-  LCDDrawBox(0,0,boxSliderSpace, _colBoxes);
+  _pGame->LCDDrawBox(0,0,boxSliderSpace, _colBoxes);
   PIXaabbox2D boxSlider = GetTextSliderBox();
   COLOR col = _colBoxes;
   PIXaabbox2D boxSliderTrans = boxSlider;
   boxSliderTrans+=_boxMsgText.Min();
   if (boxSliderTrans>=_vpixMouse) {
-    col = LCDBlinkingColor(_colLight, _colDark);
+    col = _pGame->LCDBlinkingColor(_colLight, _colDark);
   }
   pdp->Fill( boxSlider.Min()(1)+2,  boxSlider.Min()(2)+2,
              boxSlider.Size()(1)-4, boxSlider.Size()(2)-4, col);
@@ -723,7 +727,7 @@ void RenderMessagePicture(CDrawPort *pdp)
   // if failed
   } catch(char *strError) {
     // report error
-    CPrintF("Cannot load '%s':\n%s\n", (CTString&)cm.cm_fnmPicture, strError);
+    CPrintF("Cannot load '%s':\n%s\n", (const char *) (CTString&)cm.cm_fnmPicture, strError);
     // do nothing
     return;
   }
@@ -761,7 +765,7 @@ void RenderMessageStats(CDrawPort *pdp)
       // clear bcg
       pdp->Fill( 1, 1, pixSizeI-2, pixSizeJ-2, C_BLACK|CT_OPAQUE);
       // render the map if not fading
-      COLOR colFade = LCDFadedColor(C_WHITE|255);
+      COLOR colFade = _pGame->LCDFadedColor(C_WHITE|255);
       if( (colFade&255) == 255) {
         RenderMap( pdp, ulLevelMask, NULL);
       }
@@ -782,8 +786,8 @@ void RenderMessageImage(CDrawPort *pdp)
   // if no message
   if (_acmMessages.Count()==0 || fComputerFadeValue<0.99f) {
     // render empty
-    LCDRenderClouds2();
-    LCDScreenBox(_colBoxes);
+    _pGame->LCDRenderClouds2();
+    _pGame->LCDScreenBox(_colBoxes);
     return;
   }
   CCompMessage &cm = _acmMessages[_iActiveMessage];
@@ -791,8 +795,8 @@ void RenderMessageImage(CDrawPort *pdp)
   if (cm.cm_itImage == CCompMessage::IT_STATISTICS) {
     _pGame->LCDRenderCompGrid();
   }
-  LCDRenderClouds2();
-  LCDScreenBox(_colBoxes);
+  _pGame->LCDRenderClouds2();
+  _pGame->LCDScreenBox(_colBoxes);
 
   // if no image 
   if (cm.cm_itImage == CCompMessage::IT_NONE) {
@@ -1162,6 +1166,10 @@ void CGame::ComputerRender(CDrawPort *pdp)
       fComputerFadeValue = 0.0f;
       _pGame->gm_csComputerState   = CS_OFF;
       ComputerOff();
+
+      if (_pInput != NULL) // rcg02042003 hack for SDL vs. Win32.
+        _pInput->ClearRelativeMouseMotion();
+
       cmp_ppenPlayer = NULL;
       // exit computer
       return;
@@ -1325,4 +1333,8 @@ void CGame::ComputerForceOff()
   _pGame->gm_csComputerState = CS_OFF;
   fComputerFadeValue = 0.0f;
   _ppenPlayer = NULL;
+
+  if (_pInput != NULL) // rcg02042003 hack for SDL vs. Win32.
+    _pInput->ClearRelativeMouseMotion();
 }
+

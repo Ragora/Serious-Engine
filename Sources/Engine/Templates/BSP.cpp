@@ -13,7 +13,7 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include <Engine/StdH.h>
 
 #include <Engine/Templates/BSP.h>
 #include <Engine/Templates/BSP_internal.h>
@@ -1218,7 +1218,9 @@ void BSPTree<Type, iDimensions>::Read_t(CTStream &strm) // throw char *
   for(INDEX iNode=0; iNode<ctNodes; iNode++) {
     BSPNode<Type, iDimensions> &bn = bt_abnNodes[iNode];
     // read it from disk
-    strm.Read_t(&(Plane<Type, iDimensions>&)bn, sizeof(Plane<Type, iDimensions>));
+    //strm.Read_t(&(Plane<Type, iDimensions>&)bn, sizeof(Plane<Type, iDimensions>));
+    strm >> ((Plane<Type, iDimensions>&)bn);
+
     strm>>(INDEX&)bn.bn_bnlLocation;
 
     INDEX iFront;
@@ -1267,7 +1269,8 @@ void BSPTree<Type, iDimensions>::Write_t(CTStream &strm) // throw char *
   for(INDEX iNode=0; iNode<ctNodes; iNode++) {
     BSPNode<Type, iDimensions> &bn = bt_abnNodes[iNode];
     // write it to disk
-    strm.Write_t(&(Plane<Type, iDimensions>&)bn, sizeof(Plane<Type, iDimensions>));
+    //strm.Write_t(&(Plane<Type, iDimensions>&)bn, sizeof(Plane<Type, iDimensions>));
+    strm << ((Plane<Type, iDimensions>&)bn);
     strm<<(INDEX&)bn.bn_bnlLocation;
 
     INDEX iFront;
@@ -1296,20 +1299,20 @@ void BSPTree<Type, iDimensions>::Write_t(CTStream &strm) // throw char *
 #pragma warning (disable: 4660) // if already instantiated by some class
 
 // remove templates
-template DOUBLEbspvertex3D;
-template DOUBLEbspvertexcontainer3D;
-template DOUBLEbspedge3D;
-template DOUBLEbspnode3D;
-template DOUBLEbsppolygon3D;
-template DOUBLEbsptree3D;
-template DOUBLEbspcutter3D;
+template class BSPVertex<DOUBLE, 3>; //DOUBLEbspvertex3D;
+template class BSPVertexContainer<DOUBLE, 3>;
+template class BSPEdge<DOUBLE, 3>;
+template class BSPNode<DOUBLE, 3>;
+template class BSPPolygon<DOUBLE, 3>;
+template class BSPTree<DOUBLE, 3>;
+template class BSPCutter<DOUBLE, 3>;
 
-template FLOATbspvertex3D;
-template FLOATbspvertexcontainer3D;
-template FLOATbspedge3D;
-template FLOATbspnode3D;
-template FLOATbsppolygon3D;
-template FLOATbsptree3D;
-template FLOATbspcutter3D;
+template class BSPVertex<FLOAT, 3>;
+template class BSPVertexContainer<FLOAT, 3>;
+template class BSPEdge<FLOAT, 3>;
+template class BSPNode<FLOAT, 3>;
+template class BSPPolygon<FLOAT, 3>;
+template class BSPTree<FLOAT, 3>;
+template class BSPCutter<FLOAT, 3>;
 
 #pragma warning (default: 4660)

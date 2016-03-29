@@ -92,7 +92,9 @@ public:
   /* Default constructor. */
   inline BSPEdge(void) {};
   /* Constructor with two vectors. */
-  inline BSPEdge(const Vector<Type, iDimensions> &vVertex0, const Vector<Type, iDimensions> &vVertex1, ULONG ulTag);
+  inline BSPEdge(const Vector<Type, iDimensions> &vVertex0, const Vector<Type, iDimensions> &vVertex1, ULONG ulTag)
+    : bed_vVertex0(vVertex0), bed_vVertex1(vVertex1), bed_ulEdgeTag(ulTag) {}
+
   /* Clear the object. */
   inline void Clear(void) {};
   // remove all edges marked for removal

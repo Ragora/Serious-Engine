@@ -21,6 +21,11 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <Engine/Base/Console.h>
 
 
+// !!! FIXME : rcg11052001 move this somewhere.
+#ifdef PLATFORM_UNIX
+#include "SDL.h"
+#endif
+
 extern BOOL _bDedicatedServer;
 #ifdef SE1_D3D
 extern const D3DDEVTYPE d3dDevType;
@@ -68,7 +73,8 @@ static CResolution _areResolutions[] =
 // THIS NUMBER MUST NOT BE OVER 25! (otherwise change it in adapter.h)
 static const INDEX MAX_RESOLUTIONS = sizeof(_areResolutions)/sizeof(_areResolutions[0]);
 
-
+// !!! FIXME : rcg11052001 abstract this...
+#ifdef PLATFORM_WIN32
 
 // initialize CDS support (enumerate modes at startup)
 void CGfxLibrary::InitAPIs(void)
@@ -222,6 +228,100 @@ void CGfxLibrary::InitAPIs(void)
 #endif // SE1_D3D
 }
 
+#else
+
+/*
+static SDL_Rect sdl_stdmode512x384  = { 0, 0,  512, 384 };
+static SDL_Rect sdl_stdmode640x480  = { 0, 0,  640, 480 };
+static SDL_Rect sdl_stdmode800x600  = { 0, 0,  800, 600 };
+static SDL_Rect sdl_stdmode1024x768 = { 0, 0, 1024, 768 };
+
+static SDL_Rect *stdmodes[] =
+{
+    &sdl_stdmode512x384,
+    &sdl_stdmode640x480,
+    &sdl_stdmode800x600,
+    &sdl_stdmode1024x768,
+    NULL
+};
+*/
+
+static void sdl_addmodes(CDisplayAdapter *pda, Uint32 flags)
+{
+  Uint8 bpp = SDL_GetVideoInfo()->vfmt->BitsPerPixel;
+  DisplayDepth bits;
+
+  if (bpp < 16)
+    return;
+
+  switch (bpp)
+  {
+    case 16:
+      bits = DD_16BIT;
+      break;
+    case 32:
+      bits = DD_32BIT;
+      break;
+    case 24:
+      bits = DD_24BIT;
+      break;
+    default:
+      ASSERT(false);
+  }
+
+  SDL_Rect **modes = SDL_ListModes(NULL, flags);
+  if ((modes == NULL) || (modes == (SDL_Rect **) -1))
+    return;
+
+  CDisplayMode *adm = &pda->da_admDisplayModes[0];
+  size_t x = pda->da_ctDisplayModes;
+  size_t maxmodes = sizeof (pda->da_admDisplayModes) / sizeof (pda->da_admDisplayModes[0]);
+  for (int i = 0; ((modes[i] != NULL) && (x < maxmodes)); i++, x++)
+  {
+    adm[x].dm_pixSizeI = modes[i]->w;
+    adm[x].dm_pixSizeJ = modes[i]->h;
+    adm[x].dm_ddDepth = bits;
+    pda->da_ctDisplayModes++;
+  }
+}
+
+
+// initialize CDS support (enumerate modes at startup)
+void CGfxLibrary::InitAPIs(void)
+{
+  // no need for gfx when dedicated server is on
+  if( _bDedicatedServer) return;
+
+  // fill OpenGL adapter info
+  CDisplayAdapter *pda;
+  INDEX iResolution;
+
+  gl_gaAPI[GAT_OGL].ga_ctAdapters = 1;
+  gl_gaAPI[GAT_OGL].ga_iCurrentAdapter = 0;
+  pda = &gl_gaAPI[GAT_OGL].ga_adaAdapter[0];
+  pda->da_ulFlags = 0;
+  pda->da_strVendor   = TRANS( "unknown");
+  pda->da_strRenderer = TRANS( "Default ICD");
+  pda->da_strVersion  = "1.1+";
+
+  // detect modes for OpenGL ICD
+  pda->da_ctDisplayModes = 0;
+  pda->da_iCurrentDisplayMode = -1;
+
+  if (SDL_Init(SDL_INIT_VIDEO) == -1)
+  {
+    CPrintF(TRANS("SDL_Init failed! Reason: %s\n"), SDL_GetError());
+    return;
+  }
+
+  sdl_addmodes(pda, SDL_OPENGL | SDL_FULLSCREEN);
+  sdl_addmodes(pda, SDL_OPENGL);
+}
+
+#endif
+
+
+
 // get list of all modes avaliable through CDS -- do not modify/free the returned list
 CListHead &CDS_GetModes(void)
 {
@@ -235,6 +335,8 @@ BOOL CDS_SetMode( PIX pixSizeI, PIX pixSizeJ, enum DisplayDepth dd)
   // no need for gfx when dedicated server is on
   if( _bDedicatedServer) return FALSE;
 
+// !!! FIXME : rcg11052001 better abstraction!
+#ifdef PLATFORM_WIN32
   // prepare general mode parameters
   DEVMODE devmode;
   memset(&devmode, 0, sizeof(devmode));
@@ -296,6 +398,7 @@ BOOL CDS_SetMode( PIX pixSizeI, PIX pixSizeJ, enum DisplayDepth dd)
   }
   // report
   CPrintF(TRANS("  CDS: mode set to %dx%dx%d\n"), pixSizeI, pixSizeJ, devmode.dmBitsPerPel);
+#endif
   return TRUE;
 }
 
@@ -306,7 +409,10 @@ void CDS_ResetMode(void)
   // no need for gfx when dedicated server is on
   if( _bDedicatedServer) return;
 
+#ifdef PLATFORM_WIN32
   LONG lRes = ChangeDisplaySettings( NULL, 0);
   ASSERT(lRes==DISP_CHANGE_SUCCESSFUL);
   CPrintF(TRANS("  CDS: mode reset to original desktop settings\n"));
+#endif
 }
+

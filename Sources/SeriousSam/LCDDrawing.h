@@ -19,6 +19,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
   #pragma once
 #endif
 
+// !!! FIXME : Lose this!
+#ifdef PLATFORM_WIN32
 extern void LCDInit(void);
 extern void LCDEnd(void);
 extern void LCDPrepare(FLOAT fFade);
@@ -34,7 +36,8 @@ extern void LCDDrawPointer(PIX pixI, PIX pixJ);
 extern COLOR LCDGetColor(COLOR colDefault, const char *strName);
 extern COLOR LCDFadedColor(COLOR col);
 extern COLOR LCDBlinkingColor(COLOR col0, COLOR col1);
-
+#endif
 
 #endif  /* include-once check. */
+
 

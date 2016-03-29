@@ -13,15 +13,21 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include "Engine/StdH.h"
 #include <Engine/Base/IFeel.h>
 #include <Engine/Base/FileName.h>
 #include <Engine/Base/Stream.h>
 #include <Engine/Base/Console.h>
 #include <Engine/Base/Shell.h>
+#include <Engine/Base/DynamicLoader.h>
+
+// rcg12122001 Moved this over to the CDynamicLoader abstraction, even though
+//  this is somewhat win32-specific. Hey, you never know; maybe a Linux
+//  version will show up, so we might as well leave the IFeel interface
+//  in place...
 
 //Imm_GetProductName
-HINSTANCE _hLib = NULL;
+CDynamicLoader *_hLib = NULL;
 BOOL (*immCreateDevice)(HINSTANCE &hInstance, HWND &hWnd) = NULL;
 void (*immDeleteDevice)(void) = NULL;
 BOOL (*immProductName)(char *strProduct,int iMaxCount) = NULL;
@@ -99,16 +105,16 @@ CTString IFeel_GetProjectFileName()
     if(strProduct == strDeviceName) return strProjectFile;
   }
   // device was not found, return default project file
-  CPrintF("No project file specified for device '%s'.\nUsing default project file\n",strProduct);
+  CPrintF("No project file specified for device '%s'.\nUsing default project file\n", (const char *) strProduct);
   return strDefaultProjectFile;
 }
 
 // inits imm ifeel device
 BOOL IFeel_InitDevice(HINSTANCE &hInstance, HWND &hWnd)
 {
-  _pShell->DeclareSymbol("void inp_IFeelGainChange(INDEX);", &ifeel_GainChange);
-  _pShell->DeclareSymbol("persistent user FLOAT inp_fIFeelGain post:inp_IFeelGainChange;", &ifeel_fGain);
-  _pShell->DeclareSymbol("const user INDEX sys_bIFeelEnabled;", &ifeel_bEnabled);
+  _pShell->DeclareSymbol("void inp_IFeelGainChange(INDEX);", (void *) &ifeel_GainChange);
+  _pShell->DeclareSymbol("persistent user FLOAT inp_fIFeelGain post:inp_IFeelGainChange;", (void *) &ifeel_fGain);
+  _pShell->DeclareSymbol("const user INDEX sys_bIFeelEnabled;", (void *) &ifeel_bEnabled);
   IFeel_ChangeGain(ifeel_fGain);
 
   // load iFeel lib 
@@ -116,24 +122,34 @@ BOOL IFeel_InitDevice(HINSTANCE &hInstance, HWND &hWnd)
   ExpandFilePath(EFP_READ | EFP_NOZIPS,(CTString)IFEEL_DLL_NAME,fnmExpanded);
   if(_hLib!=NULL) return FALSE;
 
+#ifdef PLATFORM_WIN32
   UINT iOldErrorMode = SetErrorMode( SEM_NOOPENFILEERRORBOX|SEM_FAILCRITICALERRORS);
-  _hLib = LoadLibraryA(fnmExpanded);
+#endif
+
+  _hLib = CDynamicLoader::GetInstance(fnmExpanded);
+
+#ifdef PLATFORM_WIN32
   SetErrorMode(iOldErrorMode);
-  if(_hLib==NULL)
+#endif
+
+  const char *err = _hLib->GetError();
+  if (err != NULL)
   {
-    CPrintF("Error loading ImmWraper.dll.\n\tIFeel disabled\n");
+    CPrintF("Error loading ImmWraper.dll.\n\tIFeel disabled\nError: %s\n", err);
+    delete _hLib;
+    _hLib = NULL;
     return FALSE;
   }
 
   // take func pointers
-  immCreateDevice = (BOOL(*)(HINSTANCE &hInstance, HWND &hWnd)) GetProcAddress(_hLib,"Imm_CreateDevice");
-  immDeleteDevice = (void(*)(void)) GetProcAddress(_hLib,"Imm_DeleteDevice");
-  immProductName = (BOOL(*)(char *strProduct,int iMaxCount)) GetProcAddress(_hLib,"Imm_GetProductName");
-  immLoadFile = (BOOL(*)(const char *fnFile))GetProcAddress(_hLib,"Imm_LoadFile");
-  immUnloadFile = (void(*)(void))GetProcAddress(_hLib,"immUnloadFile");
-  immPlayEffect = (void(*)(const char *pstrEffectName))GetProcAddress(_hLib,"Imm_PlayEffect");
-  immStopEffect = (void(*)(const char *pstrEffectName))GetProcAddress(_hLib,"Imm_StopEffect");
-  immChangeGain = (void(*)(const float fGain))GetProcAddress(_hLib,"Imm_ChangeGain");
+  immCreateDevice = (BOOL(*)(HINSTANCE &hInstance, HWND &hWnd)) _hLib->FindSymbol("Imm_CreateDevice");
+  immDeleteDevice = (void(*)(void)) _hLib->FindSymbol("Imm_DeleteDevice");
+  immProductName = (BOOL(*)(char *strProduct,int iMaxCount)) _hLib->FindSymbol("Imm_GetProductName");
+  immLoadFile = (BOOL(*)(const char *fnFile))_hLib->FindSymbol("Imm_LoadFile");
+  immUnloadFile = (void(*)(void))_hLib->FindSymbol("immUnloadFile");
+  immPlayEffect = (void(*)(const char *pstrEffectName))_hLib->FindSymbol("Imm_PlayEffect");
+  immStopEffect = (void(*)(const char *pstrEffectName))_hLib->FindSymbol("Imm_StopEffect");
+  immChangeGain = (void(*)(const float fGain))_hLib->FindSymbol("Imm_ChangeGain");
 
   // create device
   if(immCreateDevice == NULL)
@@ -164,7 +180,7 @@ void IFeel_DeleteDevice()
   immStopEffect = NULL;
   immChangeGain = NULL;
 
-  if(_hLib != NULL) FreeLibrary(_hLib);
+  if(_hLib != NULL) delete _hLib;
   _hLib = NULL;
 }
 // loads project file
@@ -178,12 +194,12 @@ BOOL IFeel_LoadFile(CTFileName fnFile)
     BOOL hr = immLoadFile((const char*)fnmExpanded);
     if(hr)
     {
-      CPrintF("IFeel project file '%s' loaded\n", fnFile);
+      CPrintF("IFeel project file '%s' loaded\n", (const char *) fnFile);
       return TRUE;
     }
     else
     {
-      CPrintF("Error loading IFeel project file '%s'\n", fnFile);
+      CPrintF("Error loading IFeel project file '%s'\n", (const char *) fnFile);
       return FALSE;
     }
   }

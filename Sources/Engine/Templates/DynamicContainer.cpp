@@ -72,24 +72,7 @@ template<class Type>
 void CDynamicContainer<Type>::Add(Type *ptNewObject)
 {
   // set the new pointer
-  Push() = ptNewObject;
-}
-
-/*
- * Insert a given object to container at specified index.
- */
-template<class Type>
-void CDynamicContainer<Type>::Insert(Type *ptNewObject, const INDEX iPos/*=0*/)
-{
-  // get number of member that need moving and add new one
-  const INDEX ctMovees = CStaticStackArray<Type*>::Count() - iPos;
-  CStaticStackArray<Type*>::Push();
-  // move all members after insert position one place up
-  Type **pptInsertAt = this->sa_Array+iPos;
-  Type **pptMoveTo   = pptInsertAt +1;
-  memmove( pptMoveTo, pptInsertAt, sizeof(Type*)*ctMovees);
-  // store pointer to newly inserted member at specified position
-  *pptInsertAt = ptNewObject;
+  this->Push() = ptNewObject;
 }
 
 /*
@@ -107,8 +90,8 @@ void CDynamicContainer<Type>::Remove(Type *ptOldObject)
   // find its index
   INDEX iMember=GetIndex(ptOldObject);
   // move last pointer here
-  sa_Array[iMember]=sa_Array[Count()-1];
-  Pop();
+  this->sa_Array[iMember]=this->sa_Array[this->Count()-1];
+  this->Pop();
 }
 
 /* Test if a given object is in the container. */
@@ -118,8 +101,8 @@ BOOL CDynamicContainer<Type>::IsMember(Type *ptOldObject)
   ASSERT(this!=NULL);
   // slow !!!!
   // check all members
-  for (INDEX iMember=0; iMember<Count(); iMember++) {
-    if(sa_Array[iMember]==ptOldObject) {
+  for (INDEX iMember=0; iMember<this->Count(); iMember++) {
+    if(this->sa_Array[iMember]==ptOldObject) {
       return TRUE;
     }
   }
@@ -133,23 +116,23 @@ template<class Type>
 Type *CDynamicContainer<Type>::Pointer(INDEX iMember) {
   ASSERT(this!=NULL);
   // check that index is currently valid
-  ASSERT(iMember>=0 && iMember<Count());
+  ASSERT(iMember>=0 && iMember<this->Count());
 #if CHECKARRAYLOCKING
   // check that locked for indices
   ASSERT(dc_LockCt>0);
 #endif
-  return sa_Array[iMember];
+  return this->sa_Array[iMember];
 }
 template<class Type>
 const Type *CDynamicContainer<Type>::Pointer(INDEX iMember) const {
   ASSERT(this!=NULL);
   // check that index is currently valid
-  ASSERT(iMember>=0 && iMember<Count());
+  ASSERT(iMember>=0 && iMember<this->Count());
 #if CHECKARRAYLOCKING
   // check that locked for indices
   ASSERT(dc_LockCt>0);
 #endif
-  return sa_Array[iMember];
+  return this->sa_Array[iMember];
 }
 
 /*
@@ -198,8 +181,8 @@ INDEX CDynamicContainer<Type>::GetIndex(Type *ptMember) {
   ASSERT(this!=NULL);
   // slow !!!!
   // check all members
-  for (INDEX iMember=0; iMember<Count(); iMember++) {
-    if(sa_Array[iMember]==ptMember) {
+  for (INDEX iMember=0; iMember<this->Count(); iMember++) {
+    if(this->sa_Array[iMember]==ptMember) {
       return iMember;
     }
   }
@@ -211,8 +194,8 @@ INDEX CDynamicContainer<Type>::GetIndex(Type *ptMember) {
 template<class Type>
 Type &CDynamicContainer<Type>::GetFirst(void)
 {
-  ASSERT(Count()>=1);
-  return *sa_Array[0];
+  ASSERT(this->Count()>=1);
+  return *this->sa_Array[0];
 }
 
 /*

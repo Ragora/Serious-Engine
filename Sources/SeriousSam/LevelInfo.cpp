@@ -13,9 +13,12 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include "SeriousSam/StdH.h"
 #include "LevelInfo.h"
+
+#ifdef PLATFORM_WIN32
 #include <io.h>
+#endif
 
 CListHead _lhAutoDemos;
 CListHead _lhAllLevels;
@@ -104,7 +107,7 @@ void LoadLevelsList(void)
 
   // list the levels directory with subdirs
   CDynamicStackArray<CTFileName> afnmDir;
-  MakeDirList(afnmDir, CTString("Levels\\"), "*.wld", DLI_RECURSIVE|DLI_SEARCHCD);
+  MakeDirList(afnmDir, CTString("Levels\\"), CTString("*.wld"), DLI_RECURSIVE|DLI_SEARCHCD);
 
   // for each file in the directory
   for (INDEX i=0; i<afnmDir.Count(); i++) {
@@ -114,7 +117,7 @@ void LoadLevelsList(void)
     // try to load its info, and if valid
     CLevelInfo li;
     if (GetLevelInfo(li, fnm)) {
-      CPrintF(TRANS("'%s' spawn=0x%08x\n"), li.li_strName, li.li_ulSpawnFlags);
+      CPrintF(TRANS("'%s' spawn=0x%08x\n"), (const char *) li.li_strName, li.li_ulSpawnFlags);
 
       // create new info for that file
       CLevelInfo *pliNew = new CLevelInfo;
@@ -127,7 +130,7 @@ void LoadLevelsList(void)
   }
 
   // sort the list
-  _lhAllLevels.Sort(qsort_CompareLevels, offsetof(CLevelInfo, li_lnNode));
+  _lhAllLevels.Sort(qsort_CompareLevels, _offsetof(CLevelInfo, li_lnNode));
 }
 
 // cleanup level-info subsystem
@@ -241,7 +244,7 @@ void LoadDemosList(void)
 
   // list the levels directory with subdirs
   CDynamicStackArray<CTFileName> afnmDir;
-  MakeDirList(afnmDir, CTString("Demos\\"), "Demos\\Auto-*.dem", DLI_RECURSIVE);
+  MakeDirList(afnmDir, CTString("Demos\\"), CTString("Demos\\auto-*.dem"), DLI_RECURSIVE);
 
   // for each file in the directory
   for (INDEX i=0; i<afnmDir.Count(); i++) {
@@ -255,7 +258,7 @@ void LoadDemosList(void)
   }
 
   // sort the list
-  _lhAutoDemos.Sort(qsort_CompareDemos, offsetof(CLevelInfo, li_lnNode));
+  _lhAutoDemos.Sort(qsort_CompareDemos, _offsetof(CLevelInfo, li_lnNode));
 
   // add the intro to the start
   extern CTString sam_strIntroLevel;

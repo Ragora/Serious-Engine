@@ -90,9 +90,9 @@ functions:
   {
     CTString str;
     if (m_bInAir) {
-      str.PrintF(TRANS("A Gnaar bit %s to death"), strPlayerName);
+      str.PrintF(TRANS("A Gnaar bit %s to death"), (const char *) strPlayerName);
     } else {
-      str.PrintF(TRANS("%s was beaten up by a Gnaar"), strPlayerName);
+      str.PrintF(TRANS("%s was beaten up by a Gnaar"), (const char *) strPlayerName);
     }
     return str;
   }

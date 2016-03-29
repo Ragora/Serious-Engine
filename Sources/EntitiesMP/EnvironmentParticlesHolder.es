@@ -91,7 +91,7 @@ functions:
 
   BOOL IsTargetValid(SLONG slPropertyOffset, CEntity *penTarget)
   {
-    if( slPropertyOffset == offsetof(CEnvironmentParticlesHolder, m_penNextHolder))
+    if( slPropertyOffset == _offsetof(CEnvironmentParticlesHolder, m_penNextHolder))
     {
       if (IsOfClass(penTarget, "EnvironmentParticlesHolder")) { return TRUE; }
       else { return FALSE; }

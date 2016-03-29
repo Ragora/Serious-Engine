@@ -22,29 +22,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define FOREACHINSTATICARRAY(array, type, iter) \
   for(CStaticArrayIterator<type> iter(array); !iter.IsPastEnd(); iter.MoveToNext() )
 
-#include <Engine/Base/Console.h>
 #include <Engine/Templates/StaticArray.h>
-
-/*
- * Default constructor.
- */
-template<class Type>
-inline CStaticArray<Type>::CStaticArray(void) {
-  sa_Count=0;
-  sa_Array=NULL;
-}
-
-/*
- * Destructor.
- */
-template<class Type>
-inline CStaticArray<Type>::~CStaticArray(void) {
-  // if some objects were allocated
-  if (sa_Count!=0) {
-    // destroy them
-    Delete();
-  }
-};
 
 /* Random access operator. */
 template<class Type>
@@ -69,16 +47,7 @@ inline void CStaticArray<Type>::New(INDEX iCount) {
     // do nothing
     return;
   }
-  //ASSERT(sa_Count==0 && sa_Array==NULL);
-#ifndef NDEBUG
-  if(!(sa_Count==0 && sa_Array==NULL)) {
-    if(sa_Array == NULL) {
-      CPrintF("CStaticArray array not set!\n");
-    } else {
-      CPrintF("CStaticArray new(%d) called while already holding %d elements!\n", iCount, sa_Count);
-    }
-  }
-#endif
+  ASSERT(sa_Count==0 && sa_Array==NULL);
   sa_Count = iCount;
   sa_Array = new Type[iCount+1]; //(+1 for cache-prefetch opt)
 };
@@ -110,20 +79,12 @@ inline void CStaticArray<Type>::Expand(INDEX iNewCount)
 }
 
 /*
- * Destroy all objects.
- */
-template<class Type>
-inline void CStaticArray<Type>::Delete(void) {
-  ASSERT(this!=NULL);
-  ASSERT(sa_Count!=0 && sa_Array!=NULL);
-  delete[] sa_Array;
-  sa_Count = 0;
-  sa_Array = NULL;
-}
-
-/*
  * Random access operator.
  */
+// rcg10162001 wtf...I had to move this into the class definition itself.
+//  I think it's an optimization bug; I didn't have this problem when I
+//  didn't give GCC the "-O2" option.
+#if 0
 template<class Type>
 inline Type &CStaticArray<Type>::operator[](INDEX i) {
   ASSERT(this!=NULL);
@@ -136,6 +97,7 @@ inline const Type &CStaticArray<Type>::operator[](INDEX i) const {
   ASSERT(i>=0 && i<sa_Count);     // check bounds
   return sa_Array[i];
 }
+#endif
 
 /*
  * Get number of elements in array.

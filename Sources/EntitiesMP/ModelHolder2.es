@@ -321,11 +321,11 @@ functions:
   /* Get anim data for given animation property - return NULL for none. */
   CAnimData *GetAnimData(SLONG slPropertyOffset) 
   {
-    if (slPropertyOffset==offsetof(CModelHolder2, m_iModelAnimation)) {
+    if (slPropertyOffset==_offsetof(CModelHolder2, m_iModelAnimation)) {
       return GetModelObject()->GetData();
-    } else if (slPropertyOffset==offsetof(CModelHolder2, m_iTextureAnimation)) {
+    } else if (slPropertyOffset==_offsetof(CModelHolder2, m_iTextureAnimation)) {
       return GetModelObject()->mo_toTexture.GetData();
-    } else if (slPropertyOffset==offsetof(CModelHolder2, m_iLightAnimation)) {
+    } else if (slPropertyOffset==_offsetof(CModelHolder2, m_iLightAnimation)) {
       return m_aoLightAnimation.GetData();
     } else {
       return CEntity::GetAnimData(slPropertyOffset);
@@ -400,8 +400,8 @@ functions:
           UBYTE ubAmbientR, ubAmbientG, ubAmbientB;
           ColorToRGB( m_colLight,   ubLightR,   ubLightG,   ubLightB);
           ColorToRGB( m_colAmbient, ubAmbientR, ubAmbientG, ubAmbientB);
-          colLight   = RGBToColor( ubLightR  *fAnimR, ubLightG  *fAnimG, ubLightB  *fAnimB);
-          colAmbient = RGBToColor( ubAmbientR*fAnimR, ubAmbientG*fAnimG, ubAmbientB*fAnimB);
+          colLight   = RGBToColor( (UBYTE) (ubLightR  *fAnimR), (UBYTE) (ubLightG  *fAnimG), (UBYTE) (ubLightB  *fAnimB));
+          colAmbient = RGBToColor( (UBYTE) (ubAmbientR*fAnimR), (UBYTE) (ubAmbientG*fAnimG), (UBYTE) (ubAmbientB*fAnimB));
 
         // if there is no color animation
         } else {
@@ -615,7 +615,7 @@ functions:
     try {
       m_aoLightAnimation.SetData_t(m_fnmLightAnimation);
     } catch (char *strError) {
-      WarningMessage(TRANS("Cannot load '%s': %s"), (CTString&)m_fnmLightAnimation, strError);
+      WarningMessage(TRANS("Cannot load '%s': %s"), (const char *) (CTString&)m_fnmLightAnimation, strError);
       m_fnmLightAnimation = "";
     }
     if (m_aoLightAnimation.GetData()!=NULL) {
@@ -623,10 +623,10 @@ functions:
     }
 
     if (m_penDestruction==NULL) {
-      m_strDescription.PrintF("%s,%s undestroyable", (CTString&)m_fnModel.FileName(), (CTString&)m_fnTexture.FileName());
+      m_strDescription.PrintF("%s,%s undestroyable", (const char *) m_fnModel.FileName(), (const char *) m_fnTexture.FileName());
     } else {
-      m_strDescription.PrintF("%s,%s -> %s", (CTString&)m_fnModel.FileName(), (CTString&)m_fnTexture.FileName(),
-        m_penDestruction->GetName());
+      m_strDescription.PrintF("%s,%s -> %s", (const char *) m_fnModel.FileName(), (const char *) m_fnTexture.FileName(),
+        (const char *) m_penDestruction->GetName());
     }
 
     return;
@@ -759,7 +759,7 @@ procedures:
     
     // check your destruction pointer
     if (m_penDestruction!=NULL && !IsOfClass(m_penDestruction, "ModelDestruction")) {
-      WarningMessage("Destruction '%s' is wrong class!", m_penDestruction->GetName());
+      WarningMessage("Destruction '%s' is wrong class!", (const char *) m_penDestruction->GetName());
       m_penDestruction=NULL;
     }
 

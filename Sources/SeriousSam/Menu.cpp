@@ -13,11 +13,15 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include "SeriousSam/StdH.h"
 #include <Engine/Build.h>
 #include <sys/timeb.h>
 #include <time.h>
+
+#ifdef PLATFORM_WIN32
 #include <io.h>
+#endif
+
 #include "MainWindow.h"
 #include <Engine/CurrentVersion.h>
 #include <Engine/Templates/Stock_CSoundData.h>
@@ -54,6 +58,52 @@ static INDEX sam_old_iGfxAPI;
 static INDEX sam_old_iVideoSetup;  // 0==speed, 1==normal, 2==quality, 3==custom
 
 ENGINE_API extern INDEX snd_iFormat;
+
+
+// !!! FIXME: gcc3 linker pukes without this. lame.
+// !!! FIXME:  Wonder why gcc2 didn't...
+#if !STATICALLY_LINKED
+CButtonAction::CButtonAction(void)
+{
+  ba_iFirstKey  = KID_NONE;
+  ba_iSecondKey = KID_NONE;
+  ba_bFirstKeyDown = FALSE;
+  ba_bSecondKeyDown = FALSE;
+}
+
+// Assignment operator.
+CButtonAction &CButtonAction ::operator=(CButtonAction &baOriginal)
+{
+  ba_iFirstKey                  = baOriginal.ba_iFirstKey;
+  ba_iSecondKey                 = baOriginal.ba_iSecondKey;
+  ba_strName                    = baOriginal.ba_strName;
+  ba_strCommandLineWhenPressed  = baOriginal.ba_strCommandLineWhenPressed;
+  ba_strCommandLineWhenReleased = baOriginal.ba_strCommandLineWhenReleased;
+  ba_bFirstKeyDown = FALSE;
+  ba_bSecondKeyDown = FALSE;
+
+  return *this;
+}
+
+void CButtonAction::Read_t( CTStream &istrm)
+{
+  istrm>>ba_iFirstKey;
+  istrm>>ba_iSecondKey;
+  istrm>>ba_strName;
+  istrm>>ba_strCommandLineWhenPressed;
+  istrm>>ba_strCommandLineWhenReleased;
+}
+
+void CButtonAction::Write_t( CTStream &ostrm)
+{
+  ostrm<<ba_iFirstKey;
+  ostrm<<ba_iSecondKey;
+  ostrm<<ba_strName;
+  ostrm<<ba_strCommandLineWhenPressed;
+  ostrm<<ba_strCommandLineWhenReleased;
+}
+#endif
+
 
 extern BOOL IsCDInDrive(void);
 
@@ -156,15 +206,16 @@ void ControlsMenuOff()
 }
 
 // mouse cursor position
-extern PIX _pixCursorPosI = 0;
-extern PIX _pixCursorPosJ = 0;
-extern PIX _pixCursorExternPosI = 0;
-extern PIX _pixCursorExternPosJ = 0;
-extern BOOL _bMouseUsedLast = FALSE;
-extern CMenuGadget *_pmgUnderCursor =  NULL;
+PIX _pixCursorPosI = 0;
+PIX _pixCursorPosJ = 0;
+PIX _pixCursorExternPosI = 0;
+PIX _pixCursorExternPosJ = 0;
+BOOL _bMouseUsedLast = FALSE;
+CMenuGadget *_pmgUnderCursor =  NULL;
+BOOL _bMouseRight = FALSE;
+
 extern BOOL _bDefiningKey;
 extern BOOL _bEditingString;
-extern BOOL _bMouseRight = FALSE;
 
 // thumbnail for showing in menu
 CTextureObject _toThumbnail;
@@ -444,7 +495,9 @@ CMGTitle mgVideoOptionsTitle;
 CMGTrigger mgDisplayAPITrigger;
 CTString astrDisplayAPIRadioTexts[] = {
   RADIOTRANS( "OpenGL"),
+#ifdef SE1_D3D
   RADIOTRANS( "Direct3D"),
+#endif
 };
 CMGTrigger mgDisplayAdaptersTrigger;
 CMGTrigger mgFullScreenTrigger;
@@ -484,9 +537,13 @@ CTString astrFrequencyRadioTexts[] = {
   RADIOTRANS( "44kHz"),
 };
 CTString astrSoundAPIRadioTexts[] = {
+#ifdef PLATFORM_WIN32
   RADIOTRANS( "WaveOut"),
   RADIOTRANS( "DirectSound"),
   RADIOTRANS( "EAX"),
+#else
+  RADIOTRANS( "Simple Directmedia Layer" ),
+#endif
 };
 CMGSlider mgWaveVolume;
 CMGSlider mgMPEGVolume;
@@ -809,6 +866,10 @@ void StopMenus( BOOL bGoToRoot /*=TRUE*/)
       pgmCurrentMenu = &gmInGameMenu;
     }
   }
+
+  // rcg02042003 hack for SDL vs. Win32.
+  if (_pInput != NULL)
+    _pInput->ClearRelativeMouseMotion();
 }
 
 
@@ -885,7 +946,7 @@ void ModConnectConfirm(void)
     return;
   }
 
-  CPrintF(TRANS("Server is running a different MOD (%s).\nYou need to reload to connect.\n"), _fnmModSelected);
+  CPrintF(TRANS("Server is running a different MOD (%s).\nYou need to reload to connect.\n"), (const char *) _fnmModSelected);
   _pConfimedYes = &ModConnect;
   _pConfimedNo = NULL;
   mgConfirmLabel.mg_strText = TRANS("CHANGE THE MOD?");
@@ -1188,7 +1249,7 @@ void JoinNetworkGame(void)
       if (_strModURLSelected="") {
         _strModURLSelected = "http://www.croteam.com/mods/Old";
       }
-      _strModServerSelected.PrintF("%s:%s", _pGame->gam_strJoinAddress, _pShell->GetValue("net_iPort"));
+      _strModServerSelected.PrintF("%s:%s", (const char *) _pGame->gam_strJoinAddress, (const char *) _pShell->GetValue("net_iPort"));
       ModConnectConfirm();
     }
     _gmRunningGameMode = GM_NONE;
@@ -2132,7 +2193,7 @@ void InitGameTypes(void)
   // if none
   if (pss==NULL) {
     // error
-    astrGameTypeRadioTexts[0] = "<???>";
+    astrGameTypeRadioTexts[0] = "<\?\?\?>";
     ctGameTypeRadioTexts = 1;
     return;
   }
@@ -2446,7 +2507,7 @@ void MenuUpdateMouseFocus(void)
   extern CDrawPort *pdp;
   if( sam_bWideScreen) {
     const PIX pixHeight = pdp->GetHeight();
-    pt.y -= (pixHeight/0.75f-pixHeight)/2;
+    pt.y -= (LONG) ((pixHeight/0.75f-pixHeight)/2);
   }
   _pixCursorPosI += pt.x-_pixCursorExternPosI;
   _pixCursorPosJ  = _pixCursorExternPosJ;
@@ -2544,8 +2605,8 @@ void RenderMouseCursor(CDrawPort *pdp)
     // don't render cursor
     return;
   }
-  LCDSetDrawport(pdp);
-  LCDDrawPointer(_pixCursorPosI, _pixCursorPosJ);
+  _pGame->LCDSetDrawport(pdp);
+  _pGame->LCDDrawPointer(_pixCursorPosI, _pixCursorPosJ);
 }
 
 
@@ -2601,13 +2662,13 @@ BOOL DoMenu( CDrawPort *pdp)
     UBYTE ubH4  = (INDEX)(tmNow*35.4f) & 255;
 
     // clear screen with background texture
-    LCDPrepare(1.0f);
-    LCDSetDrawport(&dpMenu);
+    _pGame->LCDPrepare(1.0f);
+    _pGame->LCDSetDrawport(&dpMenu);
     // do not allow game to show through
     dpMenu.Fill(C_BLACK|255);
-    LCDRenderClouds1();
-    LCDRenderGrid();
-    LCDRenderClouds2();
+    _pGame->LCDRenderClouds1();
+    _pGame->LCDRenderGrid();
+    _pGame->LCDRenderClouds2();
 
     FLOAT fScaleW = (FLOAT)pixW / 640.0f;
     FLOAT fScaleH = (FLOAT)pixH / 480.0f;
@@ -2618,49 +2679,63 @@ BOOL DoMenu( CDrawPort *pdp)
       if( _ptoLogoODI!=NULL) {
         CTextureData &td = (CTextureData&)*_ptoLogoODI->GetData();
         #define LOGOSIZE 50
-        const PIX pixLogoWidth  = LOGOSIZE * dpMenu.dp_fWideAdjustment;
-        const PIX pixLogoHeight = LOGOSIZE* td.GetHeight() / td.GetWidth();
-        pixI0 = (640-pixLogoWidth -16)*fScaleW;
-        pixJ0 = (480-pixLogoHeight-16)*fScaleH;
-        pixI1 = pixI0+ pixLogoWidth *fScaleW;
-        pixJ1 = pixJ0+ pixLogoHeight*fScaleH;
+        const PIX pixLogoWidth  = (PIX) (LOGOSIZE * dpMenu.dp_fWideAdjustment);
+        const PIX pixLogoHeight = (PIX) (LOGOSIZE* td.GetHeight() / td.GetWidth());
+        pixI0 = (PIX) ((640-pixLogoWidth -16)*fScaleW);
+        pixJ0 = (PIX) ((480-pixLogoHeight-16)*fScaleH);
+        pixI1 = (PIX) (pixI0+ pixLogoWidth *fScaleW);
+        pixJ1 = (PIX) (pixJ0+ pixLogoHeight*fScaleH);
         dpMenu.PutTexture( _ptoLogoODI, PIXaabbox2D( PIX2D( pixI0, pixJ0),PIX2D( pixI1, pixJ1)));
         #undef LOGOSIZE
       }  
       if( _ptoLogoCT!=NULL) {
         CTextureData &td = (CTextureData&)*_ptoLogoCT->GetData();
         #define LOGOSIZE 50
-        const PIX pixLogoWidth  = LOGOSIZE * dpMenu.dp_fWideAdjustment;
-        const PIX pixLogoHeight = LOGOSIZE* td.GetHeight() / td.GetWidth();
-        pixI0 = 12*fScaleW;
-        pixJ0 = (480-pixLogoHeight-16)*fScaleH;
-        pixI1 = pixI0+ pixLogoWidth *fScaleW;
-        pixJ1 = pixJ0+ pixLogoHeight*fScaleH;
+        const PIX pixLogoWidth  = (PIX) (LOGOSIZE * dpMenu.dp_fWideAdjustment);
+        const PIX pixLogoHeight = (PIX) (LOGOSIZE* td.GetHeight() / td.GetWidth());
+        pixI0 = (PIX) (12*fScaleW);
+        pixJ0 = (PIX) ((480-pixLogoHeight-16)*fScaleH);
+        pixI1 = (PIX) (pixI0+ pixLogoWidth *fScaleW);
+        pixJ1 = (PIX) (pixJ0+ pixLogoHeight*fScaleH);
         dpMenu.PutTexture( _ptoLogoCT, PIXaabbox2D( PIX2D( pixI0, pixJ0),PIX2D( pixI1, pixJ1)));
         #undef LOGOSIZE
       } 
       
       {
         FLOAT fResize = Min(dpMenu.GetWidth()/640.0f, dpMenu.GetHeight()/480.0f);
-        PIX pixSizeI = 256*fResize;
-        PIX pixSizeJ = 64*fResize;
-        PIX pixCenterI = dpMenu.GetWidth()/2;
-        PIX pixHeightJ = 10*fResize;
+        PIX pixSizeI = (PIX) (256*fResize);
+        PIX pixSizeJ = (PIX) (64*fResize);
+        PIX pixCenterI = (PIX) (dpMenu.GetWidth()/2);
+        PIX pixHeightJ = (PIX) (10*fResize);
         dpMenu.PutTexture(&_toLogoMenuA, PIXaabbox2D( 
           PIX2D( pixCenterI-pixSizeI, pixHeightJ),PIX2D( pixCenterI, pixHeightJ+pixSizeJ)));
         dpMenu.PutTexture(&_toLogoMenuB, PIXaabbox2D( 
           PIX2D( pixCenterI, pixHeightJ),PIX2D( pixCenterI+pixSizeI, pixHeightJ+pixSizeJ)));
       }
+
+    } else if (pgmCurrentMenu==&gmServersMenu) {
+      if( _ptoLogoGSpy!=NULL) {
+        CTextureData &td = (CTextureData&)*_ptoLogoGSpy->GetData();
+        #define LOGOSIZE 120
+        const PIX pixLogoWidth  = (PIX) (LOGOSIZE * dpMenu.dp_fWideAdjustment);
+        const PIX pixLogoHeight = (PIX) (LOGOSIZE* td.GetHeight() / td.GetWidth());
+        pixI0 = (PIX) ((640-pixLogoWidth -50)*fScaleW);
+        pixJ0 = (PIX) ((480-pixLogoHeight-40)*fScaleH);
+        pixI1 = (PIX) (pixI0+ pixLogoWidth *fScaleW);
+        pixJ1 = (PIX) (pixJ0+ pixLogoHeight*fScaleH);
+        dpMenu.PutTexture( _ptoLogoGSpy, PIXaabbox2D( PIX2D( pixI0, pixJ0),PIX2D( pixI1, pixJ1)));
+        #undef LOGOSIZE
+      }  
     } else if (pgmCurrentMenu==&gmAudioOptionsMenu) {
       if( _ptoLogoEAX!=NULL) {
         CTextureData &td = (CTextureData&)*_ptoLogoEAX->GetData();
         const INDEX iSize = 95;
-        const PIX pixLogoWidth  = iSize * dpMenu.dp_fWideAdjustment;
-        const PIX pixLogoHeight = iSize * td.GetHeight() / td.GetWidth();
-        pixI0 =  (640-pixLogoWidth - 35)*fScaleW;
-        pixJ0 = (480-pixLogoHeight - 7)*fScaleH;
-        pixI1 = pixI0+ pixLogoWidth *fScaleW;
-        pixJ1 = pixJ0+ pixLogoHeight*fScaleH;
+        const PIX pixLogoWidth  = (PIX) (iSize * dpMenu.dp_fWideAdjustment);
+        const PIX pixLogoHeight = (PIX) (iSize * td.GetHeight() / td.GetWidth());
+        pixI0 =  (PIX) ((640-pixLogoWidth - 35)*fScaleW);
+        pixJ0 = (PIX) ((480-pixLogoHeight - 7)*fScaleH);
+        pixI1 = (PIX) (pixI0+ pixLogoWidth *fScaleW);
+        pixJ1 = (PIX) (pixJ0+ pixLogoHeight*fScaleH);
         dpMenu.PutTexture( _ptoLogoEAX, PIXaabbox2D( PIX2D( pixI0, pixJ0),PIX2D( pixI1, pixJ1)));
       }
     }
@@ -2670,21 +2745,21 @@ BOOL DoMenu( CDrawPort *pdp)
     // if there is a thumbnail
     if( _bThumbnailOn) {
       const FLOAT fThumbScaleW = fScaleW * dpMenu.dp_fWideAdjustment;
-      PIX pixOfs = 8*fScaleW;
-      pixI0 = 8*fScaleW;
-      pixJ0 = (240-THUMBW/2)*fScaleH;
-      pixI1 = pixI0+ THUMBW*fThumbScaleW;
-      pixJ1 = pixJ0+ THUMBH*fScaleH;
+      PIX pixOfs = (PIX) (8*fScaleW);
+      pixI0 = (PIX) (8*fScaleW);
+      pixJ0 = (PIX) ((240-THUMBW/2)*fScaleH);
+      pixI1 = (PIX) (pixI0+ THUMBW*fThumbScaleW);
+      pixJ1 = (PIX) (pixJ0+ THUMBH*fScaleH);
       if( _toThumbnail.GetData()!=NULL)
       { // show thumbnail with shadow and border
         dpMenu.Fill( pixI0+pixOfs, pixJ0+pixOfs, THUMBW*fThumbScaleW, THUMBH*fScaleH, C_BLACK|128);
         dpMenu.PutTexture( &_toThumbnail, PIXaabbox2D( PIX2D( pixI0, pixJ0), PIX2D( pixI1, pixJ1)), C_WHITE|255);
-        dpMenu.DrawBorder( pixI0,pixJ0, THUMBW*fThumbScaleW,THUMBH*fScaleH, LCDGetColor(C_mdGREEN|255, "thumbnail border"));
+        dpMenu.DrawBorder( pixI0,pixJ0, THUMBW*fThumbScaleW,THUMBH*fScaleH, _pGame->LCDGetColor(C_mdGREEN|255, "thumbnail border"));
       } else {
         dpMenu.SetFont( _pfdDisplayFont);
         dpMenu.SetTextScaling( fScaleW);
         dpMenu.SetTextAspect( 1.0f);
-        dpMenu.PutTextCXY( TRANS("no thumbnail"), (pixI0+pixI1)/2, (pixJ0+pixJ1)/2, LCDGetColor(C_GREEN|255, "no thumbnail"));
+        dpMenu.PutTextCXY( TRANS("no thumbnail"), (pixI0+pixI1)/2, (pixJ0+pixJ1)/2, _pGame->LCDGetColor(C_GREEN|255, "no thumbnail"));
       }
     }
 
@@ -2714,12 +2789,12 @@ BOOL DoMenu( CDrawPort *pdp)
     PIXaabbox2D box = FloatBoxToPixBox(&dpMenu, BoxPopup());
     CDrawPort dpPopup(pdp, box);
     dpPopup.Lock();
-    LCDSetDrawport(&dpPopup);
+    _pGame->LCDSetDrawport(&dpPopup);
     dpPopup.Fill(C_BLACK|255);
-    LCDRenderClouds1();
-    LCDRenderGrid();
-  //LCDRenderClouds2();
-    LCDScreenBox(LCDGetColor(C_GREEN|255, "popup box"));
+    _pGame->LCDRenderClouds1();
+    _pGame->LCDRenderGrid();
+  //_pGame->LCDRenderClouds2();
+    _pGame->LCDScreenBox(_pGame->LCDGetColor(C_GREEN|255, "popup box"));
     dpPopup.Unlock();
     dpMenu.Lock();
   }
@@ -2727,13 +2802,13 @@ BOOL DoMenu( CDrawPort *pdp)
   // no entity is under cursor initially
   _pmgUnderCursor = NULL;
 
-  BOOL bStilInMenus = FALSE;
+  BOOL bStillInMenus = FALSE;
   _pGame->MenuPreRenderMenu(pgmCurrentMenu->gm_strName);
   // for each menu gadget
   FOREACHINLIST( CMenuGadget, mg_lnNode, pgmCurrentMenu->gm_lhGadgets, itmg) {
     // if gadget is visible
     if( itmg->mg_bVisible) {
-      bStilInMenus = TRUE;
+      bStillInMenus = TRUE;
       itmg->Render( &dpMenu);
       if (FloatBoxToPixBox(&dpMenu, itmg->mg_boxOnScreen)>=PIX2D(_pixCursorPosI, _pixCursorPosJ)) {
         _pmgUnderCursor = itmg;
@@ -2779,7 +2854,7 @@ BOOL DoMenu( CDrawPort *pdp)
     // print the tip
     SetFontMedium(&dpMenu);
     dpMenu.PutTextC(strTip, 
-      pixW*0.5f, pixH*0.92f, LCDGetColor(C_WHITE|255, "tool tip"));
+      pixW*0.5f, pixH*0.92f, _pGame->LCDGetColor(C_WHITE|255, "tool tip"));
   }
 
   _pGame->ConsolePrintLastLines(&dpMenu);
@@ -2789,7 +2864,7 @@ BOOL DoMenu( CDrawPort *pdp)
   dpMenu.Unlock();
   pdp->Lock();
 
-  return bStilInMenus;
+  return bStillInMenus;
 }
 
 void MenuBack(void)
@@ -3515,7 +3590,7 @@ void CInGameMenu::StartMenu(void)
 
   if (_gmRunningGameMode==GM_SINGLE_PLAYER) {
     CPlayerCharacter &pc = _pGame->gm_apcPlayers[ _pGame->gm_iSinglePlayer];
-    mgInGameLabel1.mg_strText.PrintF( TRANS("Player: %s"), pc.GetNameForPrinting());
+    mgInGameLabel1.mg_strText.PrintF( TRANS("Player: %s"), (const char *) pc.GetNameForPrinting());
     mgInGameLabel2.mg_strText = "";
 
   } else {
@@ -3686,7 +3761,7 @@ void CSinglePlayerMenu::StartMenu(void)
   CGameMenu::StartMenu();
 
   CPlayerCharacter &pc = _pGame->gm_apcPlayers[ _pGame->gm_iSinglePlayer];
-  mgSinglePlayerLabel.mg_strText.PrintF( TRANS("Player: %s\n"), pc.GetNameForPrinting());
+  mgSinglePlayerLabel.mg_strText.PrintF( TRANS("Player: %s\n"), (const char *) pc.GetNameForPrinting());
 }
 
 // ------------------------ CSinglePlayerNewMenu implementation
@@ -3909,7 +3984,7 @@ void CPlayerProfileMenu::Initialize_t(void)
   gm_lhGadgets.AddTail( mgPlayerNameLabel.mg_lnNode);
 
   // setup of player name button is done on start menu
-  mgPlayerName.mg_strText = "<???>";
+  mgPlayerName.mg_strText = "<\?\?\?>";
   mgPlayerName.mg_ctMaxStringLen = 25;
   mgPlayerName.mg_boxOnScreen = BoxPlayerEdit(1.25);
   mgPlayerName.mg_bfsFontSize = BFS_MEDIUM;
@@ -3927,7 +4002,7 @@ void CPlayerProfileMenu::Initialize_t(void)
   gm_lhGadgets.AddTail( mgPlayerTeamLabel.mg_lnNode);
 
   // setup of player name button is done on start menu
-  mgPlayerTeam.mg_strText = "<???>";
+  mgPlayerTeam.mg_strText = "<\?\?\?>";
   mgPlayerName.mg_ctMaxStringLen = 25;
   mgPlayerTeam.mg_boxOnScreen = BoxPlayerEdit(2.25f);
   mgPlayerTeam.mg_bfsFontSize = BFS_MEDIUM;
@@ -4214,7 +4289,7 @@ void CControlsMenu::StartMenu(void)
 
   ControlsMenuOn();
 
-  mgControlsNameLabel.mg_strText.PrintF(TRANS("CONTROLS FOR: %s"), _pGame->gm_apcPlayers[iPlayer].GetNameForPrinting());
+  mgControlsNameLabel.mg_strText.PrintF(TRANS("CONTROLS FOR: %s"), (const char *) _pGame->gm_apcPlayers[iPlayer].GetNameForPrinting());
 
   ObtainActionSettings();
   CGameMenu::StartMenu();
@@ -4235,7 +4310,7 @@ void CControlsMenu::ObtainActionSettings(void)
 
   mgControlsSensitivity.mg_iMinPos = 0;
   mgControlsSensitivity.mg_iMaxPos = 50;
-  mgControlsSensitivity.mg_iCurPos = ctrls.ctrl_fSensitivity/2;
+  mgControlsSensitivity.mg_iCurPos = (INDEX) (ctrls.ctrl_fSensitivity/2);
   mgControlsSensitivity.ApplyCurrentPosition();
 
   mgControlsInvertTrigger.mg_iSelected = ctrls.ctrl_bInvertLook ? 1 : 0;
@@ -4353,7 +4428,7 @@ void CLoadSaveMenu::StartMenu(void)
 
   // list the directory
   CDynamicStackArray<CTFileName> afnmDir;
-  MakeDirList(afnmDir, gm_fnmDirectory, "", 0);
+  MakeDirList(afnmDir, gm_fnmDirectory, CTString(""), 0);
   gm_iLastFile = -1;
 
   // for each file in the directory
@@ -4377,16 +4452,16 @@ void CLoadSaveMenu::StartMenu(void)
   default: ASSERT(FALSE);
   case LSSORT_NONE: break;
   case LSSORT_NAMEUP:
-    gm_lhFileInfos.Sort(qsort_CompareFileInfos_NameUp, offsetof(CFileInfo, fi_lnNode));
+    gm_lhFileInfos.Sort(qsort_CompareFileInfos_NameUp, _offsetof(CFileInfo, fi_lnNode));
     break;
   case LSSORT_NAMEDN:
-    gm_lhFileInfos.Sort(qsort_CompareFileInfos_NameDn, offsetof(CFileInfo, fi_lnNode));
+    gm_lhFileInfos.Sort(qsort_CompareFileInfos_NameDn, _offsetof(CFileInfo, fi_lnNode));
     break;
   case LSSORT_FILEUP:
-    gm_lhFileInfos.Sort(qsort_CompareFileInfos_FileUp, offsetof(CFileInfo, fi_lnNode));
+    gm_lhFileInfos.Sort(qsort_CompareFileInfos_FileUp, _offsetof(CFileInfo, fi_lnNode));
     break;
   case LSSORT_FILEDN:
-    gm_lhFileInfos.Sort(qsort_CompareFileInfos_FileDn, offsetof(CFileInfo, fi_lnNode));
+    gm_lhFileInfos.Sort(qsort_CompareFileInfos_FileDn, _offsetof(CFileInfo, fi_lnNode));
     break;
   }
 
@@ -4496,7 +4571,7 @@ BOOL CLoadSaveMenu::ParseFile(const CTFileName &fnm, CTString &strName)
       INDEX iCtl = -1;
       strName.ScanF("Controls%d", &iCtl);
       if (iCtl>=0 && iCtl<=7) {
-        strName.PrintF(TRANS("From player: %s"), _pGame->gm_apcPlayers[iCtl].GetNameForPrinting());
+        strName.PrintF(TRANS("From player: %s"), (const char *) (_pGame->gm_apcPlayers[iCtl].GetNameForPrinting()));
       }
     }
   }
@@ -4695,12 +4770,12 @@ void CCustomizeAxisMenu::ObtainActionSettings(void)
 
   mgAxisSensitivity.mg_iMinPos = 0;
   mgAxisSensitivity.mg_iMaxPos = 50;
-  mgAxisSensitivity.mg_iCurPos = ctrls.ctrl_aaAxisActions[ iSelectedAction].aa_fSensitivity/2;
+  mgAxisSensitivity.mg_iCurPos = (INDEX) (ctrls.ctrl_aaAxisActions[ iSelectedAction].aa_fSensitivity/2);
   mgAxisSensitivity.ApplyCurrentPosition();
 
   mgAxisDeadzone.mg_iMinPos = 0;
   mgAxisDeadzone.mg_iMaxPos = 50;
-  mgAxisDeadzone.mg_iCurPos = ctrls.ctrl_aaAxisActions[ iSelectedAction].aa_fDeadZone/2;
+  mgAxisDeadzone.mg_iCurPos = (INDEX) (ctrls.ctrl_aaAxisActions[ iSelectedAction].aa_fDeadZone/2);
   mgAxisDeadzone.ApplyCurrentPosition();
 
   mgAxisInvertTrigger.mg_iSelected = ctrls.ctrl_aaAxisActions[ iSelectedAction].aa_bInvert ? 1 : 0;
@@ -4838,33 +4913,33 @@ static void FillResolutionsList(void)
   if( mgFullScreenTrigger.mg_iSelected==0) {
     // always has fixed resolutions, but not greater than desktop
     static PIX apixWidths[][2] = {
-       320, 240,
-       400, 300,
-       512, 384,
-       640, 240,
-       640, 480,
-       720, 540,
-       800, 300,
-       800, 600,
-       960, 720,
-      1024, 384,
-      1024, 768,
-      1152, 864,
-      1280, 480,
-      1280, 960,
-      1600, 600,
-      1600,1200,
-      1920, 720,
-      1920,1440,
-      2048, 786,
-      2048,1536,
+       {  320,  240 },
+       {  400,  300 },
+       {  512,  384 },
+       {  640,  240 },
+       {  640,  480 },
+       {  720,  540 },
+       {  800,  300 },
+       {  800,  600 },
+       {  960,  720 },
+       { 1024,  384 },
+       { 1024,  768 },
+       { 1152,  864 },
+       { 1280,  480 },
+       { 1280,  960 },
+       { 1600,  600 },
+       { 1600, 1200 },
+       { 1920,  720 },
+       { 1920, 1440 },
+       { 2048,  786 },
+       { 2048, 1536 }
     };
     _ctResolutions = ARRAYCOUNT(apixWidths);
     _astrResolutionTexts = new CTString    [_ctResolutions];
     _admResolutionModes  = new CDisplayMode[_ctResolutions];
     extern PIX _pixDesktopWidth;
-    INDEX iRes=0;
-    for( ; iRes<_ctResolutions; iRes++) {
+    INDEX iRes;
+    for( iRes=0; iRes<_ctResolutions; iRes++) {
       if( apixWidths[iRes][0]>_pixDesktopWidth) break;
       SetResolutionInList( iRes, apixWidths[iRes][0], apixWidths[iRes][1]);
     }
@@ -4929,11 +5004,11 @@ static void UpdateVideoOptionsButtons(INDEX iSelected)
   FillAdaptersList();
 
   // show or hide buttons
-  mgDisplayAPITrigger.mg_bEnabled = bOGLEnabled 
 #ifdef SE1_D3D
-    && bD3DEnabled
-#endif // SE1_D3D
-    ;
+  mgDisplayAPITrigger.mg_bEnabled = bOGLEnabled && bD3DEnabled;
+#else
+  mgDisplayAPITrigger.mg_bEnabled = bOGLEnabled;
+#endif
   mgDisplayAdaptersTrigger.mg_bEnabled = _ctAdapters>1;
   mgVideoOptionsApply.mg_bEnabled = _bVideoOptionsChanged;
   // determine which should be visible
@@ -4943,7 +5018,12 @@ static void UpdateVideoOptionsButtons(INDEX iSelected)
     mgFullScreenTrigger.mg_iSelected = 1;
     mgFullScreenTrigger.ApplyCurrentSelection();
   }
+
+#ifdef PLATFORM_UNIX
+  mgBitsPerPixelTrigger.mg_bEnabled = FALSE;
+#else
   mgBitsPerPixelTrigger.mg_bEnabled = TRUE;
+#endif
   if( mgFullScreenTrigger.mg_iSelected==0) {
     mgBitsPerPixelTrigger.mg_bEnabled = FALSE;
     mgBitsPerPixelTrigger.mg_iSelected = DepthToSwitch(DD_DEFAULT);
@@ -5709,8 +5789,8 @@ void CNetworkStartMenu::EndMenu(void)
 INDEX FindUnusedPlayer(void)
 {
   INDEX *ai = _pGame->gm_aiMenuLocalPlayers;
-  INDEX iPlayer=0;
-  for(; iPlayer<8; iPlayer++) {
+  INDEX iPlayer;
+  for(iPlayer=0; iPlayer<8; iPlayer++) {
     BOOL bUsed = FALSE;
     for (INDEX iLocal=0; iLocal<4; iLocal++) {
       if (ai[iLocal] == iPlayer) {
@@ -5826,14 +5906,14 @@ void SelectPlayersFillMenu(void)
     if (apmg[img]==NULL) {
       continue;
     }
-    INDEX imgPred=(img+8-1)%8;
-    for (; imgPred!=img; imgPred = (imgPred+8-1)%8) {
+    INDEX imgPred;
+    for (imgPred=(img+8-1)%8; imgPred!=img; imgPred = (imgPred+8-1)%8) {
       if (apmg[imgPred]!=NULL) {
         break;
       }
     }
-    INDEX imgSucc=(img+1)%8;
-    for (; imgSucc!=img; imgSucc = (imgSucc+1)%8) {
+    INDEX imgSucc;
+    for (imgSucc=(img+1)%8; imgSucc!=img; imgSucc = (imgSucc+1)%8) {
       if (apmg[imgSucc]!=NULL) {
         break;
       }

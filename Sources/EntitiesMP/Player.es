@@ -66,6 +66,8 @@ extern void JumpFromBouncer(CEntity *penToBounce, CEntity *penBouncer);
 
 %}
 
+uses "EntitiesMP/WorldLink";
+
 enum PlayerViewType {
   0 PVT_PLAYEREYES      "",
   1 PVT_PLAYERAUTOVIEW  "",
@@ -113,7 +115,7 @@ extern void EndHUD(void);
 static CTimerValue _tvProbingLast;
 
 // used to render certain entities only for certain players (like picked items, etc.)
-extern ULONG _ulPlayerRenderingMask = 0;
+ULONG _ulPlayerRenderingMask = 0;
 
 // temporary BOOL used to discard calculating of 3rd view when calculating absolute view placement
 BOOL _bDiscard3rdView=FALSE;
@@ -169,7 +171,7 @@ static CTString MakeEmptyString(INDEX ctLen, char ch=' ')
 }
 
 // take a two line string and align into one line of minimum given length
-static INDEX _ctAlignWidth = 20;
+static int _ctAlignWidth = 20;
 static CTString AlignString(const CTString &strOrg)
 {
   // split into two lines
@@ -338,42 +340,42 @@ static INDEX cht_bGiveAll    = FALSE;
 static INDEX cht_bOpen       = FALSE;
 static INDEX cht_bAllMessages= FALSE;
 static INDEX cht_bRefresh    = FALSE;
-extern INDEX cht_bGod        = FALSE;
-extern INDEX cht_bFly        = FALSE;
-extern INDEX cht_bGhost      = FALSE;
-extern INDEX cht_bInvisible  = FALSE;
-extern FLOAT cht_fTranslationMultiplier = 1.0f;
-extern INDEX cht_bEnable     = 0;   
+INDEX cht_bGod        = FALSE;
+INDEX cht_bFly        = FALSE;
+INDEX cht_bGhost      = FALSE;
+INDEX cht_bInvisible  = FALSE;
+FLOAT cht_fTranslationMultiplier = 1.0f;
+INDEX cht_bEnable     = 0;   
 
 // interface control
 static INDEX hud_bShowAll	    = TRUE; // used internaly in menu/console
-extern INDEX hud_bShowWeapon  = TRUE;
-extern INDEX hud_bShowMessages = TRUE;
-extern INDEX hud_bShowInfo    = TRUE;
-extern INDEX hud_bShowLatency = FALSE;
-extern INDEX hud_iShowPlayers = -1;   // auto
-extern INDEX hud_iSortPlayers = -1;   // auto
-extern FLOAT hud_fOpacity     = 0.9f;
-extern FLOAT hud_fScaling     = 1.0f;
-extern FLOAT hud_tmWeaponsOnScreen = 3.0f;
-extern FLOAT hud_tmLatencySnapshot = 1.0f;
-extern INDEX hud_bShowMatchInfo = TRUE;
+INDEX hud_bShowWeapon  = TRUE;
+INDEX hud_bShowMessages = TRUE;
+INDEX hud_bShowInfo    = TRUE;
+INDEX hud_bShowLatency = FALSE;
+INDEX hud_iShowPlayers = -1;   // auto
+INDEX hud_iSortPlayers = -1;   // auto
+FLOAT hud_fOpacity     = 0.9f;
+FLOAT hud_fScaling     = 1.0f;
+FLOAT hud_tmWeaponsOnScreen = 3.0f;
+FLOAT hud_tmLatencySnapshot = 1.0f;
+INDEX hud_bShowMatchInfo = TRUE;
 
-extern FLOAT plr_fBreathingStrength = 0.0f;
+FLOAT plr_fBreathingStrength = 0.0f;
 extern FLOAT plr_tmSnoopingTime;
-extern INDEX cht_bKillFinalBoss = FALSE;
+INDEX cht_bKillFinalBoss = FALSE;
 INDEX cht_bDebugFinalBoss = FALSE;
 INDEX cht_bDumpFinalBossData = FALSE;
 INDEX cht_bDebugFinalBossAnimations = FALSE;
 INDEX cht_bDumpPlayerShading = FALSE;
 
-extern FLOAT wpn_fRecoilSpeed[17]   = {0};
-extern FLOAT wpn_fRecoilLimit[17]   = {0};
-extern FLOAT wpn_fRecoilDampUp[17]  = {0};
-extern FLOAT wpn_fRecoilDampDn[17]  = {0};
-extern FLOAT wpn_fRecoilOffset[17]  = {0};
-extern FLOAT wpn_fRecoilFactorP[17] = {0};
-extern FLOAT wpn_fRecoilFactorZ[17] = {0};
+FLOAT wpn_fRecoilSpeed[17]   = {0};
+FLOAT wpn_fRecoilLimit[17]   = {0};
+FLOAT wpn_fRecoilDampUp[17]  = {0};
+FLOAT wpn_fRecoilDampDn[17]  = {0};
+FLOAT wpn_fRecoilOffset[17]  = {0};
+FLOAT wpn_fRecoilFactorP[17] = {0};
+FLOAT wpn_fRecoilFactorZ[17] = {0};
 
 // misc
 static FLOAT plr_fAcceleration  = 100.0f;
@@ -386,30 +388,30 @@ static FLOAT plr_fViewHeightStand  = 1.9f;
 static FLOAT plr_fViewHeightCrouch = 0.7f;
 static FLOAT plr_fViewHeightSwim   = 0.4f;
 static FLOAT plr_fViewHeightDive   = 0.0f;
-extern FLOAT plr_fViewDampFactor        = 0.4f;
-extern FLOAT plr_fViewDampLimitGroundUp = 0.1f;
-extern FLOAT plr_fViewDampLimitGroundDn = 0.4f;
-extern FLOAT plr_fViewDampLimitWater    = 0.1f;
+FLOAT plr_fViewDampFactor        = 0.4f;
+FLOAT plr_fViewDampLimitGroundUp = 0.1f;
+FLOAT plr_fViewDampLimitGroundDn = 0.4f;
+FLOAT plr_fViewDampLimitWater    = 0.1f;
 static FLOAT plr_fFrontClipDistance = 0.25f;
 static FLOAT plr_fFOV = 90.0f;
 static FLOAT net_tmLatencyAvg;
-extern INDEX plr_bRenderPicked = FALSE;
-extern INDEX plr_bRenderPickedParticles = FALSE;
-extern INDEX plr_bOnlySam = FALSE;
-extern INDEX ent_bReportBrokenChains = FALSE;
-extern FLOAT ent_tmMentalIn   = 0.5f;
-extern FLOAT ent_tmMentalOut  = 0.75f;
-extern FLOAT ent_tmMentalFade = 0.5f;
+INDEX plr_bRenderPicked = FALSE;
+INDEX plr_bRenderPickedParticles = FALSE;
+INDEX plr_bOnlySam = FALSE;
+INDEX ent_bReportBrokenChains = FALSE;
+FLOAT ent_tmMentalIn   = 0.5f;
+FLOAT ent_tmMentalOut  = 0.75f;
+FLOAT ent_tmMentalFade = 0.5f;
 
-extern FLOAT gfx_fEnvParticlesDensity = 1.0f;
-extern FLOAT gfx_fEnvParticlesRange = 1.0f;
+FLOAT gfx_fEnvParticlesDensity = 1.0f;
+FLOAT gfx_fEnvParticlesRange = 1.0f;
 
 // prediction control vars
-extern FLOAT cli_fPredictPlayersRange = 0.0f;
-extern FLOAT cli_fPredictItemsRange = 3.0f;
-extern FLOAT cli_tmPredictFoe = 10.0f;
-extern FLOAT cli_tmPredictAlly = 10.0f;
-extern FLOAT cli_tmPredictEnemy  = 10.0f;
+FLOAT cli_fPredictPlayersRange = 0.0f;
+FLOAT cli_fPredictItemsRange = 3.0f;
+FLOAT cli_tmPredictFoe = 10.0f;
+FLOAT cli_tmPredictAlly = 10.0f;
+FLOAT cli_tmPredictEnemy  = 10.0f;
 
 static FLOAT plr_fSwimSoundDelay = 0.8f;
 static FLOAT plr_fDiveSoundDelay = 1.6f;
@@ -427,20 +429,20 @@ static FLOAT ctl_fButtonRotationSpeedB = 150.0f;
 static FLOAT ctl_fAxisStrafingModifier = 1.0f;
 
 // !=NULL if some player wants to call computer
-DECL_DLL extern class CPlayer *cmp_ppenPlayer = NULL;
+DECL_DLL class CPlayer *cmp_ppenPlayer = NULL;
 // !=NULL for rendering computer on secondary display in dualhead
-DECL_DLL extern class CPlayer *cmp_ppenDHPlayer = NULL;
+DECL_DLL class CPlayer *cmp_ppenDHPlayer = NULL;
 // set to update current message in background mode (for dualhead)
-DECL_DLL extern BOOL cmp_bUpdateInBackground = FALSE;
+DECL_DLL BOOL cmp_bUpdateInBackground = FALSE;
 // set for initial calling computer without rendering game
-DECL_DLL extern BOOL cmp_bInitialStart = FALSE;
+DECL_DLL BOOL cmp_bInitialStart = FALSE;
 
 // game sets this for player hud and statistics and hiscore sound playing
-DECL_DLL extern INDEX plr_iHiScore = 0.0f;
+DECL_DLL INDEX plr_iHiScore = 0;
 
 // these define address and size of player controls structure
-DECL_DLL extern void *ctl_pvPlayerControls = &pctlCurrent;
-DECL_DLL extern const SLONG ctl_slPlayerControlsSize = sizeof(pctlCurrent);
+DECL_DLL void *ctl_pvPlayerControls = &pctlCurrent;
+DECL_DLL const SLONG ctl_slPlayerControlsSize = sizeof(pctlCurrent);
 
 // called to compose action packet from current controls
 DECL_DLL void ctl_ComposeActionPacket(const CPlayerCharacter &pc, CPlayerAction &paAction, BOOL bPreScan)
@@ -694,134 +696,134 @@ void CPlayer_OnInitClass(void)
   // clear current player controls
   memset(&pctlCurrent, 0, sizeof(pctlCurrent));
   // declare player control variables
-  _pShell->DeclareSymbol("user INDEX ctl_bMoveForward;",  &pctlCurrent.bMoveForward);
-  _pShell->DeclareSymbol("user INDEX ctl_bMoveBackward;", &pctlCurrent.bMoveBackward);
-  _pShell->DeclareSymbol("user INDEX ctl_bMoveLeft;",     &pctlCurrent.bMoveLeft);
-  _pShell->DeclareSymbol("user INDEX ctl_bMoveRight;",    &pctlCurrent.bMoveRight);
-  _pShell->DeclareSymbol("user INDEX ctl_bMoveUp;",       &pctlCurrent.bMoveUp);
-  _pShell->DeclareSymbol("user INDEX ctl_bMoveDown;",     &pctlCurrent.bMoveDown);
-  _pShell->DeclareSymbol("user INDEX ctl_bTurnLeft;",         &pctlCurrent.bTurnLeft);
-  _pShell->DeclareSymbol("user INDEX ctl_bTurnRight;",        &pctlCurrent.bTurnRight);
-  _pShell->DeclareSymbol("user INDEX ctl_bTurnUp;",           &pctlCurrent.bTurnUp);
-  _pShell->DeclareSymbol("user INDEX ctl_bTurnDown;",         &pctlCurrent.bTurnDown);
-  _pShell->DeclareSymbol("user INDEX ctl_bTurnBankingLeft;",  &pctlCurrent.bTurnBankingLeft);
-  _pShell->DeclareSymbol("user INDEX ctl_bTurnBankingRight;", &pctlCurrent.bTurnBankingRight);
-  _pShell->DeclareSymbol("user INDEX ctl_bCenterView;",       &pctlCurrent.bCenterView);
-  _pShell->DeclareSymbol("user INDEX ctl_bLookLeft;",         &pctlCurrent.bLookLeft);
-  _pShell->DeclareSymbol("user INDEX ctl_bLookRight;",        &pctlCurrent.bLookRight);
-  _pShell->DeclareSymbol("user INDEX ctl_bLookUp;",           &pctlCurrent.bLookUp);
-  _pShell->DeclareSymbol("user INDEX ctl_bLookDown;",         &pctlCurrent.bLookDown);
-  _pShell->DeclareSymbol("user INDEX ctl_bLookBankingLeft;",  &pctlCurrent.bLookBankingLeft);
-  _pShell->DeclareSymbol("user INDEX ctl_bLookBankingRight;", &pctlCurrent.bLookBankingRight );
-  _pShell->DeclareSymbol("user INDEX ctl_bWalk;",           &pctlCurrent.bWalk);
-  _pShell->DeclareSymbol("user INDEX ctl_bStrafe;",         &pctlCurrent.bStrafe);
-  _pShell->DeclareSymbol("user INDEX ctl_bFire;",           &pctlCurrent.bFire);
-  _pShell->DeclareSymbol("user INDEX ctl_bReload;",         &pctlCurrent.bReload);
-  _pShell->DeclareSymbol("user INDEX ctl_bUse;",            &pctlCurrent.bUse);
-  _pShell->DeclareSymbol("user INDEX ctl_bComputer;",       &pctlCurrent.bComputer);
-  _pShell->DeclareSymbol("user INDEX ctl_bUseOrComputer;",  &pctlCurrent.bUseOrComputer);
-  _pShell->DeclareSymbol("user INDEX ctl_b3rdPersonView;",  &pctlCurrent.b3rdPersonView);
-  _pShell->DeclareSymbol("user INDEX ctl_bWeaponNext;",         &pctlCurrent.bWeaponNext);
-  _pShell->DeclareSymbol("user INDEX ctl_bWeaponPrev;",         &pctlCurrent.bWeaponPrev);
-  _pShell->DeclareSymbol("user INDEX ctl_bWeaponFlip;",         &pctlCurrent.bWeaponFlip);
-  _pShell->DeclareSymbol("user INDEX ctl_bSelectWeapon[30+1];", &pctlCurrent.bSelectWeapon);
-  _pShell->DeclareSymbol("persistent user FLOAT ctl_tmComputerDoubleClick;", &ctl_tmComputerDoubleClick);
-  _pShell->DeclareSymbol("persistent user FLOAT ctl_fButtonRotationSpeedH;", &ctl_fButtonRotationSpeedH);
-  _pShell->DeclareSymbol("persistent user FLOAT ctl_fButtonRotationSpeedP;", &ctl_fButtonRotationSpeedP);
-  _pShell->DeclareSymbol("persistent user FLOAT ctl_fButtonRotationSpeedB;", &ctl_fButtonRotationSpeedB);
-  _pShell->DeclareSymbol("persistent user FLOAT ctl_fAxisStrafingModifier;", &ctl_fAxisStrafingModifier);
+  _pShell->DeclareSymbol("user INDEX ctl_bMoveForward;",  (void *) &pctlCurrent.bMoveForward);
+  _pShell->DeclareSymbol("user INDEX ctl_bMoveBackward;", (void *) &pctlCurrent.bMoveBackward);
+  _pShell->DeclareSymbol("user INDEX ctl_bMoveLeft;",     (void *) &pctlCurrent.bMoveLeft);
+  _pShell->DeclareSymbol("user INDEX ctl_bMoveRight;",    (void *) &pctlCurrent.bMoveRight);
+  _pShell->DeclareSymbol("user INDEX ctl_bMoveUp;",       (void *) &pctlCurrent.bMoveUp);
+  _pShell->DeclareSymbol("user INDEX ctl_bMoveDown;",     (void *) &pctlCurrent.bMoveDown);
+  _pShell->DeclareSymbol("user INDEX ctl_bTurnLeft;",         (void *) &pctlCurrent.bTurnLeft);
+  _pShell->DeclareSymbol("user INDEX ctl_bTurnRight;",        (void *) &pctlCurrent.bTurnRight);
+  _pShell->DeclareSymbol("user INDEX ctl_bTurnUp;",           (void *) &pctlCurrent.bTurnUp);
+  _pShell->DeclareSymbol("user INDEX ctl_bTurnDown;",         (void *) &pctlCurrent.bTurnDown);
+  _pShell->DeclareSymbol("user INDEX ctl_bTurnBankingLeft;",  (void *) &pctlCurrent.bTurnBankingLeft);
+  _pShell->DeclareSymbol("user INDEX ctl_bTurnBankingRight;", (void *) &pctlCurrent.bTurnBankingRight);
+  _pShell->DeclareSymbol("user INDEX ctl_bCenterView;",       (void *) &pctlCurrent.bCenterView);
+  _pShell->DeclareSymbol("user INDEX ctl_bLookLeft;",         (void *) &pctlCurrent.bLookLeft);
+  _pShell->DeclareSymbol("user INDEX ctl_bLookRight;",        (void *) &pctlCurrent.bLookRight);
+  _pShell->DeclareSymbol("user INDEX ctl_bLookUp;",           (void *) &pctlCurrent.bLookUp);
+  _pShell->DeclareSymbol("user INDEX ctl_bLookDown;",         (void *) &pctlCurrent.bLookDown);
+  _pShell->DeclareSymbol("user INDEX ctl_bLookBankingLeft;",  (void *) &pctlCurrent.bLookBankingLeft);
+  _pShell->DeclareSymbol("user INDEX ctl_bLookBankingRight;", (void *) &pctlCurrent.bLookBankingRight );
+  _pShell->DeclareSymbol("user INDEX ctl_bWalk;",           (void *) &pctlCurrent.bWalk);
+  _pShell->DeclareSymbol("user INDEX ctl_bStrafe;",         (void *) &pctlCurrent.bStrafe);
+  _pShell->DeclareSymbol("user INDEX ctl_bFire;",           (void *) &pctlCurrent.bFire);
+  _pShell->DeclareSymbol("user INDEX ctl_bReload;",         (void *) &pctlCurrent.bReload);
+  _pShell->DeclareSymbol("user INDEX ctl_bUse;",            (void *) &pctlCurrent.bUse);
+  _pShell->DeclareSymbol("user INDEX ctl_bComputer;",       (void *) &pctlCurrent.bComputer);
+  _pShell->DeclareSymbol("user INDEX ctl_bUseOrComputer;",  (void *) &pctlCurrent.bUseOrComputer);
+  _pShell->DeclareSymbol("user INDEX ctl_b3rdPersonView;",  (void *) &pctlCurrent.b3rdPersonView);
+  _pShell->DeclareSymbol("user INDEX ctl_bWeaponNext;",         (void *) &pctlCurrent.bWeaponNext);
+  _pShell->DeclareSymbol("user INDEX ctl_bWeaponPrev;",         (void *) &pctlCurrent.bWeaponPrev);
+  _pShell->DeclareSymbol("user INDEX ctl_bWeaponFlip;",         (void *) &pctlCurrent.bWeaponFlip);
+  _pShell->DeclareSymbol("user INDEX ctl_bSelectWeapon[30+1];", (void *) &pctlCurrent.bSelectWeapon);
+  _pShell->DeclareSymbol("persistent user FLOAT ctl_tmComputerDoubleClick;", (void *) &ctl_tmComputerDoubleClick);
+  _pShell->DeclareSymbol("persistent user FLOAT ctl_fButtonRotationSpeedH;", (void *) &ctl_fButtonRotationSpeedH);
+  _pShell->DeclareSymbol("persistent user FLOAT ctl_fButtonRotationSpeedP;", (void *) &ctl_fButtonRotationSpeedP);
+  _pShell->DeclareSymbol("persistent user FLOAT ctl_fButtonRotationSpeedB;", (void *) &ctl_fButtonRotationSpeedB);
+  _pShell->DeclareSymbol("persistent user FLOAT ctl_fAxisStrafingModifier;", (void *) &ctl_fAxisStrafingModifier);
   //new
-  _pShell->DeclareSymbol("user INDEX ctl_bSniperZoomIn;",         &pctlCurrent.bSniperZoomIn);
-  _pShell->DeclareSymbol("user INDEX ctl_bSniperZoomOut;",        &pctlCurrent.bSniperZoomOut);
-  _pShell->DeclareSymbol("user INDEX ctl_bFireBomb;",             &pctlCurrent.bFireBomb);
+  _pShell->DeclareSymbol("user INDEX ctl_bSniperZoomIn;",         (void *) &pctlCurrent.bSniperZoomIn);
+  _pShell->DeclareSymbol("user INDEX ctl_bSniperZoomOut;",        (void *) &pctlCurrent.bSniperZoomOut);
+  _pShell->DeclareSymbol("user INDEX ctl_bFireBomb;",             (void *) &pctlCurrent.bFireBomb);
 
-  _pShell->DeclareSymbol("user FLOAT plr_fSwimSoundDelay;", &plr_fSwimSoundDelay);
-  _pShell->DeclareSymbol("user FLOAT plr_fDiveSoundDelay;", &plr_fDiveSoundDelay);
-  _pShell->DeclareSymbol("user FLOAT plr_fWalkSoundDelay;", &plr_fWalkSoundDelay);
-  _pShell->DeclareSymbol("user FLOAT plr_fRunSoundDelay;",  &plr_fRunSoundDelay);
+  _pShell->DeclareSymbol("user FLOAT plr_fSwimSoundDelay;", (void *) &plr_fSwimSoundDelay);
+  _pShell->DeclareSymbol("user FLOAT plr_fDiveSoundDelay;", (void *) &plr_fDiveSoundDelay);
+  _pShell->DeclareSymbol("user FLOAT plr_fWalkSoundDelay;", (void *) &plr_fWalkSoundDelay);
+  _pShell->DeclareSymbol("user FLOAT plr_fRunSoundDelay;",  (void *) &plr_fRunSoundDelay);
 
-  _pShell->DeclareSymbol("persistent user FLOAT cli_fPredictPlayersRange;",&cli_fPredictPlayersRange);
-  _pShell->DeclareSymbol("persistent user FLOAT cli_fPredictItemsRange;",  &cli_fPredictItemsRange  );
-  _pShell->DeclareSymbol("persistent user FLOAT cli_tmPredictFoe;",        &cli_tmPredictFoe        );
-  _pShell->DeclareSymbol("persistent user FLOAT cli_tmPredictAlly;",       &cli_tmPredictAlly       );
-  _pShell->DeclareSymbol("persistent user FLOAT cli_tmPredictEnemy;",      &cli_tmPredictEnemy      );
+  _pShell->DeclareSymbol("persistent user FLOAT cli_fPredictPlayersRange;",(void *) &cli_fPredictPlayersRange);
+  _pShell->DeclareSymbol("persistent user FLOAT cli_fPredictItemsRange;",  (void *) &cli_fPredictItemsRange  );
+  _pShell->DeclareSymbol("persistent user FLOAT cli_tmPredictFoe;",        (void *) &cli_tmPredictFoe        );
+  _pShell->DeclareSymbol("persistent user FLOAT cli_tmPredictAlly;",       (void *) &cli_tmPredictAlly       );
+  _pShell->DeclareSymbol("persistent user FLOAT cli_tmPredictEnemy;",      (void *) &cli_tmPredictEnemy      );
 
-  _pShell->DeclareSymbol("     INDEX hud_bShowAll;",     &hud_bShowAll);
-  _pShell->DeclareSymbol("user INDEX hud_bShowInfo;",    &hud_bShowInfo);
-  _pShell->DeclareSymbol("user const FLOAT net_tmLatencyAvg;", &net_tmLatencyAvg);
-  _pShell->DeclareSymbol("persistent user INDEX hud_bShowLatency;", &hud_bShowLatency);
-  _pShell->DeclareSymbol("persistent user INDEX hud_iShowPlayers;", &hud_iShowPlayers);
-  _pShell->DeclareSymbol("persistent user INDEX hud_iSortPlayers;", &hud_iSortPlayers);
-  _pShell->DeclareSymbol("persistent user INDEX hud_bShowWeapon;",  &hud_bShowWeapon);
-  _pShell->DeclareSymbol("persistent user INDEX hud_bShowMessages;",&hud_bShowMessages);
-  _pShell->DeclareSymbol("persistent user FLOAT hud_fScaling;",     &hud_fScaling);
-  _pShell->DeclareSymbol("persistent user FLOAT hud_fOpacity;",     &hud_fOpacity);
-  _pShell->DeclareSymbol("persistent user FLOAT hud_tmWeaponsOnScreen;",  &hud_tmWeaponsOnScreen);
-  _pShell->DeclareSymbol("persistent user FLOAT hud_tmLatencySnapshot;",  &hud_tmLatencySnapshot);
-  _pShell->DeclareSymbol("persistent user FLOAT plr_fBreathingStrength;", &plr_fBreathingStrength);
-  _pShell->DeclareSymbol("INDEX cht_bKillFinalBoss;",  &cht_bKillFinalBoss);
-  _pShell->DeclareSymbol("INDEX cht_bDebugFinalBoss;", &cht_bDebugFinalBoss);
-  _pShell->DeclareSymbol("INDEX cht_bDumpFinalBossData;", &cht_bDumpFinalBossData);
-  _pShell->DeclareSymbol("INDEX cht_bDebugFinalBossAnimations;", &cht_bDebugFinalBossAnimations);
-  _pShell->DeclareSymbol("INDEX cht_bDumpPlayerShading;", &cht_bDumpPlayerShading);
-  _pShell->DeclareSymbol("persistent user INDEX hud_bShowMatchInfo;", &hud_bShowMatchInfo);
+  _pShell->DeclareSymbol("     INDEX hud_bShowAll;",     (void *) &hud_bShowAll);
+  _pShell->DeclareSymbol("user INDEX hud_bShowInfo;",    (void *) &hud_bShowInfo);
+  _pShell->DeclareSymbol("user const FLOAT net_tmLatencyAvg;", (void *) &net_tmLatencyAvg);
+  _pShell->DeclareSymbol("persistent user INDEX hud_bShowLatency;", (void *) &hud_bShowLatency);
+  _pShell->DeclareSymbol("persistent user INDEX hud_iShowPlayers;", (void *) &hud_iShowPlayers);
+  _pShell->DeclareSymbol("persistent user INDEX hud_iSortPlayers;", (void *) &hud_iSortPlayers);
+  _pShell->DeclareSymbol("persistent user INDEX hud_bShowWeapon;",  (void *) &hud_bShowWeapon);
+  _pShell->DeclareSymbol("persistent user INDEX hud_bShowMessages;",(void *) &hud_bShowMessages);
+  _pShell->DeclareSymbol("persistent user FLOAT hud_fScaling;",     (void *) &hud_fScaling);
+  _pShell->DeclareSymbol("persistent user FLOAT hud_fOpacity;",     (void *) &hud_fOpacity);
+  _pShell->DeclareSymbol("persistent user FLOAT hud_tmWeaponsOnScreen;",  (void *) &hud_tmWeaponsOnScreen);
+  _pShell->DeclareSymbol("persistent user FLOAT hud_tmLatencySnapshot;",  (void *) &hud_tmLatencySnapshot);
+  _pShell->DeclareSymbol("persistent user FLOAT plr_fBreathingStrength;", (void *) &plr_fBreathingStrength);
+  _pShell->DeclareSymbol("INDEX cht_bKillFinalBoss;",  (void *) &cht_bKillFinalBoss);
+  _pShell->DeclareSymbol("INDEX cht_bDebugFinalBoss;", (void *) &cht_bDebugFinalBoss);
+  _pShell->DeclareSymbol("INDEX cht_bDumpFinalBossData;", (void *) &cht_bDumpFinalBossData);
+  _pShell->DeclareSymbol("INDEX cht_bDebugFinalBossAnimations;", (void *) &cht_bDebugFinalBossAnimations);
+  _pShell->DeclareSymbol("INDEX cht_bDumpPlayerShading;", (void *) &cht_bDumpPlayerShading);
+  _pShell->DeclareSymbol("persistent user INDEX hud_bShowMatchInfo;", (void *) &hud_bShowMatchInfo);
 
-  _pShell->DeclareSymbol("persistent user FLOAT wpn_fRecoilSpeed[17];",   &wpn_fRecoilSpeed);
-  _pShell->DeclareSymbol("persistent user FLOAT wpn_fRecoilLimit[17];",   &wpn_fRecoilLimit);
-  _pShell->DeclareSymbol("persistent user FLOAT wpn_fRecoilDampUp[17];",  &wpn_fRecoilDampUp);
-  _pShell->DeclareSymbol("persistent user FLOAT wpn_fRecoilDampDn[17];",  &wpn_fRecoilDampDn);
-  _pShell->DeclareSymbol("persistent user FLOAT wpn_fRecoilOffset[17];",  &wpn_fRecoilOffset);
-  _pShell->DeclareSymbol("persistent user FLOAT wpn_fRecoilFactorP[17];", &wpn_fRecoilFactorP);
-  _pShell->DeclareSymbol("persistent user FLOAT wpn_fRecoilFactorZ[17];", &wpn_fRecoilFactorZ);
+  _pShell->DeclareSymbol("persistent user FLOAT wpn_fRecoilSpeed[17];",   (void *) &wpn_fRecoilSpeed);
+  _pShell->DeclareSymbol("persistent user FLOAT wpn_fRecoilLimit[17];",   (void *) &wpn_fRecoilLimit);
+  _pShell->DeclareSymbol("persistent user FLOAT wpn_fRecoilDampUp[17];",  (void *) &wpn_fRecoilDampUp);
+  _pShell->DeclareSymbol("persistent user FLOAT wpn_fRecoilDampDn[17];",  (void *) &wpn_fRecoilDampDn);
+  _pShell->DeclareSymbol("persistent user FLOAT wpn_fRecoilOffset[17];",  (void *) &wpn_fRecoilOffset);
+  _pShell->DeclareSymbol("persistent user FLOAT wpn_fRecoilFactorP[17];", (void *) &wpn_fRecoilFactorP);
+  _pShell->DeclareSymbol("persistent user FLOAT wpn_fRecoilFactorZ[17];", (void *) &wpn_fRecoilFactorZ);
 
   // cheats
-  _pShell->DeclareSymbol("user INDEX cht_bGod;",       &cht_bGod);
-  _pShell->DeclareSymbol("user INDEX cht_bFly;",       &cht_bFly);
-  _pShell->DeclareSymbol("user INDEX cht_bGhost;",     &cht_bGhost);
-  _pShell->DeclareSymbol("user INDEX cht_bInvisible;", &cht_bInvisible);
-  _pShell->DeclareSymbol("user INDEX cht_bGiveAll;",   &cht_bGiveAll);
-  _pShell->DeclareSymbol("user INDEX cht_bKillAll;",   &cht_bKillAll);
-  _pShell->DeclareSymbol("user INDEX cht_bOpen;",      &cht_bOpen);
-  _pShell->DeclareSymbol("user INDEX cht_bAllMessages;", &cht_bAllMessages);
-  _pShell->DeclareSymbol("user FLOAT cht_fTranslationMultiplier ;", &cht_fTranslationMultiplier);
-  _pShell->DeclareSymbol("user INDEX cht_bRefresh;", &cht_bRefresh);
+  _pShell->DeclareSymbol("user INDEX cht_bGod;",       (void *) &cht_bGod);
+  _pShell->DeclareSymbol("user INDEX cht_bFly;",       (void *) &cht_bFly);
+  _pShell->DeclareSymbol("user INDEX cht_bGhost;",     (void *) &cht_bGhost);
+  _pShell->DeclareSymbol("user INDEX cht_bInvisible;", (void *) &cht_bInvisible);
+  _pShell->DeclareSymbol("user INDEX cht_bGiveAll;",   (void *) &cht_bGiveAll);
+  _pShell->DeclareSymbol("user INDEX cht_bKillAll;",   (void *) &cht_bKillAll);
+  _pShell->DeclareSymbol("user INDEX cht_bOpen;",      (void *) &cht_bOpen);
+  _pShell->DeclareSymbol("user INDEX cht_bAllMessages;", (void *) &cht_bAllMessages);
+  _pShell->DeclareSymbol("user FLOAT cht_fTranslationMultiplier ;", (void *) &cht_fTranslationMultiplier);
+  _pShell->DeclareSymbol("user INDEX cht_bRefresh;", (void *) &cht_bRefresh);
   // this one is masqueraded cheat enable variable
-  _pShell->DeclareSymbol("INDEX cht_bEnable;", &cht_bEnable);
+  _pShell->DeclareSymbol("INDEX cht_bEnable;", (void *) &cht_bEnable);
 
   // this cheat is always enabled
-  _pShell->DeclareSymbol("user INDEX cht_iGoToMarker;", &cht_iGoToMarker);
+  _pShell->DeclareSymbol("user INDEX cht_iGoToMarker;", (void *) &cht_iGoToMarker);
 
   // player speed and view parameters, not declared except in internal build
   #if 0
-    _pShell->DeclareSymbol("user FLOAT plr_fViewHeightStand;", &plr_fViewHeightStand);
-    _pShell->DeclareSymbol("user FLOAT plr_fViewHeightCrouch;",&plr_fViewHeightCrouch);
-    _pShell->DeclareSymbol("user FLOAT plr_fViewHeightSwim;",  &plr_fViewHeightSwim);
-    _pShell->DeclareSymbol("user FLOAT plr_fViewHeightDive;",  &plr_fViewHeightDive);
-    _pShell->DeclareSymbol("user FLOAT plr_fViewDampFactor;",         &plr_fViewDampFactor);
-    _pShell->DeclareSymbol("user FLOAT plr_fViewDampLimitGroundUp;",  &plr_fViewDampLimitGroundUp);
-    _pShell->DeclareSymbol("user FLOAT plr_fViewDampLimitGroundDn;",  &plr_fViewDampLimitGroundDn);
-    _pShell->DeclareSymbol("user FLOAT plr_fViewDampLimitWater;",     &plr_fViewDampLimitWater);
-    _pShell->DeclareSymbol("user FLOAT plr_fAcceleration;",  &plr_fAcceleration);
-    _pShell->DeclareSymbol("user FLOAT plr_fDeceleration;",  &plr_fDeceleration);
-    _pShell->DeclareSymbol("user FLOAT plr_fSpeedForward;",  &plr_fSpeedForward);
-    _pShell->DeclareSymbol("user FLOAT plr_fSpeedBackward;", &plr_fSpeedBackward);
-    _pShell->DeclareSymbol("user FLOAT plr_fSpeedSide;",     &plr_fSpeedSide);
-    _pShell->DeclareSymbol("user FLOAT plr_fSpeedUp;",       &plr_fSpeedUp);
+    _pShell->DeclareSymbol("user FLOAT plr_fViewHeightStand;", (void *) &plr_fViewHeightStand);
+    _pShell->DeclareSymbol("user FLOAT plr_fViewHeightCrouch;",(void *) &plr_fViewHeightCrouch);
+    _pShell->DeclareSymbol("user FLOAT plr_fViewHeightSwim;",  (void *) &plr_fViewHeightSwim);
+    _pShell->DeclareSymbol("user FLOAT plr_fViewHeightDive;",  (void *) &plr_fViewHeightDive);
+    _pShell->DeclareSymbol("user FLOAT plr_fViewDampFactor;",         (void *) &plr_fViewDampFactor);
+    _pShell->DeclareSymbol("user FLOAT plr_fViewDampLimitGroundUp;",  (void *) &plr_fViewDampLimitGroundUp);
+    _pShell->DeclareSymbol("user FLOAT plr_fViewDampLimitGroundDn;",  (void *) &plr_fViewDampLimitGroundDn);
+    _pShell->DeclareSymbol("user FLOAT plr_fViewDampLimitWater;",     (void *) &plr_fViewDampLimitWater);
+    _pShell->DeclareSymbol("user FLOAT plr_fAcceleration;",  (void *) &plr_fAcceleration);
+    _pShell->DeclareSymbol("user FLOAT plr_fDeceleration;",  (void *) &plr_fDeceleration);
+    _pShell->DeclareSymbol("user FLOAT plr_fSpeedForward;",  (void *) &plr_fSpeedForward);
+    _pShell->DeclareSymbol("user FLOAT plr_fSpeedBackward;", (void *) &plr_fSpeedBackward);
+    _pShell->DeclareSymbol("user FLOAT plr_fSpeedSide;",     (void *) &plr_fSpeedSide);
+    _pShell->DeclareSymbol("user FLOAT plr_fSpeedUp;",       (void *) &plr_fSpeedUp);
   #endif
-  _pShell->DeclareSymbol("persistent user FLOAT plr_fFOV;", &plr_fFOV);
-  _pShell->DeclareSymbol("persistent user FLOAT plr_fFrontClipDistance;", &plr_fFrontClipDistance);
-  _pShell->DeclareSymbol("persistent user INDEX plr_bRenderPicked;", &plr_bRenderPicked);
-  _pShell->DeclareSymbol("persistent user INDEX plr_bRenderPickedParticles;", &plr_bRenderPickedParticles);
-  _pShell->DeclareSymbol("persistent user INDEX plr_bOnlySam;", &plr_bOnlySam);
-  _pShell->DeclareSymbol("persistent user INDEX ent_bReportBrokenChains;", &ent_bReportBrokenChains);
-  _pShell->DeclareSymbol("persistent user FLOAT ent_tmMentalIn  ;", &ent_tmMentalIn  );
-  _pShell->DeclareSymbol("persistent user FLOAT ent_tmMentalOut ;", &ent_tmMentalOut );
-  _pShell->DeclareSymbol("persistent user FLOAT ent_tmMentalFade;", &ent_tmMentalFade);
-  _pShell->DeclareSymbol("persistent user FLOAT gfx_fEnvParticlesDensity;", &gfx_fEnvParticlesDensity);
-  _pShell->DeclareSymbol("persistent user FLOAT gfx_fEnvParticlesRange;", &gfx_fEnvParticlesRange);
+  _pShell->DeclareSymbol("persistent user FLOAT plr_fFOV;", (void *) &plr_fFOV);
+  _pShell->DeclareSymbol("persistent user FLOAT plr_fFrontClipDistance;", (void *) &plr_fFrontClipDistance);
+  _pShell->DeclareSymbol("persistent user INDEX plr_bRenderPicked;", (void *) &plr_bRenderPicked);
+  _pShell->DeclareSymbol("persistent user INDEX plr_bRenderPickedParticles;", (void *) &plr_bRenderPickedParticles);
+  _pShell->DeclareSymbol("persistent user INDEX plr_bOnlySam;", (void *) &plr_bOnlySam);
+  _pShell->DeclareSymbol("persistent user INDEX ent_bReportBrokenChains;", (void *) &ent_bReportBrokenChains);
+  _pShell->DeclareSymbol("persistent user FLOAT ent_tmMentalIn  ;", (void *) &ent_tmMentalIn  );
+  _pShell->DeclareSymbol("persistent user FLOAT ent_tmMentalOut ;", (void *) &ent_tmMentalOut );
+  _pShell->DeclareSymbol("persistent user FLOAT ent_tmMentalFade;", (void *) &ent_tmMentalFade);
+  _pShell->DeclareSymbol("persistent user FLOAT gfx_fEnvParticlesDensity;", (void *) &gfx_fEnvParticlesDensity);
+  _pShell->DeclareSymbol("persistent user FLOAT gfx_fEnvParticlesRange;", (void *) &gfx_fEnvParticlesRange);
 
   // player appearance interface
-  _pShell->DeclareSymbol("INDEX SetPlayerAppearance(INDEX, INDEX, INDEX, INDEX);", &SetPlayerAppearance);
+  _pShell->DeclareSymbol("INDEX SetPlayerAppearance(INDEX, INDEX, INDEX, INDEX);", (void *) &SetPlayerAppearance);
 
   // call player weapons persistant variable initialization
   extern void CPlayerWeapons_Init(void);
@@ -939,41 +941,41 @@ void PrintPlayerDeathMessage(CPlayer *ppl, const EDeath &eDeath)
         CTString strKillerName = ((CPlayer*)penKiller)->GetPlayerName();
 
         if(eDeath.eLastDamage.dmtType==DMT_TELEPORT) {
-          CPrintF(TRANS("%s telefragged %s\n"), strKillerName, strMyName);
+          CPrintF(TRANS("%s telefragged %s\n"), (const char *) strKillerName, (const char *) strMyName);
         } else if(eDeath.eLastDamage.dmtType==DMT_CLOSERANGE) {
-          CPrintF(TRANS("%s cut %s into pieces\n"), strKillerName, strMyName);
+          CPrintF(TRANS("%s cut %s into pieces\n"), (const char *) strKillerName, (const char *) strMyName);
         } else if(eDeath.eLastDamage.dmtType==DMT_CHAINSAW) {
-          CPrintF(TRANS("%s cut %s into pieces\n"), strKillerName, strMyName);
+          CPrintF(TRANS("%s cut %s into pieces\n"), (const char *) strKillerName, (const char *) strMyName);
         } else if(eDeath.eLastDamage.dmtType==DMT_BULLET) {
-          CPrintF(TRANS("%s poured lead into %s\n"), strKillerName, strMyName);
+          CPrintF(TRANS("%s poured lead into %s\n"), (const char *) strKillerName, (const char *) strMyName);
         } else if(eDeath.eLastDamage.dmtType==DMT_PROJECTILE || eDeath.eLastDamage.dmtType==DMT_EXPLOSION) {
-          CPrintF(TRANS("%s blew %s away\n"), strKillerName, strMyName);
+          CPrintF(TRANS("%s blew %s away\n"), (const char *) strKillerName, (const char *) strMyName);
         } else if(eDeath.eLastDamage.dmtType==DMT_CANNONBALL) {
-          CPrintF(TRANS("%s smashed %s with a cannon\n"), strKillerName, strMyName);
+          CPrintF(TRANS("%s smashed %s with a cannon\n"), (const char *) strKillerName, (const char *) strMyName);
         } else if(eDeath.eLastDamage.dmtType==DMT_CANNONBALL_EXPLOSION) {
-          CPrintF(TRANS("%s nuked %s\n"), strKillerName, strMyName);
+          CPrintF(TRANS("%s nuked %s\n"), (const char *) strKillerName, (const char *) strMyName);
         } else {
-          CPrintF(TRANS("%s killed %s\n"), strKillerName, strMyName);
+          CPrintF(TRANS("%s killed %s\n"), (const char *) strKillerName, (const char *) strMyName);
         }
       } else {
         // make message from damage type
         switch(eDeath.eLastDamage.dmtType) {
-        case DMT_DROWNING:  CPrintF(TRANS("%s drowned\n"), strMyName); break;
-        case DMT_BURNING:   CPrintF(TRANS("%s burst into flames\n"), strMyName); break;
-        case DMT_SPIKESTAB: CPrintF(TRANS("%s fell into a spike-hole\n"), strMyName); break;
-        case DMT_FREEZING:  CPrintF(TRANS("%s has frozen\n"), strMyName); break;
-        case DMT_ACID:      CPrintF(TRANS("%s dissolved\n"), strMyName); break;
+        case DMT_DROWNING:  CPrintF(TRANS("%s drowned\n"), (const char *) strMyName); break;
+        case DMT_BURNING:   CPrintF(TRANS("%s burst into flames\n"), (const char *) strMyName); break;
+        case DMT_SPIKESTAB: CPrintF(TRANS("%s fell into a spike-hole\n"), (const char *) strMyName); break;
+        case DMT_FREEZING:  CPrintF(TRANS("%s has frozen\n"), (const char *) strMyName); break;
+        case DMT_ACID:      CPrintF(TRANS("%s dissolved\n"), (const char *) strMyName); break;
         case DMT_PROJECTILE:
         case DMT_EXPLOSION:
-          CPrintF(TRANS("%s blew himself away\n"), strMyName); break;
-        default:            CPrintF(TRANS("%s has committed suicide\n"), strMyName);
+          CPrintF(TRANS("%s blew himself away\n"), (const char *) strMyName); break;
+        default:            CPrintF(TRANS("%s has committed suicide\n"), (const char *) strMyName);
         }
       }
     // if killed by an enemy
     } else if (IsDerivedFromClass(penKiller, "Enemy Base")) {
       // check for telefrag first
       if(eDeath.eLastDamage.dmtType==DMT_TELEPORT) {
-        CPrintF(TRANS("%s was telefragged\n"), strMyName);
+        CPrintF(TRANS("%s was telefragged\n"), (const char *) strMyName);
         return;
       }
       // describe how this enemy killed player
@@ -983,17 +985,17 @@ void PrintPlayerDeathMessage(CPlayer *ppl, const EDeath &eDeath)
     } else {
       // make message from damage type
       switch(eDeath.eLastDamage.dmtType) {
-      case DMT_SPIKESTAB: CPrintF(TRANS("%s was pierced\n"), strMyName); break;
-      case DMT_BRUSH:     CPrintF(TRANS("%s was squashed\n"), strMyName); break;
-      case DMT_ABYSS:     CPrintF(TRANS("%s went over the edge\n"), strMyName); break;
-      case DMT_IMPACT:    CPrintF(TRANS("%s swashed\n"), strMyName); break;
-      case DMT_HEAT:      CPrintF(TRANS("%s stood in the sun for too long\n"), strMyName); break;
-      default:            CPrintF(TRANS("%s passed away\n"), strMyName);
+      case DMT_SPIKESTAB: CPrintF(TRANS("%s was pierced\n"), (const char *) strMyName); break;
+      case DMT_BRUSH:     CPrintF(TRANS("%s was squashed\n"), (const char *) strMyName); break;
+      case DMT_ABYSS:     CPrintF(TRANS("%s went over the edge\n"), (const char *) strMyName); break;
+      case DMT_IMPACT:    CPrintF(TRANS("%s swashed\n"), (const char *) strMyName); break;
+      case DMT_HEAT:      CPrintF(TRANS("%s stood in the sun for too long\n"), (const char *) strMyName); break;
+      default:            CPrintF(TRANS("%s passed away\n"), (const char *) strMyName);
       }
     }
   // if no entity pointer (shouldn't happen)
   } else {
-    CPrintF(TRANS("%s is missing in action\n"), strMyName);
+    CPrintF(TRANS("%s is missing in action\n"), (const char *) strMyName);
   }
 }
 
@@ -1329,7 +1331,7 @@ functions:
     bsld.bsld_vPos = vPos;
     bsld.bsld_vG = en_vGravityDir;
     bsld.bsld_eptType=eptType;
-    bsld.bsld_iRndBase=FRnd()*123456;
+    bsld.bsld_iRndBase=(INDEX) (FRnd()*123456);
     bsld.bsld_tmLaunch = _pTimer->CurrentTick();
     bsld.bsld_vStretch=vStretch;
     // move to bullet spray position
@@ -1557,10 +1559,10 @@ functions:
       }
     }
 
-    istr->Read_t(&m_psLevelStats, sizeof(m_psLevelStats));
-    istr->Read_t(&m_psLevelTotal, sizeof(m_psLevelTotal));
-    istr->Read_t(&m_psGameStats , sizeof(m_psGameStats ));
-    istr->Read_t(&m_psGameTotal , sizeof(m_psGameTotal ));
+    (*istr) >> m_psLevelStats;
+    (*istr) >> m_psLevelTotal;
+    (*istr) >> m_psGameStats;
+    (*istr) >> m_psGameTotal;
 
     // set your real appearance if possible
     ValidateCharacter();
@@ -1641,7 +1643,7 @@ functions:
   CTString GetStatsRealWorldStarted(void)
   {
     struct tm *newtime;
-    newtime = localtime((const time_t*)&m_iStartTime);
+    newtime = localtime(&m_iStartTime);
 
     setlocale(LC_ALL, "");
     CTString strTimeline;
@@ -1681,7 +1683,7 @@ functions:
   void GetShortStats(CTString &strStats)
   {
     strStats.PrintF( TRANS("%s %s Score: %d Kills: %d/%d"), 
-                     GetDifficultyString(), TimeToString(GetStatsInGameTimeLevel()), 
+                     (const char *) GetDifficultyString(), (const char *) TimeToString(GetStatsInGameTimeLevel()),
                      m_psLevelStats.ps_iScore, m_psLevelStats.ps_iKills, m_psLevelTotal.ps_iKills);
   }
 
@@ -1697,7 +1699,7 @@ functions:
     const INDEX ctPlayers = SetAllPlayersStats(bFragMatch?5:3); // sort by frags or by score
 
     // get time elapsed since the game start
-    strStats+=AlignString(CTString(0, "^cFFFFFF%s:^r\n%s", TRANS("TIME"), TimeToString(_pNetwork->GetGameTime())));
+    strStats+=AlignString(CTString(0, "^cFFFFFF%s:^r\n%s", (const char *) TRANS("TIME"), (const char *) TimeToString(_pNetwork->GetGameTime())));
     strStats+="\n";
 
     // find maximum frags/score that one player has
@@ -1713,7 +1715,7 @@ functions:
     const CSessionProperties &sp = *GetSP();
     if (sp.sp_iTimeLimit>0) {
       FLOAT fTimeLeft = ClampDn(sp.sp_iTimeLimit*60.0f - _pNetwork->GetGameTime(), 0.0f);
-      strStats+=AlignString(CTString(0, "^cFFFFFF%s:^r\n%s", TRANS("TIME LEFT"), TimeToString(fTimeLeft)));
+      strStats+=AlignString(CTString(0, "^cFFFFFF%s:^r\n%s", (const char *) TRANS("TIME LEFT"), (const char *) TimeToString(fTimeLeft)));
       strStats+="\n";
     }
     if (bFragMatch && sp.sp_iFragLimit>0) {
@@ -1748,7 +1750,7 @@ functions:
     {for(INDEX iPlayer=0; iPlayer<ctPlayers; iPlayer++) {
       CTString strLine;
       CPlayer *penPlayer = _apenPlayers[iPlayer];
-      INDEX iPing = ceil(penPlayer->en_tmPing*1000.0f);
+      INDEX iPing = (INDEX) (ceil(penPlayer->en_tmPing*1000.0f));
       INDEX iScore = bFragMatch ? penPlayer->m_psLevelStats.ps_iKills : penPlayer->m_psLevelStats.ps_iScore;
       CTString strName = penPlayer->GetPlayerName();
 
@@ -1853,13 +1855,13 @@ functions:
 
     if (iCoopType<=1) {
       // report total score info
-      strStats+=AlignString(CTString(0, "^cFFFFFF%s:^r\n%d", TRANS("TOTAL SCORE"), m_psGameStats.ps_iScore));
+      strStats+=AlignString(CTString(0, "^cFFFFFF%s:^r\n%d", (const char *) TRANS("TOTAL SCORE"), m_psGameStats.ps_iScore));
       strStats+="\n";
-      strStats+=AlignString(CTString(0, "^cFFFFFF%s:^r\n%s", TRANS("DIFFICULTY"), GetDifficultyString()));
+      strStats+=AlignString(CTString(0, "^cFFFFFF%s:^r\n%s", (const char *) TRANS("DIFFICULTY"), (const char *) GetDifficultyString()));
       strStats+="\n";
-      strStats+=AlignString(CTString(0, "^cFFFFFF%s:^r\n%s", TRANS("STARTED"), GetStatsRealWorldStarted()));
+      strStats+=AlignString(CTString(0, "^cFFFFFF%s:^r\n%s", (const char *) TRANS("STARTED"), (const char *) GetStatsRealWorldStarted()));
       strStats+="\n";
-      strStats+=AlignString(CTString(0, "^cFFFFFF%s:^r\n%s", TRANS("PLAYING TIME"), TimeToString(GetStatsRealWorldTime())));
+      strStats+=AlignString(CTString(0, "^cFFFFFF%s:^r\n%s", (const char *) TRANS("PLAYING TIME"), (const char *) TimeToString(GetStatsRealWorldTime())));
       strStats+="\n";
       if( m_psGameStats.ps_iScore<=plr_iHiScore) {
         strStats+=AlignString(CTString(0, "^cFFFFFF%s:^r\n%d", TRANS("HI-SCORE"), plr_iHiScore));
@@ -1874,9 +1876,9 @@ functions:
     strStats+="\n";
     if (iCoopType<=1) {
       if( m_bEndOfLevel) {
-        strStats+=AlignString(CTString(0, "  %s:\n%s", TRANS("ESTIMATED TIME"), TimeToString(m_tmEstTime)));
+        strStats+=AlignString(CTString(0, "  %s:\n%s", (const char *) TRANS("ESTIMATED TIME"), (const char *) TimeToString(m_tmEstTime)));
         strStats+="\n";
-        strStats+=AlignString(CTString(0, "  %s:\n%d", TRANS("TIME BONUS"), m_iTimeScore));
+        strStats+=AlignString(CTString(0, "  %s:\n%d", (const char *) TRANS("TIME BONUS"), m_iTimeScore));
         strStats+="\n";
         strStats+="\n";
       }
@@ -1894,7 +1896,7 @@ functions:
     strStats+=AlignString(CTString(0, "  %s:\n%d/%d", TRANS("SECRETS"), m_psLevelStats.ps_iSecrets, m_psLevelTotal.ps_iSecrets));
     strStats+="\n";
     if (iCoopType<=1) {
-      strStats+=AlignString(CTString(0, "  %s:\n%s", TRANS("TIME"), TimeToString(GetStatsInGameTimeLevel())));
+      strStats+=AlignString(CTString(0, "  %s:\n%s", TRANS("TIME"), (const char *) TimeToString(GetStatsInGameTimeLevel())));
       strStats+="\n";
     }
     strStats+="\n";
@@ -1913,7 +1915,7 @@ functions:
     strStats+=AlignString(CTString(0, "  %s:\n%d/%d", TRANS("SECRETS"), m_psGameStats.ps_iSecrets, m_psGameTotal.ps_iSecrets));
     strStats+="\n";
     if (iCoopType<=1) {
-      strStats+=AlignString(CTString(0, "  %s:\n%s", TRANS("GAME TIME"), TimeToString(GetStatsInGameTimeGame())));
+      strStats+=AlignString(CTString(0, "  %s:\n%s", TRANS("GAME TIME"), (const char *) TimeToString(GetStatsInGameTimeGame())));
       strStats+="\n";
     }
     strStats+="\n";
@@ -2008,7 +2010,7 @@ functions:
   {
     // list the directory
     CDynamicStackArray<CTFileName> afnmDir;
-    MakeDirList(afnmDir, strDir, "*.txt", DLI_RECURSIVE);
+    MakeDirList(afnmDir, strDir, CTFileName(CTString("*.txt")), DLI_RECURSIVE);
 
     // for each file in the directory
     for (INDEX i=0; i<afnmDir.Count(); i++) {
@@ -2470,7 +2472,7 @@ functions:
       pdp->SetTextScaling( fScale);
       pdp->SetTextAspect( 1.0f);
       CTString strMsg;
-      strMsg.PrintF(TRANS("%s connected"), GetPlayerName());
+      strMsg.PrintF(TRANS("%s connected"), (const char *) GetPlayerName());
       pdp->PutTextCXY( strMsg, pixDPWidth*0.5f, pixDPHeight*0.5f, SE_COL_BLUE_NEUTRAL_LT|CT_OPAQUE);
     }
   }
@@ -2541,7 +2543,7 @@ functions:
       if (m_fPickedAmmount==0) {
         strPicked = m_strPickedName;
       } else {
-        strPicked.PrintF("%s +%d", m_strPickedName, int(m_fPickedAmmount));
+        strPicked.PrintF("%s +%d", (const char *) m_strPickedName, int(m_fPickedAmmount));
       }
       pdp->PutTextCXY( strPicked, pixDPWidth*0.5f, pixDPHeight*0.82f, C_WHITE|0xDD);
       if (!GetSP()->sp_bCooperative && !GetSP()->sp_bUseFrags && m_fPickedMana>=1) {
@@ -2759,7 +2761,7 @@ functions:
       m_fManaFraction += 
         ClampDn( 1.0f-en_vCurrentTranslationAbsolute.Length()/20.0f, 0.0f) * 20.0f
         * _pTimer->TickQuantum;
-      INDEX iNewMana = m_fManaFraction;
+      INDEX iNewMana = (INDEX) m_fManaFraction;
       m_iMana         += iNewMana;
       m_fManaFraction -= iNewMana;
     }
@@ -3384,7 +3386,7 @@ functions:
         ItemPicked(strKey, 0);
         // if in cooperative
         if (GetSP()->sp_bCooperative && !GetSP()->sp_bSinglePlayer) {
-          CPrintF(TRANS("^cFFFFFF%s - %s^r\n"), GetPlayerName(), strKey);
+          CPrintF(TRANS("^cFFFFFF%s - %s^r\n"), (const char *) GetPlayerName(), (const char *) strKey);
         }
         return TRUE;
       }
@@ -3784,14 +3786,14 @@ functions:
     if (pcOrg.GetName()!=pcNew.GetName()) {
       // report that
       CPrintF(TRANS("%s is now known as %s\n"), 
-        pcOrg.GetNameForPrinting(), pcNew.GetNameForPrinting());
+        (const char *) pcOrg.GetNameForPrinting(), (const char *) pcNew.GetNameForPrinting());
     }
 
     // if the team has changed
     if (pcOrg.GetTeam()!=pcNew.GetTeam()) {
       // report that
       CPrintF(TRANS("%s switched to team %s\n"), 
-        pcNew.GetNameForPrinting(), pcNew.GetTeamForPrinting());
+        (const char *) pcNew.GetNameForPrinting(), (const char *) pcNew.GetTeamForPrinting());
     }
 
     // if appearance changed
@@ -3806,12 +3808,12 @@ functions:
         ParseGender(strNewLook);
         // report that
         CPrintF(TRANS("%s now appears as %s\n"), 
-          pcNew.GetNameForPrinting(), strNewLook);
+          (const char *) pcNew.GetNameForPrinting(), (const char *) strNewLook);
       // if failed
       } else {
         // report that
         CPrintF(TRANS("Cannot change appearance for %s: setting '%s' is unavailable\n"), 
-          pcNew.GetNameForPrinting(), (const char*)ppsNew->GetModelFilename());
+          (const char *) pcNew.GetNameForPrinting(), (const char*)ppsNew->GetModelFilename());
       }
       // attach weapon to new appearance
       GetPlayerAnimator()->SyncWeapon();
@@ -4444,7 +4446,7 @@ functions:
             }
 
             // initiate respawn
-            CPrintF(TRANS("%s is riding the gun again\n"), GetPlayerName());
+            CPrintF(TRANS("%s is riding the gun again\n"), (const char *) GetPlayerName());
             SendEvent(EEnd());
 
             // report number of credits left
@@ -4458,7 +4460,7 @@ functions:
           // if no more credits left
           } else {
             // report that you cannot respawn
-            CPrintF(TRANS("%s rests in peace - out of credits\n"), GetPlayerName());
+            CPrintF(TRANS("%s rests in peace - out of credits\n"), (const char *) GetPlayerName());
           }
         }
       }
@@ -4860,7 +4862,7 @@ functions:
     CPlayer *pen = (CPlayer*)GetPredictionTail();
     // do screen blending
     ULONG ulR=255, ulG=0, ulB=0; // red for wounding
-    ULONG ulA = pen->m_fDamageAmmount*5.0f;
+    ULONG ulA = (ULONG) (pen->m_fDamageAmmount*5.0f);
     
     // if less than few seconds elapsed since last damage
     FLOAT tmSinceWounding = _pTimer->CurrentTick() - pen->m_tmWoundedTime;
@@ -5165,7 +5167,7 @@ functions:
       if (pen==NULL) {
         // try to find normal start marker
         CTString strPlayerStart;
-        strPlayerStart.PrintF("Player Start - %s", m_strGroup);
+        strPlayerStart.PrintF("Player Start - %s", (const char *) m_strGroup);
         pen = _pNetwork->GetEntityWithName(strPlayerStart, 0);
         if (m_strGroup=="") {
           bSetHealth = TRUE;
@@ -5351,20 +5353,20 @@ functions:
     m_iMayRespawn = 0;
     m_bEndOfLevel = TRUE;
     // remember end time
-    time((time_t*)&m_iEndTime);
+    time(&m_iEndTime);
     // add time score
     TIME tmLevelTime = _pTimer->CurrentTick()-m_tmLevelStarted;
     m_psLevelStats.ps_tmTime = tmLevelTime;
     m_psGameStats.ps_tmTime += tmLevelTime;
-    FLOAT fTimeDelta = ClampDn((FLOAT)(floor(m_tmEstTime)-floor(tmLevelTime)), 0.0f);
-    m_iTimeScore = floor(fTimeDelta*100.0f);
+    FLOAT fTimeDelta = ClampDn(floor(m_tmEstTime)-floor(tmLevelTime), 0.0);
+    m_iTimeScore = (INDEX) floor(fTimeDelta*100.0f);
     m_psLevelStats.ps_iScore+=m_iTimeScore;
     m_psGameStats.ps_iScore+=m_iTimeScore;
 
     // record stats for this level and add to global table
     CTString strStats;
     strStats.PrintF(TRANS("%s\n  Time:   %s\n  Score: %9d\n  Kills:   %03d/%03d\n  Secrets:   %02d/%02d\n"), 
-        TranslateConst(en_pwoWorld->GetName(), 0), TimeToString(tmLevelTime), 
+        TranslateConst(en_pwoWorld->GetName(), 0), (const char *) TimeToString(tmLevelTime), 
         m_psLevelStats.ps_iScore,
         m_psLevelStats.ps_iKills, m_psLevelTotal.ps_iKills,
         m_psLevelStats.ps_iSecrets, m_psLevelTotal.ps_iSecrets);
@@ -5649,11 +5651,11 @@ procedures:
         // if killed by a player
         if (pplKillerPlayer!=NULL) {
           // print how much that player gained
-          CPrintF(TRANS("  %s: +%d points\n"), pplKillerPlayer->GetPlayerName(), m_iMana);
+          CPrintF(TRANS("  %s: +%d points\n"), (const char *) pplKillerPlayer->GetPlayerName(), m_iMana);
         // if it was a suicide, or an accident
         } else {
           // print how much you lost
-          CPrintF(TRANS("  %s: -%d points\n"), GetPlayerName(), m_iMana);
+          CPrintF(TRANS("  %s: -%d points\n"), (const char *) GetPlayerName(), m_iMana);
         }
       }
 
@@ -6533,7 +6535,7 @@ procedures:
   Main(EVoid evoid)
   {
     // remember start time
-    time((time_t*)&m_iStartTime);
+    time(&m_iStartTime);
 
     m_ctUnreadMessages = 0;
     SetFlags(GetFlags()|ENF_CROSSESLEVELS|ENF_NOTIFYLEVELCHANGE);
@@ -6686,7 +6688,7 @@ procedures:
       on (EReceiveScore eScore) : {
         m_psLevelStats.ps_iScore += eScore.iPoints;
         m_psGameStats.ps_iScore += eScore.iPoints;
-        m_iMana  += eScore.iPoints*GetSP()->sp_fManaTransferFactor;
+        m_iMana  += (INDEX) (eScore.iPoints*GetSP()->sp_fManaTransferFactor);
         CheckHighScore();
         resume;
       }

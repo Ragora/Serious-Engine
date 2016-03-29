@@ -37,7 +37,15 @@ public:
   // convert value of an enum to its name
   ENGINE_API const char *NameForValue(INDEX iValue);
 };
-#define EP_ENUMBEG(typename) extern _declspec (dllexport) CEntityPropertyEnumValue typename##_values[] = {
+
+/* rcg10072001 */
+#ifdef _MSC_VER
+  #define ENUMEXTERN extern _declspec (dllexport)
+#else
+  #define ENUMEXTERN
+#endif
+
+#define EP_ENUMBEG(typename) ENUMEXTERN CEntityPropertyEnumValue typename##_values[] = {
 #define EP_ENUMVALUE(value, name) {value, name}
 #define EP_ENUMEND(typename) }; CEntityPropertyEnumType typename##_enum = { \
   typename##_values, sizeof(typename##_values)/sizeof(CEntityPropertyEnumValue ) }
@@ -258,8 +266,7 @@ public:
     &classname##_OnWorldTick,                                         \
     &classname##_OnWorldRender,                                       \
     &classname##_OnWorldEnd                                           \
-  };\
-  SYMBOLLOCATOR(classname##_DLLClass)
+  }
 
 #define ENTITY_CLASSDEFINITION_BASE(classname, id)                    \
   extern "C" DECLSPEC_DLLEXPORT CDLLEntityClass classname##_DLLClass; \

@@ -81,17 +81,17 @@ public:
 
 // get the pointer to the first element in the list
 #define LIST_HEAD(listhead, baseclass, member) \
-  ( (baseclass *) ( ((UBYTE *)(&(listhead).Head())) - offsetof(baseclass, member) ) )
+  ( (baseclass *) ( ((UBYTE *)(&(listhead).Head())) - _offsetof(baseclass, member) ) )
 // get the pointer to the last element in the list
 #define LIST_TAIL(listhead, baseclass, member) \
-  ( (baseclass *) ( ((UBYTE *)(&(listhead).Tail())) - offsetof(baseclass, member) ) )
+  ( (baseclass *) ( ((UBYTE *)(&(listhead).Tail())) - _offsetof(baseclass, member) ) )
 
 // get the pointer to the predecessor of the element
 #define LIST_PRED(element, baseclass, member) \
-  ( (baseclass *) ( ((UBYTE *)(&(element).member.Pred())) - offsetof(baseclass, member) ) )
+  ( (baseclass *) ( ((UBYTE *)(&(element).member.Pred())) - _offsetof(baseclass, member) ) )
 // get the pointer to the successor of the element
 #define LIST_SUCC(element, baseclass, member) \
-  ( (baseclass *) ( ((UBYTE *)(&(element).member.Succ())) - offsetof(baseclass, member) ) )
+  ( (baseclass *) ( ((UBYTE *)(&(element).member.Succ())) - _offsetof(baseclass, member) ) )
 
 
 

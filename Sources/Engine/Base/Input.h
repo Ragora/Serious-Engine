@@ -130,6 +130,14 @@ public:
   // Get given button's current state
   inline BOOL GetButtonState( INDEX iButtonNo) const {
     return (inp_ubButtonsBuffer[ iButtonNo] & 128) != 0;};
+
+  // rcg02042003 hack for SDL vs. Win32.
+  void ClearRelativeMouseMotion(void);
+
+protected:
+  BOOL PlatformInit(void); /* rcg10072001 platform-specific construction */
+  BOOL PlatformSetKeyNames(void); /* rcg10072001 platform-specific code */
+  LONG PlatformGetJoystickCount(void); /* rcg11242001 platform-specific code */
 };
 
 // pointer to global input object

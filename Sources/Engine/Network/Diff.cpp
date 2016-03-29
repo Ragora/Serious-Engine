@@ -13,7 +13,7 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include "Engine/StdH.h"
 
 #include <Engine/Base/Stream.h>
 #include <Engine/Base/Timer.h>
@@ -79,6 +79,9 @@ struct EntityBlockInfo {
 CStaticStackArray<EntityBlockInfo> _aebiOld;
 CStaticStackArray<EntityBlockInfo> _aebiNew;
 
+
+#define ENT4    0x34544E45 // looks like "ENT4" in ASCII.
+
 // make array of entity offsets in a block
 void MakeInfos(CStaticStackArray<EntityBlockInfo> &aebi, 
                UBYTE *pubBlock, SLONG slSize, UBYTE *pubFirst, UBYTE *&pubEnd)
@@ -90,7 +93,7 @@ void MakeInfos(CStaticStackArray<EntityBlockInfo> &aebi,
   UBYTE *pub = pubFirst;
   while (pub<pubBlock+slSize) {
     // if no more entities
-    if (*(ULONG*)pub != '4TNE') {
+    if (*(ULONG*)pub != ENT4) {
       pubEnd = pub;
       // stop
       return;
@@ -118,14 +121,14 @@ UBYTE *FindFirstEntity(UBYTE *pubBlock, SLONG slSize)
 {
   UBYTE *pub = pubBlock;
   while (pub<pubBlock+slSize) {
-    if (*(ULONG*)pub == '4TNE') {
+    if (*(ULONG*)pub == ENT4) {
       UBYTE *pubTmp = pub;
       pubTmp+=sizeof(ULONG);
       ULONG ulID = *(ULONG*)pubTmp;
       pubTmp+=sizeof(ULONG);
       SLONG slSizeChunk = *(SLONG*)pubTmp;
       pubTmp+=sizeof(ULONG);
-      if (*(ULONG*)(pubTmp+slSizeChunk) == '4TNE') {
+      if (*(ULONG*)(pubTmp+slSizeChunk) == ENT4) {
         return pub;
       }
     }
@@ -212,6 +215,9 @@ void MakeDiff_t(void)
     pubEntEndNew-_pubNew, _pubNew+_slSizeNew-pubEntEndNew);
 }
 
+
+#define DIFF 0x46464944   //  looks like "DIFF" in ASCII.
+
 void UnDiff_t(void)
 {
   // start at beginning
@@ -220,7 +226,7 @@ void UnDiff_t(void)
   SLONG slSizeOldStream = 0;
   SLONG slSizeOutStream = 0;
   // get header with size of files
-  if (*(SLONG*)pubNew!='FFID') {
+  if (*(SLONG*)pubNew!=DIFF) {
     ThrowF_t(TRANS("Not a DIFF stream!"));
   }
   pubNew+=sizeof(SLONG);
@@ -236,7 +242,7 @@ void UnDiff_t(void)
   // while not end of diff file
   while (pubNew<_pubNew+_slSizeNew) {
     // read block type
-    UBYTE ubType = *pubNew++;
+    UBYTE ubType = *(pubNew++);
     switch(ubType) {
     // if block type is 'copy from old file'
     case DIFF_OLD: {
@@ -267,8 +273,9 @@ void UnDiff_t(void)
       SLONG slSizeXor = Min(slSizeOld, slSizeNew);
       UBYTE *pub0 = _pubOld+slOffsetOld;
       UBYTE *pub1 = pubNew;
+
       for (INDEX i=0; i<slSizeXor; i++) {
-        *pub1++ ^= *pub0++;
+        *(pub1++) ^= *(pub0++);
       }
 
       // copy the xor-ed data
@@ -282,12 +289,15 @@ void UnDiff_t(void)
   }
 
   CRC_Finish(_ulCRC);
+
+//printf("CRC is (%lu), expected (%lu).\n", _ulCRC, ulCRC);
+
   if (_ulCRC!=ulCRC) {
     ThrowF_t(TRANS("CRC error in DIFF!"));
   }
 }
 
-static void Cleanup(void)
+void Cleanup(void)
 {
   if (_pubOld!=NULL) {
     FreeMemory(_pubOld);

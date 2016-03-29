@@ -13,11 +13,11 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include "Engine/StdH.h"
 
 #include <Engine/Base/Memory.h>
-#include <Engine/Base/Filename.h>
-#include <Engine/Base/Statistics_internal.h>
+#include <Engine/Base/FileName.h>
+#include <Engine/Base/Statistics_Internal.h>
 #include <Engine/Math/Matrix.h>
 #include <Engine/Math/Functions.h>
 #include <Engine/Graphics/Color.h>
@@ -67,6 +67,11 @@ ULONG PrepareTexture( UBYTE *pubTexture, PIX pixSizeI, PIX pixSizeJ)
 {
   // need to upload from RGBA format
   const PIX pixTextureSize = pixSizeI*pixSizeJ;
+
+ #if (defined USE_PORTABLE_C)
+   STUBBED("PrepareTexture");
+
+ #elif (defined __MSVC_INLINE__)
   __asm {
     mov     esi,D [pubTexture]
     mov     edi,D [pubTexture]
@@ -82,6 +87,29 @@ pixLoop:
     dec     ecx
     jnz     pixLoop
   }
+
+ #elif (defined __GNU_INLINE__)
+  __asm__ __volatile__ (
+    "leal    0(%%esi, %%ecx), %%edi    \n\t"
+    "0:                                \n\t" // pixLoop
+    "movzbl  (%%esi), %%eax            \n\t"
+    "orl     $0xFFFFFF00, %%eax        \n\t"
+    "bswapl  %%eax                     \n\t"
+    "movl    %%eax, (%%edi)            \n\t"
+    "addl    $1, %%esi                 \n\t"
+    "addl    $4, %%edi                 \n\t"
+    "decl    %%ecx                     \n\t"
+    "jnz     0b                        \n\t" // pixLoop
+        : // no outputs.
+        : "S" (pubTexture), "D" (pubTexture), "c" (pixTextureSize)
+        : "eax", "cc", "memory"
+  );
+
+ #else
+   #error Write inline ASM for your platform.
+
+ #endif
+
   // determine internal format
   extern INDEX gap_bAllowGrayTextures;
   extern INDEX tex_bFineFog;
@@ -272,17 +300,17 @@ void StartFog( CFogParameters &fp, const FLOAT3D &vViewPosAbs, const FLOATmatrix
   // determine where fog starts and ends
   _fog_fStart = LowerLimit(0.0f);
   _fog_fEnd   = UpperLimit(0.0f);
+
+  INDEX pix;
   if( _fog_pubTable[pixSizeL-1]) {
     // going from bottom
-    INDEX pix=pixSizeH-1;
-    for( ; pix>0; pix--) {
+    for( pix=pixSizeH-1; pix>0; pix--) {
       if( (_fog_pubTable[(pix+1)*pixSizeL-1]*_fog_ulAlpha)>>8) break;
     }
     if( pix<(pixSizeH-1)) _fog_fEnd = (FLOAT)(pix+1) / (FLOAT)(pixSizeH-1);
   } else {
     // going from top
-    INDEX pix=0;
-    for( ; pix<pixSizeH; pix++) {
+    for( pix=0; pix<pixSizeH; pix++) {
       if( (_fog_pubTable[(pix+1)*pixSizeL-1]*_fog_ulAlpha)>>8) break;
     }
     if( pix>0) _fog_fStart = (FLOAT)(pix-1) / (FLOAT)(pixSizeH-1);

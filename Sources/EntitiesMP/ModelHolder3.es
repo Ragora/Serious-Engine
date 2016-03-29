@@ -335,11 +335,11 @@ functions:
   /* Get anim data for given animation property - return NULL for none. */
 /*  CAnimData *GetAnimData(SLONG slPropertyOffset) 
   {
-    if (slPropertyOffset==offsetof(CModelHolder3, m_iModelAnimation)) {
+    if (slPropertyOffset==_offsetof(CModelHolder3, m_iModelAnimation)) {
       return GetModelObject()->GetData();
-    } else if (slPropertyOffset==offsetof(CModelHolder3, m_iTextureAnimation)) {
+    } else if (slPropertyOffset==_offsetof(CModelHolder3, m_iTextureAnimation)) {
       return GetModelObject()->mo_toTexture.GetData();
-    } else if (slPropertyOffset==offsetof(CModelHolder3, m_iLightAnimation)) {
+    } else if (slPropertyOffset==_offsetof(CModelHolder3, m_iLightAnimation)) {
       return m_aoLightAnimation.GetData();
     } else {
       return CEntity::GetAnimData(slPropertyOffset);
@@ -529,7 +529,7 @@ functions:
       SetSkaModel_t(m_fnModel);
       // if failed
     } catch(char *strError) {
-      WarningMessage(TRANS("Cannot load ska model '%s':\n%s"), (CTString&)m_fnModel, strError);
+      WarningMessage(TRANS("Cannot load ska model '%s':\n%s"), (const char *) m_fnModel, strError);
       bLoadOK = FALSE;
       // set colision info for default model
       //SetSkaColisionInfo();
@@ -609,7 +609,7 @@ functions:
     m_fFadeEndWait = ClampDn(m_fFadeEndWait, 0.05f);
     m_fFadeSpeed = ClampDn(m_fFadeSpeed, 0.05f);*/
 
-    m_strDescription.PrintF("%s", (CTString&)m_fnModel.FileName());
+    m_strDescription.PrintF("%s", (const char *) m_fnModel.FileName());
 
     return;
   };

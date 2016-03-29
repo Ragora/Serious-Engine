@@ -42,7 +42,7 @@ functions:
       return FALSE;
     }
     // if gradient marker
-    if( slPropertyOffset==offsetof(CBackgroundViewer, m_penWorldSettingsController))
+    if( slPropertyOffset==_offsetof(CBackgroundViewer, m_penWorldSettingsController))
     {
       return IsOfClass(penTarget, "WorldSettingsController");
     }

@@ -13,19 +13,106 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include "Engine/StdH.h"
 
 #include <Engine/Base/FileName.h>
 
 #include <Engine/Base/ErrorReporting.h>
 #include <Engine/Base/Stream.h>
+#include <Engine/Base/FileSystem.h>
 #include <Engine/Templates/NameTable_CTFileName.h>
 #include <Engine/Templates/DynamicStackArray.cpp>
 
-template CDynamicArray<CTFileName>;
-template CDynamicStackArray<CTFileName>;
+template class CDynamicArray<CTFileName>;
+template class CDynamicStackArray<CTFileName>;
 #include <Engine/Templates/StaticStackArray.cpp>
-template CStaticStackArray<long>;
+template class CStaticStackArray<long>;
+
+
+const char *CTFileName::convertFromWin32(const char *src)
+{
+#if (defined PLATFORM_WIN32)
+    return(src);
+#else
+    static const char *dirsep = NULL;
+    static size_t seplen = 0;
+    static char buf[MAX_PATH];  // This is NOT thread safe, fyi.
+    char *dest = buf;
+
+    if (src == NULL)
+    {
+        buf[0] = '\0';
+        return(buf);
+    }
+
+    if (dirsep == NULL)
+    {
+        dirsep = CFileSystem::GetDirSeparator();
+        seplen = strlen(dirsep);
+    }
+
+    for (dest = buf; *src != '\0'; src++)
+    {
+        if (*src == '\\')
+        {
+            strcpy(dest, dirsep);
+            dest += seplen;
+        }
+        else
+        {
+            *(dest++) = *src;
+        }
+    }
+
+    *dest = '\0';
+    return(buf);
+#endif
+}
+
+
+const char *CTFileName::convertToWin32(const char *src)
+{
+#if (defined PLATFORM_WIN32)
+    return(src);
+#else
+    static const char *dirsep = NULL;
+    static size_t seplen = 0;
+    static char buf[MAX_PATH];  // This is NOT thread safe, fyi.
+    char *dest = buf;
+
+    if (src == NULL)
+    {
+        buf[0] = '\0';
+        return(buf);
+    }
+
+    if (dirsep == NULL)
+    {
+        dirsep = CFileSystem::GetDirSeparator();
+        seplen = strlen(dirsep);
+    }
+
+    for (dest = buf; *src != '\0'; src++)
+    {
+        if ((*src == *dirsep) && (strncmp(src, dirsep, seplen) == 0))
+        {
+            *(dest++) = '\\';
+            src += (seplen - 1);
+        }
+        else
+        {
+            *(dest++) = *src;
+        }
+    }
+
+    *dest = '\0';
+    return(buf);
+#endif
+}
+
+
+#define USE_ABSTRACT_CTFILENAME 1
+
 
 /*
  * Get directory part of a filename.
@@ -37,14 +124,32 @@ CTFileName CTFileName::FileDir() const
   // make a temporary copy of string
   CTFileName strPath(*this);
   // find last backlash in it
-  char *pPathBackSlash = strrchr( strPath.str_String, '\\');
+
+#ifdef USE_ABSTRACT_CTFILENAME
+  const char *dirsep = CFileSystem::GetDirSeparator();
+  char *pPathBackSlash = strstr( strPath.str_String, dirsep);
   // if there is no backslash
   if( pPathBackSlash == NULL) {
     // return emptystring as directory
     return( CTFileName(""));
   }
+
+  for (char *p = pPathBackSlash;
+        (p = strstr(p + 1, dirsep)) != NULL;
+        pPathBackSlash = p)
+  {
+      // (*yawn*).
+  }
+
   // set end of string after where the backslash was
+  pPathBackSlash[strlen(dirsep)] = 0;
+
+#else
+
+  char *pPathBackSlash = strrchr( strPath.str_String, '\\');
   pPathBackSlash[1] = 0;
+#endif
+
   // return a copy of temporary string
   return( CTFileName( strPath));
 }
@@ -64,23 +169,50 @@ CTFileName CTFileName::FileName() const
 
   // make a temporary copy of string
   CTFileName strPath(*this);
+
+  // find last backlash in what's left
+#ifdef USE_ABSTRACT_CTFILENAME
+  const char *dirsep = CFileSystem::GetDirSeparator();
+  char *pBackSlash = strstr( strPath.str_String, dirsep);
+  // if there is no backslash
+  if( pBackSlash == NULL) {
+    // return it all as filename
+    pBackSlash = strPath.str_String;
+  } else {
+    for (char *p = pBackSlash;
+          (p = strstr(p + 1, dirsep)) != NULL;
+          pBackSlash = p)
+    {
+        // (*yawn*).
+    }
+
+    pBackSlash += strlen(dirsep);
+  }
+
   // find last dot in it
-  char *pDot = strrchr( strPath.str_String, '.');
+  char *pDot = strrchr(pBackSlash, '.');
   // if there is a dot
   if( pDot != NULL) {
     // set end of string there
-    pDot[0] = 0;
+    *pDot = '\0';
   }
 
-  // find last backlash in what's left
+  // return a copy of temporary string, starting after the backslash
+  return( CTFileName( pBackSlash ));
+
+#else
+
   char *pBackSlash = strrchr( strPath.str_String, '\\');
+
   // if there is no backslash
   if( pBackSlash == NULL) {
     // return it all as filename
     return( CTFileName(strPath));
   }
+
   // return a copy of temporary string, starting after the backslash
   return( CTFileName( pBackSlash+1));
+#endif
 }
 
 /*
@@ -117,9 +249,9 @@ static INDEX GetSlashPosition(const CHAR* pszString)
 }
 
 /*
- * Set path to the absolute path, taking \.. and /.. into account.
+ * Remove application path from a file name.
  */
-void CTFileName::SetAbsolutePath(void)
+void CTFileName::RemoveApplicationPath_t(void) // throws char *
 {
   // Collect path parts
   CTString strRemaining(*this);
@@ -183,11 +315,16 @@ BOOL CTFileName::RemoveApplicationPath_t(void) // throws char *
   CTFileName fnmApp = _fnmApplicationPath;
   fnmApp.SetAbsolutePath();
   // remove the path string from beginning of the string
-  BOOL bIsRelative = RemovePrefix(fnmApp);
+  BOOL bHadRightPath = RemovePrefix(_fnmApplicationPath);
   if (_fnmMod!="") {
     RemovePrefix(_fnmApplicationPath+_fnmMod);
   }
-  return bIsRelative;
+  // if it had wrong path
+  if (!bHadRightPath) {
+    // throw error
+    ThrowF_t(TRANS("File '%s' has got wrong path!\nAll files must reside in directory '%s'."),
+      str_String, (const char *) (CTString&)_fnmApplicationPath);
+  }
 }
 
 /*
@@ -208,8 +345,16 @@ BOOL CTFileName::RemoveApplicationPath_t(void) // throws char *
     char strTag[] = "_FNM"; strTag[0] = 'D';  // must create tag at run-time!
     // skip dependency catcher header
     strmStream.ExpectID_t(strTag);    // data filename
+
     // read the string
+#ifdef PLATFORM_WIN32
     strmStream>>(CTString &)fnmFileName;
+#else
+    CTString ctstr;
+    strmStream>>ctstr;
+    fnmFileName = CTString(CTFileName::convertFromWin32(ctstr));  // converts from win32 paths.
+#endif
+
     fnmFileName.fnm_pserPreloaded = NULL;
   }
 
@@ -241,11 +386,23 @@ BOOL CTFileName::RemoveApplicationPath_t(void) // throws char *
     // write dependency catcher header
     strmStream.WriteID_t(strTag);     // data filename
     // write the string
+#ifdef PLATFORM_WIN32
     strmStream<<(CTString &)fnmFileName;
+#else
+    strmStream<<CTString(CTFileName::convertToWin32(fnmFileName));
+#endif
   }
 
   return strmStream;
 }
+
+
+// rcg01062002
+CTString CTFileName::Win32FmtString(void) const
+{
+    return(CTString(convertToWin32(*this)));
+}
+
 
 void CTFileName::ReadFromText_t(CTStream &strmStream,
                                 const CTString &strKeyword) // throw char *

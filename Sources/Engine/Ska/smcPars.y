@@ -4,8 +4,12 @@
 #include <Engine/Ska/AnimSet.h>
 #include <Engine/Ska/StringTable.h>
 #include <Engine/Base/ErrorReporting.h>
-#include <Engine/Base/Shell.h>
 #include <Engine/Templates/DynamicContainer.cpp>
+
+// for static linking mojo...
+#define yyparse yyparse_engine_ska_smcpars
+#define yyerror yyerror_engine_ska_smcpars
+#define yylex yylex_engine_ska_smcpars
 #include "ParsingSmbs.h"
 
 extern BOOL bRememberSourceFN;
@@ -13,13 +17,19 @@ BOOL bOffsetAllreadySet = FALSE;
 %}
 
 %{
+// turn off over-helpful bit of bison... --ryan.
+#ifdef __GNUC__
+#define __attribute__(x)
+#endif
+
 #define YYERROR_VERBOSE 0
+
 // if error occurs in parsing
-void syyerror(char *str)
+void yyerror(char *str)
 {
-  // just report the string
-  _pShell->ErrorF("%s", str);
-};
+  //_pShell->ErrorF("%s", str);
+  _pShell->ErrorF("File '%s'\n %s (line %d)",SMCGetBufferName(), str, SMCGetBufferLineNumber());
+}
 %}
 
 /* BISON Declarations */

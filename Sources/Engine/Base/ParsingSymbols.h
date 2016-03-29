@@ -17,7 +17,14 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <Engine/Templates/AllocationArray.h>
 
 // needed for parser and scanner
+#ifdef PLATFORM_WIN32
 #define alloca _alloca
+#endif
+
+// for static linking mojo...
+#define yyparse yyparse_engine_base_parser
+#define yyerror yyerror_engine_base_parser
+
 extern void yyerror(char *s);
 extern int yyparse(void);
 

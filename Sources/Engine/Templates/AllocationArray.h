@@ -55,8 +55,36 @@ public:
   inline BOOL IsAllocated(INDEX i);
 
   /* Random access operator. */
-  inline Type &operator[](INDEX iObject);
-  inline const Type &operator[](INDEX iObject) const;
+  inline Type &operator[](INDEX iObject)
+  {
+  #ifndef NDEBUG
+    ASSERT(this!=NULL);
+    // must be within pool limits
+    ASSERT(iObject>=0 && iObject<CStaticArray<Type>::Count());
+    // must not be free
+// !!! FIXME: rcg10162001 add this back in.
+//    if (_bAllocationArrayParanoiaCheck) {
+//      ASSERT(IsAllocated(iObject));
+//    }
+  #endif
+    return CStaticArray<Type>::operator[](iObject);
+  }
+
+  inline const Type &operator[](INDEX iObject) const
+  {
+  #ifndef NDEBUG
+    ASSERT(this!=NULL);
+    // must be within pool limits
+    ASSERT(iObject>=0 && iObject<CStaticArray<Type>::Count());
+    // must not be free
+// !!! FIXME: rcg10162001 add this back in.
+//    if (_bAllocationArrayParanoiaCheck) {
+//      ASSERT(IsAllocated(iObject));
+//    }
+  #endif
+    return CStaticArray<Type>::operator[](iObject);
+  }
+
   /* Get number of allocated objects in array. */
   INDEX Count(void) const;
   /* Get index of a object from it's pointer. */

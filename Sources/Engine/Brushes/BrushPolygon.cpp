@@ -13,7 +13,7 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include "Engine/StdH.h"
 
 #include <Engine/Brushes/Brush.h>
 #include <Engine/Brushes/BrushTransformed.h>
@@ -26,9 +26,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <Engine/Entities/Entity.h>
 #include <Engine/Templates/Selection.cpp>
 
-template CStaticArray<CBrushPolygonEdge>;
-template CStaticArray<CBrushPolygon>;
-template CStaticArray<long>;
+template class CStaticArray<CBrushPolygonEdge>;
+template class CStaticArray<CBrushPolygon>;
+template class CStaticArray<long>;
 
 // set new absolute position for the vertex
 void CBrushVertex::SetAbsolutePosition(const DOUBLE3D &vAbsolute)

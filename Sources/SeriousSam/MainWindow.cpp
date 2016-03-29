@@ -13,20 +13,27 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include "SeriousSam/StdH.h"
 #include "MainWindow.h"
 #include "resource.h"
 
-extern BOOL _bWindowChanging = FALSE;    // ignores window messages while this is set
-extern HWND _hwndMain = NULL;
-static char achWindowTitle[256]; // current window title
+// !!! FIXME : Make a clean abstraction, remove these #ifdefs.
+#ifdef PLATFORM_UNIX
+#include "SDL.h"
+#endif
 
-static HBITMAP _hbmSplash = NULL;
-static BITMAP  _bmSplash;
+BOOL _bWindowChanging = FALSE;    // ignores window messages while this is set
+HWND _hwndMain = NULL;
+
+static char achWindowTitle[256]; // current window title
 
 // for window reposition function
 static PIX _pixLastSizeI, _pixLastSizeJ;
 
+
+#ifdef PLATFORM_WIN32
+static HBITMAP _hbmSplash = NULL;
+static BITMAP  _bmSplash;
 
 // window procedure active while window changes are occuring
 LRESULT WindowProc_WindowChanging( HWND hWnd, UINT message, 
@@ -123,11 +130,12 @@ LRESULT CALLBACK WindowProc( HWND hWnd, UINT message,
     return WindowProc_Normal(hWnd, message, wParam, lParam);
   }
 }
-
+#endif
 
 // init/end main window management
 void MainWindow_Init(void)
 {
+#ifdef PLATFORM_WIN32
   // register the window class
   WNDCLASSEXA wc;
   wc.cbSize = sizeof(wc);
@@ -155,29 +163,94 @@ void MainWindow_Init(void)
   ASSERT(_hbmSplash!=NULL);
   GetObject(_hbmSplash, sizeof(BITMAP), (LPSTR) &_bmSplash); 
   // here was loading and setting of no-windows-mouse-cursor
+
+#else
+  STUBBED("load window icon");
+#endif
 }
 
 
 void MainWindow_End(void)
 {
+#ifdef PLATFORM_WIN32
   DeleteObject(_hbmSplash);
+#else
+  STUBBED("");
+#endif
 }
 
 
 // close the main application window
 void CloseMainWindow(void)
 {
+#ifdef PLATFORM_WIN32
   // if window exists
   if( _hwndMain!=NULL) {
     // destroy it
     DestroyWindow(_hwndMain);
     _hwndMain = NULL;
   }
+#else
+  _hwndMain = NULL;
+#endif
 }
+
+#ifdef PLATFORM_UNIX
+static void CreateSDLWindow(PIX pixSizeI, PIX pixSizeJ,
+                            const char *title, const char *icon,
+                            Uint32 flags)
+{
+  flags |= SDL_OPENGL;
+
+  SDL_WM_SetCaption(title, icon);
+
+  SDL_GL_SetAttribute( SDL_GL_DEPTH_SIZE, 16 );
+  SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
+
+  // ShowCursor(0) and input grabbing need to be done here to prevent a
+  //  Voodoo 3 bug. Was this ever fixed?
+  SDL_ShowCursor(0);
+  SDL_WM_GrabInput(SDL_GRAB_ON);
+
+  int color_depth[] = {32, 24, 16, 15, -1};
+  int i;
+
+  if (_pGfx->gl_iCurrentDepth != 0)
+  {
+    color_depth[0] = _pGfx->gl_iCurrentDepth;
+    color_depth[1] = -1;
+  } // if
+
+  for (i = 0; color_depth[i] > 0; i++)
+  {
+    int bits = (color_depth[i] >= 24) ? 8 : 5;
+    SDL_GL_SetAttribute(SDL_GL_RED_SIZE, bits);
+    SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, bits);
+    SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, bits);
+    if (SDL_SetVideoMode(pixSizeI, pixSizeJ, color_depth[i], flags) != NULL)
+      break;
+    CPrintF("SDL_SetVideoMode() failed at %d-bit color! Reason: %s\n", color_depth[i], SDL_GetError());
+  } // for
+
+  SDL_WM_GrabInput(SDL_GRAB_OFF);
+
+  if (color_depth[i] > 0)
+    _pGfx->gl_iCurrentDepth = color_depth[i];
+  else
+  {
+    SDL_Quit();
+    FatalError("Failed to create GL context.\n");
+  } // else
+
+  _hwndMain = (void *) 0x0001;
+  SE_UpdateWindowHandle( _hwndMain);
+} // CreateSDLWindow
+#endif
 
 
 void ResetMainWindowNormal(void)
 {
+#ifdef PLATFORM_WIN32
   ShowWindow( _hwndMain, SW_HIDE);
   // add edges and title bar to window size so client area would have size that we requested
   RECT rWindow, rClient;
@@ -190,12 +263,14 @@ void ResetMainWindowNormal(void)
   // set new window size and show it
   SetWindowPos( _hwndMain, NULL, pixPosX,pixPosY, pixWidth,pixHeight, SWP_NOZORDER);
   ShowWindow(   _hwndMain, SW_SHOW);
+#endif
 }
 
 
 // open the main application window for windowed mode
 void OpenMainWindowNormal( PIX pixSizeI, PIX pixSizeJ)
 {
+#ifdef PLATFORM_WIN32
   ASSERT(_hwndMain==NULL);
 
   // create a window, invisible initially
@@ -220,12 +295,21 @@ void OpenMainWindowNormal( PIX pixSizeI, PIX pixSizeJ)
   _pixLastSizeI = pixSizeI;
   _pixLastSizeJ = pixSizeJ;
   ResetMainWindowNormal();
+
+#else
+  _pixLastSizeI = pixSizeI;
+  _pixLastSizeJ = pixSizeJ;
+  // set window title
+  sprintf( achWindowTitle, TRANS("Serious Sam (Window %dx%d)"), pixSizeI, pixSizeJ);
+  CreateSDLWindow(pixSizeI, pixSizeJ, achWindowTitle, "ssam", 0);
+#endif
 }
 
 
 // open the main application window for fullscreen mode
 void OpenMainWindowFullScreen( PIX pixSizeI, PIX pixSizeJ)
 {
+#ifdef PLATFORM_WIN32
   ASSERT( _hwndMain==NULL);
   // create a window, invisible initially
   _hwndMain = CreateWindowExA(
@@ -247,12 +331,19 @@ void OpenMainWindowFullScreen( PIX pixSizeI, PIX pixSizeJ)
   sprintf( achWindowTitle, TRANS("Serious Sam (FullScreen %dx%d)"), pixSizeI, pixSizeJ);
   SetWindowTextA( _hwndMain, achWindowTitle);
   ShowWindow(    _hwndMain, SW_SHOWNORMAL);
+
+#else
+  // set window title
+  sprintf( achWindowTitle, TRANS("Serious Sam (FullScreen %dx%d)"), pixSizeI, pixSizeJ);
+  CreateSDLWindow(pixSizeI, pixSizeJ, achWindowTitle, "ssam", SDL_FULLSCREEN);
+#endif
 }
 
 
 // open the main application window invisible
 void OpenMainWindowInvisible(void)
 {
+#ifdef PLATFORM_WIN32
   ASSERT(_hwndMain==NULL);
   // create a window, invisible initially
   _hwndMain = CreateWindowExA(
@@ -279,4 +370,11 @@ void OpenMainWindowInvisible(void)
   // set window title
   sprintf( achWindowTitle, "Serious Sam");
   SetWindowTextA( _hwndMain, achWindowTitle);
+
+#else
+
+  STUBBED("Need SDL invisible window or something");
+
+#endif
 }
+

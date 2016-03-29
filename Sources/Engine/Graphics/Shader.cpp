@@ -13,7 +13,7 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include "Engine/StdH.h"
 #include <Engine/Base/Stream.h>
 #include <Engine/Math/Projection.h>
 #include <Engine/Ska/Render.h>
@@ -52,7 +52,7 @@ static COLOR       _colModel   = 0x000000FF;     // Model color
 static GFXColor    _colLight   = 0x000000FF;     // Light color
 static FLOAT3D     _vLightDir  = FLOAT3D(0,0,0); // Light direction
 
-static COLOR       _colConstant   = NULL; // current set color
+static COLOR       _colConstant  = 0;     // current set color
 static COLOR       *_paColors    = NULL;  // array of colors to chose from
 static FLOAT       *_paFloats    = NULL;  // array of floats to chose from
 static ULONG       _ulFlags      = 0;
@@ -191,7 +191,7 @@ void shaCalculateLight(void)
       colAmbient = 0xFFFFFFFF;
     }
     colConstant.MultiplyRGBA(colLight,colAmbient);
-    shaSetConstantColor(ByteSwap(colConstant.abgr));
+    shaSetConstantColor(ByteSwap(colConstant.ul.abgr));
     // no vertex colors
     return;
   }
@@ -200,17 +200,17 @@ void shaCalculateLight(void)
   _acolVtxColors.PopAll();
   _acolVtxColors.Push(_ctVertices);
 
-  GFXColor colModel   = (GFXColor)_colModel;   // Model color
-  GFXColor &colAmbient = (GFXColor)_colAmbient; // Ambient color
-  GFXColor &colLight   = (GFXColor)_colLight;   // Light color
-  GFXColor &colSurface = (GFXColor)_colConstant; // shader color
+  GFXColor colModel   = _colModel;   // Model color
+  const GFXColor &colAmbient = _colAmbient; // Ambient color
+  const GFXColor &colLight   = _colLight;   // Light color
+  const GFXColor &colSurface = _colConstant; // shader color
 
   colModel.MultiplyRGBA(colModel,colSurface);
 
   UBYTE ubColShift = 8;
-  SLONG slar = colAmbient.r;
-  SLONG slag = colAmbient.g;
-  SLONG slab = colAmbient.b;
+  SLONG slar = colAmbient.ub.r;
+  SLONG slag = colAmbient.ub.g;
+  SLONG slab = colAmbient.ub.b;
 
   if(shaOverBrightningEnabled()) {
     slar = ClampUp(slar,127L);
@@ -227,15 +227,15 @@ void shaCalculateLight(void)
   // for each vertex color
   for(INDEX ivx=0;ivx<_ctVertices;ivx++) {
     // calculate vertex light
-    FLOAT3D &vNorm = FLOAT3D(_paNormals[ivx].nx,_paNormals[ivx].ny,_paNormals[ivx].nz);
+    const FLOAT3D &vNorm = FLOAT3D(_paNormals[ivx].nx,_paNormals[ivx].ny,_paNormals[ivx].nz);
     FLOAT fDot = vNorm % _vLightDir;
     fDot = Clamp(fDot,0.0f,1.0f);
     SLONG slDot = NormFloatToByte(fDot);
 
-    _acolVtxColors[ivx].r = ClampUp(colModel.r * (slar + ((colLight.r * slDot)>>ubColShift))>>8,255L);
-    _acolVtxColors[ivx].g = ClampUp(colModel.g * (slag + ((colLight.g * slDot)>>ubColShift))>>8,255L);
-    _acolVtxColors[ivx].b = ClampUp(colModel.b * (slab + ((colLight.b * slDot)>>ubColShift))>>8,255L);
-    _acolVtxColors[ivx].a = colModel.a;//slDot;
+    _acolVtxColors[ivx].ub.r = ClampUp(colModel.ub.r * (slar + ((colLight.ub.r * slDot)>>ubColShift))>>8,255L);
+    _acolVtxColors[ivx].ub.g = ClampUp(colModel.ub.g * (slag + ((colLight.ub.g * slDot)>>ubColShift))>>8,255L);
+    _acolVtxColors[ivx].ub.b = ClampUp(colModel.ub.b * (slab + ((colLight.ub.b * slDot)>>ubColShift))>>8,255L);
+    _acolVtxColors[ivx].ub.a = colModel.ub.a;//slDot;
   }
   // Set current vertex color array 
   _pcolVtxColors = &_acolVtxColors[0];
@@ -249,17 +249,17 @@ void shaCalculateLightForSpecular(void)
   _acolVtxColors.Push(_ctVertices);
 
   GFXColor colModel   = (GFXColor)_colModel;   // Model color
-  GFXColor &colAmbient = (GFXColor)_colAmbient; // Ambient color
-  GFXColor &colLight   = (GFXColor)_colLight;   // Light color
-  GFXColor &colSurface = (GFXColor)_colConstant; // shader color
+  const GFXColor &colAmbient = (GFXColor)_colAmbient; // Ambient color
+  const GFXColor &colLight   = (GFXColor)_colLight;   // Light color
+  const GFXColor &colSurface = (GFXColor)_colConstant; // shader color
 
   // colModel = MulColors(colModel.r,colSurface.abgr);
   colModel.MultiplyRGBA(colModel,colSurface);
 
   UBYTE ubColShift = 8;
-  SLONG slar = colAmbient.r;
-  SLONG slag = colAmbient.g;
-  SLONG slab = colAmbient.b;
+  SLONG slar = colAmbient.ub.r;
+  SLONG slag = colAmbient.ub.g;
+  SLONG slab = colAmbient.ub.b;
 
   if(shaOverBrightningEnabled()) {
     slar = ClampUp(slar,127L);
@@ -276,15 +276,15 @@ void shaCalculateLightForSpecular(void)
   // for each vertex color
   for(INDEX ivx=0;ivx<_ctVertices;ivx++) {
     // calculate vertex light
-    FLOAT3D &vNorm = FLOAT3D(_paNormals[ivx].nx,_paNormals[ivx].ny,_paNormals[ivx].nz);
+    const FLOAT3D &vNorm = FLOAT3D(_paNormals[ivx].nx,_paNormals[ivx].ny,_paNormals[ivx].nz);
     FLOAT fDot = vNorm % _vLightDir;
     fDot = Clamp(fDot,0.0f,1.0f);
     SLONG slDot = NormFloatToByte(fDot);
 
-    _acolVtxColors[ivx].r = ClampUp(colModel.r * (slar + ((colLight.r * slDot)>>ubColShift))>>8,255L);
-    _acolVtxColors[ivx].g = ClampUp(colModel.g * (slag + ((colLight.g * slDot)>>ubColShift))>>8,255L);
-    _acolVtxColors[ivx].b = ClampUp(colModel.b * (slab + ((colLight.b * slDot)>>ubColShift))>>8,255L);
-    _acolVtxColors[ivx].a = slDot;//colModel.a;//slDot;
+    _acolVtxColors[ivx].ub.r = ClampUp(colModel.ub.r * (slar + ((colLight.ub.r * slDot)>>ubColShift))>>8,255L);
+    _acolVtxColors[ivx].ub.g = ClampUp(colModel.ub.g * (slag + ((colLight.ub.g * slDot)>>ubColShift))>>8,255L);
+    _acolVtxColors[ivx].ub.b = ClampUp(colModel.ub.b * (slab + ((colLight.ub.b * slDot)>>ubColShift))>>8,255L);
+    _acolVtxColors[ivx].ub.a = slDot;//colModel.ub.a;//slDot;
   }
   // Set current wertex array 
   _pcolVtxColors = &_acolVtxColors[0];
@@ -554,13 +554,13 @@ FLOAT3D &shaGetLightDirection(void)
 // Get current light color
 COLOR &shaGetLightColor(void)
 {
-  return _colLight.abgr;
+  return _colLight.ul.abgr;
 }
 
 // Get current ambient volor
 COLOR &shaGetAmbientColor(void)
 {
-  return _colAmbient.abgr;
+  return _colAmbient.ul.abgr;
 }
 
 // Get current set color
@@ -782,7 +782,7 @@ void CShader::Clear(void)
   ShaderFunc = NULL;
   GetShaderDesc = NULL;
   // release dll
-  if(hLibrary!=NULL) FreeLibrary(hLibrary);
+  if(hLibrary!=NULL) delete hLibrary;
 }
 
 // Count used memory
@@ -809,41 +809,58 @@ void CShader::Read_t(CTStream *istrFile)
   strShaderInfo.ReadFromText_t(*istrFile, "Info: ");
 
   // create name of dll
-  #ifndef NDEBUG
-    fnmDLL = _fnmApplicationExe.FileDir()+fnmDLL.FileName()+/*_strModExt+*/"D"+fnmDLL.FileExt();
+  #ifdef STATICALLY_LINKED
+    #define fnmExpanded NULL
   #else
-    fnmDLL = _fnmApplicationExe.FileDir()+fnmDLL.FileName()+/*_strModExt+*/fnmDLL.FileExt();
+    #ifndef NDEBUG
+      fnmDLL = fnmDLL.FileDir()+"Debug\\"+fnmDLL.FileName()+/*_strModExt+*/"D"+fnmDLL.FileExt();
+    #else
+      fnmDLL = fnmDLL.FileDir()+fnmDLL.FileName()+/*_strModExt+*/fnmDLL.FileExt();
+    #endif
+    fnmDLL = CDynamicLoader::ConvertLibNameToPlatform(fnmDLL);
+    CTFileName fnmExpanded;
+    ExpandFilePath(EFP_READ | EFP_NOZIPS,fnmDLL,fnmExpanded);
   #endif
 
-  CTFileName fnmExpanded;
-  ExpandFilePath(EFP_READ | EFP_NOZIPS,fnmDLL,fnmExpanded);
+  // !!! FIXME : rcg12142001 Should I move this into CWin32DynamicLoader?
+  #ifdef PLATFORM_WIN32
   // set new error mode
-  UINT iOldErrorMode = SetErrorMode(SEM_NOOPENFILEERRORBOX|SEM_FAILCRITICALERRORS);
+  const UINT iOldErrorMode = SetErrorMode(SEM_NOOPENFILEERRORBOX|SEM_FAILCRITICALERRORS);
+  #endif
+
   // load dll
-  hLibrary = LoadLibraryA((const char*)fnmExpanded);
+  hLibrary = CDynamicLoader::GetInstance(fnmExpanded);
+
+  // !!! FIXME : rcg12142001 Should I move this into CWin32DynamicLoader?
+  #ifdef PLATFORM_WIN32
   // return last error mode
   SetErrorMode(iOldErrorMode);
+  #endif
+
   // check if library has loaded
-  if(hLibrary==NULL)
+  const char *errmsg = hLibrary->GetError();
+  if(errmsg != NULL)
   {
     // report error
-    istrFile->Throw_t("Error loading '%s' library",(const char*)fnmExpanded);
+    istrFile->Throw_t("Error loading '%s' library: %s",(const char*)fnmExpanded, errmsg);
     return;
   }
+
   // get pointer to shader render function
-  ShaderFunc = (void(*)(void))GetProcAddress(hLibrary,(const char*)strShaderFunc);
-  // if error accured
+  ShaderFunc = (void(*)(void))hLibrary->FindSymbol(strShaderFunc);
+  // if error occured
   if(ShaderFunc==NULL)
   {
     // report error
-    istrFile->Throw_t("GetProcAddress 'ShaderFunc' Error");
+    istrFile->Throw_t("CDynamicLoader::GetSymbol() 'ShaderFunc' Error: %s", hLibrary->GetError());
   }
   // get pointer to shader info function
-  GetShaderDesc = (void(*)(ShaderDesc&))GetProcAddress(hLibrary,(const char*)strShaderInfo);
-  // if error accured
-  if(GetShaderDesc==NULL) {
+  GetShaderDesc = (void(*)(ShaderDesc&))hLibrary->FindSymbol(strShaderInfo);
+  // if error occured
+  if(GetShaderDesc==NULL)
+  {
     // report error
-    istrFile->Throw_t("GetProcAddress 'ShaderDesc' Error");
+    istrFile->Throw_t("CDynamicLoader::GetSymbol() 'ShaderDesc' Error: %s", hLibrary->GetError());
   }
 }
 

@@ -61,11 +61,11 @@ functions:
   /* Get anim data for given animation property - return NULL for none. */
   CAnimData *GetAnimData(SLONG slPropertyOffset) 
   {
-    if (slPropertyOffset==offsetof(CSwitch, m_iModelONAnimation) ||
-        slPropertyOffset==offsetof(CSwitch, m_iModelOFFAnimation)) {
+    if (slPropertyOffset==_offsetof(CSwitch, m_iModelONAnimation) ||
+        slPropertyOffset==_offsetof(CSwitch, m_iModelOFFAnimation)) {
       return GetModelObject()->GetData();
-    } else if (slPropertyOffset==offsetof(CSwitch, m_iTextureONAnimation) ||
-               slPropertyOffset==offsetof(CSwitch, m_iTextureOFFAnimation)) {
+    } else if (slPropertyOffset==_offsetof(CSwitch, m_iTextureONAnimation) ||
+               slPropertyOffset==_offsetof(CSwitch, m_iTextureOFFAnimation)) {
       return GetModelObject()->mo_toTexture.GetData();
     } else {
       return CModelHolder2::GetAnimData(slPropertyOffset);

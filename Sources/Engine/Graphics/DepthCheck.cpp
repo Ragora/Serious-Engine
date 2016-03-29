@@ -13,7 +13,7 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include <Engine/StdH.h>
 
 
 #include <Engine/Base/Console.h>
@@ -21,7 +21,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <Engine/Graphics/Raster.h>
 #include <Engine/Graphics/ViewPort.h>
 
-#include <Engine/Base/Statistics_internal.h>
+#include <Engine/Base/Statistics_Internal.h>
 #include <Engine/Templates/StaticArray.cpp>
 #include <Engine/Templates/StaticStackArray.cpp>
 
@@ -55,11 +55,7 @@ static void UpdateDepthPointsVisibility( const CDrawPort *pdp, const INDEX iMirr
                                          DepthInfo *pdi, const INDEX ctCount)
 {
   const GfxAPIType eAPI = _pGfx->gl_eCurrentAPI;
-#ifdef SE1_D3D
-  ASSERT(eAPI == GAT_OGL || eAPI == GAT_D3D || eAPI == GAT_NONE);
-#else // SE1_D3D
-  ASSERT(eAPI == GAT_OGL || eAPI == GAT_NONE);
-#endif // SE1_D3D
+  ASSERT(GfxValidApi(eAPI));
   ASSERT( pdp!=NULL && ctCount>0);
   const CRaster *pra = pdp->dp_Raster;
 
@@ -289,9 +285,10 @@ extern void CheckDelayedDepthPoints( const CDrawPort *pdp, INDEX iMirrorLevel/*=
   // ignore stalls
   if( tmDelta>1.0f) return;
 
-  // check and upadete visibility of what has left
+  // check and update visibility of what has left
   ASSERT( ctPoints == _adiDelayed.Count());
   if( ctPoints>0) UpdateDepthPointsVisibility( pdp, iMirrorLevel, &_adiDelayed[0], ctPoints);
+
   // mark checking
   _iCheckIteration++;
 }

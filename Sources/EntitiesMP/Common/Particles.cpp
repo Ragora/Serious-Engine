@@ -13,7 +13,7 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include "EntitiesMP/StdH/StdH.h"
 #include "EntitiesMP/BloodSpray.h"
 #include "EntitiesMP/PlayerWeapons.h"
 #include "EntitiesMP/WorldSettingsController.h"
@@ -1142,8 +1142,8 @@ void Particles_RocketTrail(CEntity *pen, FLOAT fStretch)
   const FLOAT3D *pvPos2 = &plp->GetPosition(1);
   INDEX iParticle = 0;
   INDEX iParticlesLiving = plp->lp_ctUsed*ROCKET_TRAIL_INTERPOSITIONS;
-  INDEX iPos=2;
-  for( ; iPos<plp->lp_ctUsed; iPos++)
+  INDEX iPos;
+  for( iPos=2; iPos<plp->lp_ctUsed; iPos++)
   {
     pvPos1 = pvPos2;
     pvPos2 = &plp->GetPosition(iPos);
@@ -1219,9 +1219,9 @@ void Particles_ExplosionDebris1(CEntity *pen, FLOAT tmStart, FLOAT3D vStretch, C
     vRel(3)*=vStretch(3);
     FLOAT3D vPos=vCenter+vRel;
     
-    UBYTE ubR = 255;
-    UBYTE ubG = 240+afStarsPositions[iRnd][1]*32;
-    UBYTE ubB = 240+afStarsPositions[iRnd][2]*32;
+    UBYTE ubR = (UBYTE) (255);
+    UBYTE ubG = (UBYTE) (240+afStarsPositions[iRnd][1]*32);
+    UBYTE ubB = (UBYTE) (240+afStarsPositions[iRnd][2]*32);
     COLOR colAlpha = pTD->GetTexel(PIX(ClampUp(fRatio*1024.0f, 1023.0f)), 0);
     COLOR col= RGBToColor( ubR, ubG, ubB) | (colAlpha&0x000000FF);
     col=MulColors(col, colMultiply);
@@ -1317,9 +1317,9 @@ void Particles_ExplosionDebris3(CEntity *pen, FLOAT tmStart, FLOAT3D vStretch, C
     FLOAT3D vOldPos=vCenter+vRelOld;
     if( (vPos - vOldPos).Length() == 0.0f) {continue;}
     
-    UBYTE ubR = 255;
-    UBYTE ubG = 200+afStarsPositions[iRnd][1]*32;
-    UBYTE ubB = 150+afStarsPositions[iRnd][2]*32;
+    UBYTE ubR = (UBYTE) (255);
+    UBYTE ubG = (UBYTE) (200+afStarsPositions[iRnd][1]*32);
+    UBYTE ubB = (UBYTE) (150+afStarsPositions[iRnd][2]*32);
     COLOR colAlpha = pTD->GetTexel(PIX(ClampUp(fRatio*1024.0f, 1023.0f)), 0);
     COLOR col= RGBToColor( ubR, ubG, ubB) | (colAlpha&0x000000FF);
     col=MulColors(col, colMultiply);
@@ -1538,7 +1538,7 @@ INDEX Particles_FireBreath(CEntity *pen, FLOAT3D vSource, FLOAT3D vTarget, FLOAT
       afStarsPositions[iFlame][2])*10;
     FLOAT3D vPos = Lerp( vSource, vFocus+vRnd, fT);
     FLOAT fSize = 5.0f*fT+5.0f;
-    UBYTE ub = CalculateRatio( fT, 0.0f, 1.0f, 0.1f, 0.2f)*255;
+    UBYTE ub = (UBYTE) CalculateRatio( fT, 0.0f, 1.0f, 0.1f, 0.2f)*255;
     Particle_RenderSquare( vPos, fSize, fT*(1.0f+afStarsPositions[iFlame*3][1])*360.0f, RGBToColor(ub,ub,ub)|0xFF);
     ctRendered++;
   }
@@ -1589,10 +1589,10 @@ INDEX Particles_Regeneration(CEntity *pen, FLOAT tmStart, FLOAT tmStop, FLOAT fY
       vPos2 = Lerp( vSource, vDestination, fT2);
     }
     
-    UBYTE ubR = 192+afStarsPositions[iRnd][1]*64;
-    UBYTE ubG = 192+afStarsPositions[iRnd][2]*64;
-    UBYTE ubB = 192+afStarsPositions[iRnd][3]*64;
-    UBYTE ubA = CalculateRatio( fT, 0.0f, 1.0f, 0.4f, 0.01f)*255;
+    UBYTE ubR = (UBYTE) (192+afStarsPositions[iRnd][1]*64);
+    UBYTE ubG = (UBYTE) (192+afStarsPositions[iRnd][2]*64);
+    UBYTE ubB = (UBYTE) (192+afStarsPositions[iRnd][3]*64);
+    UBYTE ubA = (UBYTE) CalculateRatio( fT, 0.0f, 1.0f, 0.4f, 0.01f)*255;
     COLOR colLine = RGBToColor( ubR, ubG, ubB) | ubA;
     
     FLOAT fSize = 1.0f;
@@ -1732,7 +1732,7 @@ void Particles_FlameThrowerStart(const CPlacement3D &plPipe, FLOAT fStartTime, F
 
   FLOAT fPowerFactor = Clamp((fNow - fStartTime)/2.0f,0.0f,1.0f);
   fPowerFactor *= Clamp(1+(fStopTime-fNow)/2.0f,0.0f,1.0f);
-  INDEX ctParticles = FLOAT(CT_FTSPARKS) * fPowerFactor;
+  INDEX ctParticles = (INDEX) (FLOAT(CT_FTSPARKS) * fPowerFactor);
   ASSERT( ctParticles<=CT_MAX_PARTICLES_TABLE);
   FLOAT fHeight = 1.0f*fPowerFactor;
   INDEX iParticle=0;
@@ -1804,12 +1804,12 @@ void Particles_ShooterFlame(const CPlacement3D &plEnd, const CPlacement3D &plSta
     FLOAT fAngle = fTime*180.0f*afStarsPositions[iRndFact][0];
     // transparency
     UBYTE ub = 255;
-    if (fTime>1.0f) ub = 0.0f;
-    else if(fTime>0.6f) ub = (1.0-fTime)*(1.0/0.4)*255;
+    if (fTime>1.0f) ub = 0;
+    else if(fTime>0.6f) ub = (UBYTE) ((1.0-fTime)*(1.0/0.4)*255);
     // color with a bit of red tint before the burnout
     COLOR col = RGBToColor(192, 192, 192);
     if (fTime>0.95f) col = RGBToColor(192, 0, 0);
-    else if (fTime>0.4) col = RGBToColor(192, (1.0-fTime)*(1.0/0.6)*100+92, (1.0-fTime)*(1.0/0.6)*112+80);
+    else if (fTime>0.4) col = RGBToColor(192, (UBYTE) ((1.0-fTime)*(1.0/0.6)*100+92), (UBYTE) ((1.0-fTime)*(1.0/0.6)*112+80));
     
     vPos(1) += afStarsPositions[iRndFact][0]*fTime;
     vPos(2) += afStarsPositions[iRndFact][1]*fTime + 0.25*fTime*fTime;
@@ -1853,9 +1853,9 @@ void Particles_Stardust( CEntity *pen, FLOAT fSize, FLOAT fHeight,
     const FLOAT3D vPos = vCenter+FLOAT3D( afStarsPositions[iMemeber][0], 
                                           afStarsPositions[iMemeber][1],
                                           afStarsPositions[iMemeber][2])*fSize;
-    COLOR colStar = RGBToColor( auStarsColors[iMemeber][0]*fFade,
-                                auStarsColors[iMemeber][1]*fFade,
-                                auStarsColors[iMemeber][2]*fFade);
+    COLOR colStar = RGBToColor((UBYTE) (auStarsColors[iMemeber][0]*fFade),
+                               (UBYTE) (auStarsColors[iMemeber][1]*fFade),
+                               (UBYTE) (auStarsColors[iMemeber][2]*fFade));
     Particle_RenderSquare( vPos, 0.15f, 0, colStar|0xFF);
   }
   // all done
@@ -1924,7 +1924,7 @@ void Particles_Spiral( CEntity *pen, FLOAT fSize, FLOAT fHeight,
   if( fMipFactor>7.0f) return;
   fMipFactor = 2.5f-fMipFactor*0.3f;
   fMipFactor = Clamp( fMipFactor, 0.0f, 1.0f);
-  INDEX ctSpiralTrail = fMipFactor*CT_SPIRAL_TRAIL;
+  INDEX ctSpiralTrail = (INDEX) (fMipFactor*CT_SPIRAL_TRAIL);
   if( ctSpiralTrail<=0) return;
   FLOAT fTrailDelta = 0.1f/fMipFactor;
 
@@ -2227,7 +2227,7 @@ void Particles_DustFall(CEntity *pen, FLOAT tmStarted, FLOAT3D vStretch)
   FLOAT fT = _pTimer->GetLerpedCurrentTick()-tmStarted;
   FLOAT fStretch=vStretch.Length();
 
-  INDEX ctParticles=4+fSizeRatio*28;
+  INDEX ctParticles=(INDEX) (4+fSizeRatio*28);
   for(INDEX iDust=0; iDust<32; iDust++)
   {
     INDEX iRnd = (pen->en_ulID*12345+iDust)%CT_MAX_PARTICLES_TABLE;
@@ -2339,10 +2339,10 @@ void Particles_ElectricitySparks( CEntity *pen, FLOAT fTimeAppear, FLOAT fSize, 
     FLOAT3D vPosOld = SPARK_CURVE( fTold);
     FLOAT3D vPosNew = SPARK_CURVE( fT);
   
-    UBYTE ubR = 224+(afStarsPositions[iSpark][2]+0.5f)*32;
-    UBYTE ubG = 224+(afStarsPositions[iSpark][2]+0.5f)*32;
-    UBYTE ubB = 160;
-    UBYTE ubA = FloatToInt( 255 * fFade);
+    UBYTE ubR = (UBYTE) (224+(afStarsPositions[iSpark][2]+0.5f)*32);
+    UBYTE ubG = (UBYTE) (224+(afStarsPositions[iSpark][2]+0.5f)*32);
+    UBYTE ubB = (UBYTE) (160);
+    UBYTE ubA = (UBYTE) (FloatToInt( 255 * fFade));
     COLOR colStar = RGBToColor( ubR, ubG, ubB) | ubA;
     Particle_RenderLine( vPosOld, vPosNew, 0.075f, colStar);
   }
@@ -2389,7 +2389,7 @@ void Particles_Atomic( CEntity *pen, FLOAT fSize, FLOAT fHeight,
   if( fMipFactor>7.0f) return;
   fMipFactor = 2.5f-fMipFactor*0.3f;
   fMipFactor = Clamp(fMipFactor, 0.0f ,1.0f);
-  INDEX ctAtomicTrail = fMipFactor*CT_ATOMIC_TRAIL;
+  INDEX ctAtomicTrail = (INDEX) (fMipFactor*CT_ATOMIC_TRAIL);
   if( ctAtomicTrail<=0) return;
   FLOAT fTrailDelta = 0.075f/fMipFactor;
 
@@ -2435,7 +2435,7 @@ void Particles_PowerUpIndicator( CEntity *pen, enum ParticleTexture ptTexture, F
   if( fMipFactor>7.0f) return;
   fMipFactor = 2.5f-fMipFactor*0.3f;
   fMipFactor = Clamp(fMipFactor, 0.0f ,1.0f);
-  INDEX ctAtomicTrail = fMipFactor*iTrailCount;
+  INDEX ctAtomicTrail = (INDEX) (fMipFactor*iTrailCount);
   if( ctAtomicTrail<=0) return;
   FLOAT fTrailDelta = 0.075f/fMipFactor;
 
@@ -2594,7 +2594,7 @@ BOOL UpdateGrowthCache(CEntity *pen, CTextureData *ptdGrowthMap, FLOATaabbox3D &
   fGridStep = GROWTH_RENDERING_STEP;
   fXSpan = 1234;
   
-  INDEX iGridX1 = GROWTH_RENDERING_RADIUS_FADE/GROWTH_RENDERING_STEP;
+  INDEX iGridX1 = (INDEX) (GROWTH_RENDERING_RADIUS_FADE/GROWTH_RENDERING_STEP);
   INDEX iGridX0 = -iGridX1;
   INDEX iGridY1 = iGridX1;
   INDEX iGridY0 = -iGridX1;
@@ -2651,8 +2651,8 @@ BOOL UpdateGrowthCache(CEntity *pen, CTextureData *ptdGrowthMap, FLOATaabbox3D &
       }
 
       // absolute positions :
-      INDEX i = iC*GROWTH_RENDERING_STEP + vSnapped(1);
-      INDEX j = jC*GROWTH_RENDERING_STEP + vSnapped(3);
+      INDEX i = (INDEX) (iC*GROWTH_RENDERING_STEP + vSnapped(1));
+      INDEX j = (INDEX) (jC*GROWTH_RENDERING_STEP + vSnapped(3));
 
             
       // apply a bit of randomness:
@@ -3108,7 +3108,7 @@ void Particles_Rain(CEntity *pen, FLOAT fGridSize, INDEX ctGrids, FLOAT fFactor,
       fZ+=afStarsPositions[iRnd2][2];
       // stretch to falling time
       FLOAT fY = vPos(2)+RAIN_SOURCE_HEIGHT*(1-fRatio);
-      UBYTE ubR = 64+afStarsPositions[(INDEX)fT0*CT_MAX_PARTICLES_TABLE][2]*64;
+      UBYTE ubR = (UBYTE) (64+afStarsPositions[(INDEX)fT0*CT_MAX_PARTICLES_TABLE][2]*64);
       COLOR colDrop = RGBToColor(ubR, ubR, ubR)|(UBYTE(fFactor*255.0f));
       FLOAT3D vRender = FLOAT3D( fX, fY, fZ);
       FLOAT fSize = 1.75f+afStarsPositions[(INDEX)fT0*CT_MAX_PARTICLES_TABLE][1];
@@ -3265,9 +3265,9 @@ void RenderOneLightningBranch( FLOAT3D vSrc, FLOAT3D vDst, FLOAT fPath,
   FLOAT3D vRenderDest;
   BOOL bRenderInProgress = TRUE;
   FLOAT fPassedTime = fTimeNow-fTimeStart;
-  INDEX ctBranches=0.0f;
-  INDEX ctMaxBranches = 3.0f;
-  INDEX ctKnees=0.0f;
+  INDEX ctBranches = 0;
+  INDEX ctMaxBranches = 3;
+  INDEX ctKnees = 0;
   
   FLOAT fTimeKiller = Clamp( 
     (-1.0f/(LIGHTNING_LIFE_TIME-LIGHTNING_DEATH_START)*(fPassedTime-LIGHTNING_DEATH_START)+1), 0.0f, 1.0f);
@@ -3366,7 +3366,7 @@ void Particles_SandFlow( CEntity *pen, FLOAT fStretchAll, FLOAT fSize, FLOAT fHe
 
   FLOAT fPowerFactor = Clamp((fNow - fStartTime)/2.0f,0.0f,1.0f);
   fPowerFactor *= Clamp(1+(fStopTime-fNow)/2.0f,0.0f,1.0f);
-  ctParticles = FLOAT(ctParticles) * fPowerFactor;
+  ctParticles = (INDEX) (FLOAT(ctParticles) * fPowerFactor);
   fHeight *= fPowerFactor;
   for( INDEX iStar=0; iStar<ctParticles; iStar++)
   {
@@ -3418,7 +3418,7 @@ void Particles_WaterFlow( CEntity *pen, FLOAT fStretchAll, FLOAT fSize, FLOAT fH
 
   FLOAT fPowerFactor = Clamp((fNow - fStartTime)/2.0f,0.0f,1.0f);
   fPowerFactor *= Clamp(1+(fStopTime-fNow)/2.0f,0.0f,1.0f);
-  ctParticles = FLOAT(ctParticles) * fPowerFactor;
+  ctParticles = (INDEX) (FLOAT(ctParticles) * fPowerFactor);
   fHeight *= fPowerFactor;
   for( INDEX iStar=0; iStar<ctParticles; iStar++)
   {
@@ -3470,7 +3470,7 @@ void Particles_LavaFlow( CEntity *pen, FLOAT fStretchAll, FLOAT fSize, FLOAT fHe
 
   FLOAT fPowerFactor = Clamp((fNow - fStartTime)/2.0f,0.0f,1.0f);
   fPowerFactor *= Clamp(1+(fStopTime-fNow)/2.0f,0.0f,1.0f);
-  ctParticles = FLOAT(ctParticles) * fPowerFactor;
+  ctParticles = (INDEX) (FLOAT(ctParticles) * fPowerFactor);
   fHeight *= fPowerFactor;
   for( INDEX iStar=0; iStar<ctParticles; iStar++)
   {
@@ -3994,7 +3994,7 @@ void Particles_Burning(CEntity *pen, FLOAT fPower, FLOAT fTimeRatio)
   FLOAT fSizeRatio=(Clamp(fBoxSize,2.0f,12.0f)-2.0f)/10.0f;
   FLOAT fSize=0.125f+ClampDn( FLOAT(pow(box.Size()(2),1.0f/4.0f)), 1.0f)*fPower/5.0f;
   fSize+=(1.0f+fSizeRatio)*(1.0f+fSizeRatio)*0.125f;
-  INDEX iVtxSteep=(2+(2.0f-fSizeRatio-fDensityFactor)*6);
+  INDEX iVtxSteep=(INDEX) ((2+(2.0f-fSizeRatio-fDensityFactor)*6));
   if( IsOfClass(pen, "Werebull"))
   {
     iVtxSteep=2;
@@ -4055,7 +4055,7 @@ void Particles_Burning_Comp(CModelObject *mo, FLOAT fPower, CPlacement3D pl)
   //FLOAT fSize=0.125f+ClampDn( FLOAT(pow(box.Size()(2),1.0f/4.0f)), 0.1f)*fPower/5.0f;
   //fSize+=(1.0f+fSizeRatio)*(1.0f+fSizeRatio)*0.125f;
   FLOAT fSize = fPower;
-  INDEX iVtxSteep=(2+(2.0f-fSizeRatio-fDensityFactor)*6);
+  INDEX iVtxSteep=(INDEX) (2+(2.0f-fSizeRatio-fDensityFactor)*6);
   for( INDEX iVtx=0; iVtx<ctVtx; iVtx+=iVtxSteep)
   {
     FLOAT3D vPos = avVertices[iVtx];
@@ -4114,9 +4114,9 @@ void Particles_BrushBurning(CEntity *pen, FLOAT3D vPos[], INDEX ctCount, FLOAT3D
     INDEX iRnd=(iFlame+iRndEn)%CT_MAX_PARTICLES_TABLE;
     // calculate color factor (for fade in/out)
     FLOAT fSize = 0.25f+afStarsPositions[iRnd][0]*0.3f;
-    UBYTE ubR=(255.0f)*fFade;
-    UBYTE ubG=(224+(afStarsPositions[iRnd][1]+0.5f)*32.0f)*fFade;
-    UBYTE ubB=(224+(afStarsPositions[iRnd][2]+0.5f)*32.0f)*fFade;
+    UBYTE ubR=(UBYTE) ((255.0f)*fFade);
+    UBYTE ubG=(UBYTE) ((224+(afStarsPositions[iRnd][1]+0.5f)*32.0f)*fFade);
+    UBYTE ubB=(UBYTE) ((224+(afStarsPositions[iRnd][2]+0.5f)*32.0f)*fFade);
     COLOR col = RGBToColor(ubR,ubG,ubB)|CT_OPAQUE;
 
     INDEX iFrame=INDEX((afStarsPositions[iRnd][0]+0.5f)*ctFrames+fNow*16.0f)%(ctFrames);
@@ -4775,7 +4775,7 @@ void Particles_AfterBurner(CEntity *pen, FLOAT tmSpawn, FLOAT fStretch, INDEX iG
 
     FLOAT fT=(iPos+_pTimer->GetLerpFactor())*_pTimer->TickQuantum;
     FLOAT fRatio=fT/(CT_AFTERBURNER_SMOKES*_pTimer->TickQuantum);
-    INDEX iIndex=fRatio*255;
+    INDEX iIndex=(INDEX) (fRatio*255);
     INDEX iRnd=INDEX(pvPos1)%CT_MAX_PARTICLES_TABLE;
 
     // smoke
@@ -4827,7 +4827,7 @@ void Particles_AfterBurner(CEntity *pen, FLOAT tmSpawn, FLOAT fStretch, INDEX iG
     {
       FLOAT fT=(iFlare+_pTimer->GetLerpFactor()+iInter*1.0f/CT_AFTERBURNER_HEAD_INTERPOSITIONS)*_pTimer->TickQuantum;
       FLOAT fRatio=fT/(ctParticles*_pTimer->TickQuantum);
-      INDEX iIndex=fRatio*255;
+      INDEX iIndex=(INDEX) (fRatio*255);
       FLOAT fSize = (aFlare_sol[iIndex]*2.0f)*fStretch;
       FLOAT3D vPos = Lerp(*pvPos1, *pvPos2, iInter*1.0f/CT_AFTERBURNER_HEAD_INTERPOSITIONS);
       FLOAT fAngle = afStarsPositions[iInter][0]*360.0f+fRatio*360.0f;
@@ -4896,7 +4896,7 @@ void Particles_RocketMotorBurning(CEntity *pen, FLOAT tmSpawn, FLOAT3D vStretch,
     FLOAT fSpeed=25.0f+(afStarsPositions[iRnd][0]+0.5f)*10.0f;
     FLOAT3D vPosS=vCenter+vSpeed*fSpeed*fT;
     vPosS=vPosS+vY*fPosY;
-    INDEX iIndex=fT*255;
+    INDEX iIndex=(INDEX) (fT*255);
     // smoke
     Particle_SetTexturePart( 512, 512, 1, 0);
     FLOAT fAngleS = afStarsPositions[iRnd][2]*360.0f+fT*120.0f*afStarsPositions[iRnd][3];
@@ -4930,7 +4930,7 @@ void Particles_RocketMotorBurning(CEntity *pen, FLOAT tmSpawn, FLOAT3D vStretch,
     FLOAT fSpeed=25.0f+(afStarsPositions[iRnd][0]+0.5f)*2.0f;
     FLOAT3D vPosS=vCenter+vSpeed*fSpeed*fT;
     vPosS=vPosS+vY*fPosY;
-    INDEX iIndex=fT*255;
+    INDEX iIndex=(INDEX) (fT*255);
     // smoke
     Particle_SetTexturePart( 512, 512, 1, 0);
     FLOAT fAngleS = afStarsPositions[iRnd][2]*360.0f+fT*120.0f*afStarsPositions[iRnd][3];
@@ -4982,7 +4982,7 @@ void Particles_SummonerProjectileExplode(CEntity *pen, FLOAT fSize, FLOAT fBegin
     FLOAT fFadeBegin = fDuration*0.7f;
 
     if (fElapsed>fFadeBegin) {
-      ub = 255 - (fElapsed-fFadeBegin)/(fDuration-fFadeBegin)*255;
+      ub = (UBYTE) (255 - (fElapsed-fFadeBegin)/(fDuration-fFadeBegin)*255);
     }
     if (fElapsed>fDuration) ub = 0;
 
@@ -5034,7 +5034,7 @@ void Particles_SummonerExplode(CEntity *pen, FLOAT3D vCenter, FLOAT fArea, FLOAT
     if (fElapsed<fFadeBegin) {
       ub = 255;
     } else if (fElapsed<fFadeEnd) {
-      ub = ((fFadeEnd - fElapsed)/(fFadeEnd - fFadeBegin))*255;
+      ub = (UBYTE) (((fFadeEnd - fElapsed)/(fFadeEnd - fFadeBegin))*255);
     } else {
       ub = 0;
     }
@@ -5101,7 +5101,7 @@ void Particles_Twister( CEntity *pen, FLOAT fStretch, FLOAT fStartTime, FLOAT fF
     fT *= 1/TM_TWISTER_TOTAL_LIFE;
     // get fraction part
     fT = fT-int(fT);
-    INDEX iPos=fT*255;
+    INDEX iPos=(INDEX) (fT*255);
     FLOAT fSlowFactor=1.0f-fT*0.25f;
     FLOAT fSpeed=25.0f+(afStarsPositions[iRnd][0]+0.5f)*2.0f;
     FLOAT fR=arol[iPos]*8.0f;
@@ -5233,7 +5233,7 @@ void Particles_Windblast( CEntity *pen, FLOAT fStretch, FLOAT fFadeOutStartTime)
     fT *= 1/TM_WINDBLAST_TOTAL_LIFE;
     // get fraction part
     fT = fT-int(fT);
-    INDEX iPos=fT*255;
+    INDEX iPos=(INDEX) (fT*255);
     FLOAT fSlowFactor=1.0f-fT*0.25f;
     FLOAT fSpeed=25.0f+(afStarsPositions[iRnd][0]+0.5f)*2.0f;
     FLOAT fR=arol[iPos]*8.0f;
@@ -5301,10 +5301,10 @@ void Particles_CollectEnergy(CEntity *pen, FLOAT tmStart, FLOAT tmStop)
     FLOAT fT2 = Clamp(fT-0.125f-fT*fT*0.125f, 0.0f, 1.0f);
     vPos2 = Lerp( vSource, vDestination, fT2);
 
-    UBYTE ubR = 255;//+afStarsPositions[iRnd][1]*64;
-    UBYTE ubG = 128+(1.0f-fT)*128;//223+afStarsPositions[iRnd][2]*64;
-    UBYTE ubB = 16+afStarsPositions[iRnd][3]*32+(1.0f-fT)*64;
-    UBYTE ubA = CalculateRatio( fT, 0.0f, 1.0f, 0.4f, 0.01f)*255;
+    UBYTE ubR = (UBYTE) (255);//+afStarsPositions[iRnd][1]*64;
+    UBYTE ubG = (UBYTE) (128+(1.0f-fT)*128);//223+afStarsPositions[iRnd][2]*64;
+    UBYTE ubB = (UBYTE) (16+afStarsPositions[iRnd][3]*32+(1.0f-fT)*64);
+    UBYTE ubA = (UBYTE) (CalculateRatio( fT, 0.0f, 1.0f, 0.4f, 0.01f)*255);
     COLOR colLine = RGBToColor( ubR, ubG, ubB) | ubA;
     
     FLOAT fSize = 0.125f;
@@ -5337,12 +5337,12 @@ void Particles_CollectEnergy(CEntity *pen, FLOAT tmStart, FLOAT tmStop)
       vX*Sin(fT*360.0f)*fRadius+
       vY*fT*2+
       vZ*Cos(fT*360.0f)*fRadius;
-    UBYTE ubR = 255;
-    UBYTE ubG = 128+(1.0f-fT)*128;
-    UBYTE ubB = 16+afStarsPositions[iRnd][3]*32+(1.0f-fT)*64;
+    UBYTE ubR = (UBYTE) (255);
+    UBYTE ubG = (UBYTE) (128+(1.0f-fT)*128);
+    UBYTE ubB = (UBYTE) (16+afStarsPositions[iRnd][3]*32+(1.0f-fT)*64);
     FLOAT fFader=CalculateRatio( fT, 0.0f, 1.0f, 0.4f, 0.01f);
     FLOAT fPulser=(1.0f+(sin((fT*fT)/4.0f)))/2.0f;
-    UBYTE ubA = fFader*fPulser*255;
+    UBYTE ubA = (UBYTE) (fFader*fPulser*255);
     COLOR colLine = RGBToColor( ubA, ubA, ubA) | CT_OPAQUE;
     FLOAT fSize = 2;
     Particle_RenderSquare( vPos, fSize, 0.0f, C_ORANGE|ubA);
@@ -5451,7 +5451,7 @@ void Particles_GrowingSwirl( CEntity *pen, FLOAT fStretch, FLOAT fStartTime)
   vY=vY*fStretch;
   vZ=vZ*fStretch;
   FLOAT3D vCenter = pen->GetLerpedPlacement().pl_PositionVector+vY*4.0f;
-  INDEX ctStars=TM_GROWING_SWIRL_FX_LIFE/TM_SWIRL_SPARK_LAUNCH;
+  INDEX ctStars=(INDEX)(TM_GROWING_SWIRL_FX_LIFE/TM_SWIRL_SPARK_LAUNCH);
   for(INDEX i=0; i<ctStars; i++)
   {
     INDEX iRnd =(pen->en_ulID+i)%CT_MAX_PARTICLES_TABLE;
@@ -5524,7 +5524,7 @@ void Particles_SummonerStaff(CEmiter &em)
     if(ep.ep_tmEmitted<0) continue;
     FLOAT3D vPos=Lerp(ep.ep_vLastPos, ep.ep_vPos, fLerpFactor);
     FLOAT fRot=Lerp(ep.ep_fLastRot, ep.ep_fRot, fLerpFactor);
-    INDEX iIndex=Clamp((tmNow-ep.ep_tmEmitted)/(ep.ep_tmLife)*255.0f,0.0f,255.0f);
+    INDEX iIndex=(INDEX) Clamp((tmNow-ep.ep_tmEmitted)/(ep.ep_tmLife)*255.0f,0.0f,255.0f);
     COLOR col=ByteSwap(pcol[iIndex]);
     Particle_RenderSquare( vPos, 1.0f*ep.ep_fStretch, fRot, col);
   }
@@ -5646,7 +5646,7 @@ void Particles_Leaves(CEntity *penTree, FLOATaabbox3D boxSize, FLOAT3D vSource, 
   UBYTE ubH,ubS,ubV;
   ColorToHSV( colMax, ubH, ubS, ubV);
 
-  INDEX ctSprays=128-Clamp(3.0f-fDamagePower,0.0f,3.0f)*32;
+  INDEX ctSprays=(INDEX) (128-Clamp(3.0f-fDamagePower,0.0f,3.0f)*32);
   for( INDEX iSpray=0; iSpray<ctSprays; iSpray++)
   {
     INDEX iFrame=((int(tmStarted*100.0f))%8+iSpray)%8;
@@ -5675,7 +5675,7 @@ void Particles_Leaves(CEntity *penTree, FLOATaabbox3D boxSize, FLOAT3D vSource, 
     FLOAT fH=Clamp(ubH*(1.0f+afStarsPositions[iRnd4][1]*0.125f), 0.0f, 255.0f);
     FLOAT fS=Clamp(ubS*(1.0f+afStarsPositions[iRnd4][2]*0.125f), 0.0f, 255.0f);
     FLOAT fV=Clamp(ubV*(1.0f-(afStarsPositions[iRnd4][2]+0.5f)*0.25f), 0.0f, 255.0f);
-    COLOR colRnd=HSVToColor(fH,fS,fV);
+    COLOR colRnd=HSVToColor((UBYTE)fH,(UBYTE)fS,(UBYTE)fV);
     UBYTE ubAlpha = UBYTE(CT_OPAQUE*fFade);
     COLOR col = colRnd|ubAlpha;
     FLOAT fSize=(afStarsPositions[iRnd3][0]+1.0f)*0.5f;
@@ -5718,10 +5718,10 @@ void Particles_LarvaEnergy(CEntity *pen, FLOAT3D vOffset)
     FLOAT fT2 = Clamp(fT-0.125f-fT*fT*0.125f, 0.0f, 1.0f);
     vPos2 = Lerp( vSource, vDestination, fT2);
 
-    UBYTE ubR = 255;//+afStarsPositions[iRnd][1]*64;
-    UBYTE ubG = 128+(1.0f-fT)*128;//223+afStarsPositions[iRnd][2]*64;
-    UBYTE ubB = 16+afStarsPositions[iRnd][3]*32+(1.0f-fT)*64;
-    UBYTE ubA = CalculateRatio( fT, 0.0f, 1.0f, 0.4f, 0.01f)*255;
+    UBYTE ubR = (UBYTE) (255);//+afStarsPositions[iRnd][1]*64;
+    UBYTE ubG = (UBYTE) (128+(1.0f-fT)*128);//223+afStarsPositions[iRnd][2]*64;
+    UBYTE ubB = (UBYTE) (16+afStarsPositions[iRnd][3]*32+(1.0f-fT)*64);
+    UBYTE ubA = (UBYTE) (CalculateRatio( fT, 0.0f, 1.0f, 0.4f, 0.01f)*255);
     COLOR colLine = RGBToColor( ubR, ubG, ubB) | ubA;
     
     FLOAT fSize = 0.125f;
@@ -5754,12 +5754,12 @@ void Particles_LarvaEnergy(CEntity *pen, FLOAT3D vOffset)
       vX*Sin(fT*360.0f)*fRadius+
       vY*fT*2+
       vZ*Cos(fT*360.0f)*fRadius;
-    UBYTE ubR = 255;
-    UBYTE ubG = 128+(1.0f-fT)*128;
-    UBYTE ubB = 16+afStarsPositions[iRnd][3]*32+(1.0f-fT)*64;
+    UBYTE ubR = (UBYTE) (255);
+    UBYTE ubG = (UBYTE) (128+(1.0f-fT)*128);
+    UBYTE ubB = (UBYTE) (16+afStarsPositions[iRnd][3]*32+(1.0f-fT)*64);
     FLOAT fFader=CalculateRatio( fT, 0.0f, 1.0f, 0.4f, 0.01f);
     FLOAT fPulser=(1.0f+(sin((fT*fT)/4.0f)))/2.0f;
-    UBYTE ubA = fFader*fPulser*255;
+    UBYTE ubA = (UBYTE) (fFader*fPulser*255);
     COLOR colLine = RGBToColor( ubA, ubA, ubA) | CT_OPAQUE;
     FLOAT fSize = 2;
     Particle_RenderSquare( vPos, fSize, 0.0f, C_ORANGE|ubA);
@@ -5851,7 +5851,7 @@ void Particles_ModelGlow( CEntity *pen, FLOAT tmEnd, enum ParticleTexture ptText
   }
   
   INDEX ctVtx = avVertices.Count();
-  for( INDEX iVtx=0; iVtx<ctVtx-1; iVtx+=iVtxStep)
+  for( INDEX iVtx=0; iVtx<ctVtx-1; iVtx+=(INDEX)iVtxStep)
   {
     INDEX iRnd=iVtx%CT_MAX_PARTICLES_TABLE;
     FLOAT fRndSize=afStarsPositions[iRnd][3];
@@ -5892,7 +5892,7 @@ void Particles_ModelGlow2( CModelObject *mo, CPlacement3D pl, FLOAT tmEnd, enum 
   }
   
   INDEX ctVtx = avVertices.Count();
-  for( INDEX iVtx=0; iVtx<ctVtx-1; iVtx+=iVtxStep)
+  for( INDEX iVtx=0; iVtx<ctVtx-1; iVtx+=(INDEX)iVtxStep)
   {
     INDEX iRnd=iVtx%CT_MAX_PARTICLES_TABLE;
     FLOAT fRndSize=afStarsPositions[iRnd][3];
@@ -5957,7 +5957,7 @@ void Particles_RunAfterBurner(CEntity *pen, FLOAT tmEnd, FLOAT fStretch, INDEX i
   if( (tmEnd-fNow)<6.0f)
   {
     fColMul = (tmEnd-fNow)/6.0f;
-    ubColMul = (INDEX) 255.0f*fColMul;
+    ubColMul = (UBYTE) (255.0f*fColMul);
   }
   //UBYTE ubColMul=UBYTE(CT_OPAQUE*fColMul);
   //COLOR colMul=RGBAToColor(ubColMul,ubColMul,ubColMul,ubColMul);
@@ -5971,7 +5971,7 @@ void Particles_RunAfterBurner(CEntity *pen, FLOAT tmEnd, FLOAT fStretch, INDEX i
 
     FLOAT fT=(iPos+_pTimer->GetLerpFactor())*_pTimer->TickQuantum;
     FLOAT fRatio=fT/(CT_AFTERBURNER_SMOKES*_pTimer->TickQuantum);
-    INDEX iIndex=fRatio*255;
+    INDEX iIndex=(INDEX) (fRatio*255);
     INDEX iRnd=INDEX(pvPos1)%CT_MAX_PARTICLES_TABLE;
 
     // smoke
@@ -6020,7 +6020,7 @@ void Particles_RunAfterBurner(CEntity *pen, FLOAT tmEnd, FLOAT fStretch, INDEX i
     {
       FLOAT fT=(iFlare+_pTimer->GetLerpFactor()+iInter*1.0f/CT_AFTERBURNER_HEAD_INTERPOSITIONS)*_pTimer->TickQuantum;
       FLOAT fRatio=fT/(ctParticles*_pTimer->TickQuantum);
-      INDEX iIndex=fRatio*255;
+      INDEX iIndex=(INDEX) (fRatio*255);
       FLOAT fSize = (aFlare_sol[iIndex]*2.0f)*fStretch;
       FLOAT3D vPos = Lerp(*pvPos1, *pvPos2, iInter*1.0f/CT_AFTERBURNER_HEAD_INTERPOSITIONS);
       FLOAT fAngle = afStarsPositions[iInter][0]*360.0f+fRatio*360.0f;

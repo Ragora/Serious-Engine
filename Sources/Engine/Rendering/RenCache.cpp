@@ -323,7 +323,7 @@ void CRenderer::AddEdgeToAddAndRemoveLists(CScreenEdge &sed)
   SLONG slIInList;
   while(plnInList->ln_Succ!=NULL) {
     slIInList = 
-      ((CAddEdge*)((UBYTE*)plnInList-offsetof(CAddEdge, ade_lnInAdd))) -> ade_xI.slHolder;
+      ((CAddEdge*)((UBYTE*)plnInList-_offsetof(CAddEdge, ade_lnInAdd))) -> ade_xI.slHolder;
     // if the edge in list is right of the one to add
     if (slIInList>slIThis) {
       // stop searching
@@ -809,8 +809,8 @@ void CRenderer::AddPolygonToScene( CScreenPolygon *pspo)
 
   // all done
   sppo.spo_ctVtx = ctVtx;
-  sppo.spo_piElements = &bpo.bpo_aiTriangleElements[0];
   sppo.spo_ctElements =  bpo.bpo_aiTriangleElements.Count();
+  sppo.spo_piElements = sppo.spo_ctElements ? &bpo.bpo_aiTriangleElements[0] : NULL;
   _sfStats.IncrementCounter(CStatForm::SCI_SCENE_TRIANGLES, sppo.spo_ctElements/3);
 }
 

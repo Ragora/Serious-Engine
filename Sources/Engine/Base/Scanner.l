@@ -13,6 +13,10 @@
 #define YY_DECL int yylex (YYSTYPE *lvalp)
 #define yylval (*lvalp)
 
+#ifdef __cplusplus
+extern "C" { int yywrap(void); }
+#endif
+
 int yywrap(void)
 {
   // no more bufers
@@ -113,8 +117,8 @@ PARAMCONTENT	([^\ \n\";]|(\\\ ))
   if (strParam.FindSubstr(strParamNo)!=-1) {
     _pShell->ErrorF("Parameter substitution recursion detected!");
   } else {
-    INDEX ctFound=0;
-    for(;; ctFound++) {
+    INDEX ctFound;
+    for(ctFound=0;; ctFound++) {
       if (!_strCmd.ReplaceSubstr(strParamNo, strParam)) {
         break;
       }

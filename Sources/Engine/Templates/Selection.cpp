@@ -79,10 +79,13 @@ void CSelection<cType, ulFlag>::Clear(void)
   // for all objects in the container
   FOREACHINDYNAMICCONTAINER(*this, cType, itObject) {
     // object must be allocated and valid
+  #ifdef _MSC_VER
     ASSERT(_CrtIsValidPointer(&*itObject, sizeof(cType), TRUE));
-/*    ASSERT(_CrtIsValidHeapPointer(&*itObject));
+    /*
+    ASSERT(_CrtIsValidHeapPointer(&*itObject));
     ASSERT(_CrtIsMemoryBlock(&*itObject, sizeof(cType), NULL, NULL, NULL ));
     */
+  #endif
 
     // deselect it
     itObject->Deselect(ulFlag);
@@ -94,7 +97,7 @@ void CSelection<cType, ulFlag>::Clear(void)
 template<class cType, unsigned long ulFlag>
 cType *CSelection<cType, ulFlag>::GetFirstInSelection(void)
 {
-  if( Count() == 0)
+  if( this->Count() == 0)
   {
     return NULL;
   }

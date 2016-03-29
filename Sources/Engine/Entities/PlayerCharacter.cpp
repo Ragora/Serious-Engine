@@ -13,18 +13,23 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include <Engine/StdH.h>
 
 #include <Engine/Entities/PlayerCharacter.h>
 #include <Engine/Base/Timer.h>
 #include <Engine/Base/Stream.h>
 #include <Engine/Network/NetworkMessage.h>
 
+#ifdef PLATFORM_WIN32
 typedef HRESULT __stdcall CoCreateGuid_t(UBYTE *pguid);
+#else
+#include <stdlib.h>
+#endif
 
 // get a GUID from system
 static void GetGUID(UBYTE aub[16])
 {
+#ifdef PLATFORM_WIN32
   HINSTANCE hOle32Lib = NULL;
   CoCreateGuid_t *pCoCreateGuid = NULL;
 
@@ -55,6 +60,14 @@ static void GetGUID(UBYTE aub[16])
   } catch(char *strError) {
     FatalError(TRANS("Cannot make GUID for a player:\n%s"), strError);
   }
+
+#else
+
+    // !!! FIXME : rcg10112001 Is this sufficient for these purposes?
+    for (int i = 0; i < sizeof (aub) / sizeof (aub[0]); i++)
+        aub[i] = (UBYTE) (255.0 * rand() / (RAND_MAX + 1.0));
+
+#endif
 }
 
 /*

@@ -13,47 +13,27 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include "Engine/StdH.h"
 
 #include <Engine/Base/Timer.h>
 #include <Engine/Base/Input.h>
 #include <Engine/Base/Translation.h>
 #include <Engine/Base/KeyNames.h>
 #include <Engine/Math/Functions.h>
-#include <Engine/Graphics/Viewport.h>
+#include <Engine/Graphics/ViewPort.h>
 #include <Engine/Base/Console.h>
 #include <Engine/Base/Synchronization.h>
 
 #include <Engine/Base/ErrorReporting.h>
 
-extern INDEX inp_iKeyboardReadingMethod;
-extern FLOAT inp_fMouseSensitivity;
-extern INDEX inp_bAllowMouseAcceleration;
-extern INDEX inp_bMousePrecision;
-extern FLOAT inp_fMousePrecisionFactor;
-extern FLOAT inp_fMousePrecisionThreshold;
-extern FLOAT inp_fMousePrecisionTimeout;
-extern FLOAT inp_bInvertMouse;
-extern INDEX inp_bFilterMouse;
-extern INDEX inp_bAllowPrescan;
+/*
+ * rcg10072001
+ * The bulk of CInput's implementation is in the platform-specific subdirs.
+ *  For example, if you want the win32 implementation, look in
+ *  Engine\Base\win32\Win32Input.cpp ...
+ */
 
-extern INDEX inp_i2ndMousePort;
-extern FLOAT inp_f2ndMouseSensitivity;
-extern INDEX inp_b2ndMousePrecision;
-extern FLOAT inp_f2ndMousePrecisionThreshold;
-extern FLOAT inp_f2ndMousePrecisionTimeout;
-extern FLOAT inp_f2ndMousePrecisionFactor;
-extern INDEX inp_bFilter2ndMouse;
-extern INDEX inp_bInvert2ndMouse;
-
-extern INDEX inp_iMButton4Dn = 0x20040;
-extern INDEX inp_iMButton4Up = 0x20000;
-extern INDEX inp_iMButton5Dn = 0x10020;
-extern INDEX inp_iMButton5Up = 0x10000;
-extern INDEX inp_bMsgDebugger = FALSE;
-extern INDEX inp_bForceJoystickPolling = 0;
-extern INDEX inp_ctJoysticksAllowed = 8;
-extern INDEX inp_bAutoDisableJoysticks = 0;
+INDEX inp_ctJoysticksAllowed = 8;
 
 static CTString inp_astrAxisTran[MAX_OVERALL_AXES];// translated names for axis
 
@@ -543,15 +523,7 @@ CInput::CInput(void)
     inp_caiAllAxisInfo[ iAxis].cai_bExisting = FALSE;
   }
 
-  MakeConversionTables();
-}
-
-
-// destructor
-CInput::~CInput()
-{
-  if( _h2ndMouse!=NONE) CloseHandle( _h2ndMouse);
-  _h2ndMouse = NONE;
+  PlatformInit();
 }
 
 
@@ -566,24 +538,12 @@ void CInput::SetJoyPolling(BOOL bPoll)
 void CInput::SetKeyNames( void)
 {
   // set name "None" for all keys, known keys will override this default name
-  {for( INDEX iKey=0; iKey<ARRAYCOUNT(inp_strButtonNames); iKey++) {
+  for( INDEX iKey=0; iKey<ARRAYCOUNT(inp_strButtonNames); iKey++) {
     inp_strButtonNames[iKey] = "None";
     inp_strButtonNamesTra[iKey] = TRANS("None");
-  }}
+  }
 
-  // for each Key
-  {for (INDEX iKey=0; iKey<ARRAYCOUNT(_akcKeys); iKey++) {
-    struct KeyConversion &kc = _akcKeys[iKey];
-    // set the name
-    if (kc.kc_strName!=NULL) {
-      inp_strButtonNames[kc.kc_iKID] = kc.kc_strName;
-      if (strlen(kc.kc_strNameTrans)==0) {
-        inp_strButtonNamesTra[kc.kc_iKID] = kc.kc_strName;
-      } else {
-        inp_strButtonNamesTra[kc.kc_iKID] = TranslateConst(kc.kc_strNameTrans, 4);
-      }
-    }
-  }}
+  PlatformSetKeyNames();
 
   // -------- Enumerate known axis -------------
   // no axis as axis type 0
@@ -603,7 +563,7 @@ void CInput::SetKeyNames( void)
 
   // -------- Get number of joysticks ----------
   // get number of joystics
-  INDEX ctJoysticksPresent = joyGetNumDevs();
+  INDEX ctJoysticksPresent = PlatformGetJoystickCount();
   CPrintF(TRANS("  joysticks found: %d\n"), ctJoysticksPresent);
   ctJoysticksPresent = Min(ctJoysticksPresent, inp_ctJoysticksAllowed);
   CPrintF(TRANS("  joysticks allowed: %d\n"), ctJoysticksPresent);
@@ -1116,6 +1076,7 @@ const CTString &CInput::GetAxisTransName( INDEX iAxisNo) const
   return inp_astrAxisTran[iAxisNo];
 }
 
+// end of Input.cpp ...
 
 /*
  * Scans axis and buttons for given joystick

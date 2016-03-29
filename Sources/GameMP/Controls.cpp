@@ -324,13 +324,13 @@ void CControls::Save_t( CTFileName fnFile)
   FOREACHINLIST( CButtonAction, ba_lnNode, ctrl_lhButtonActions, itba)
   {
     strLine.PrintF("Button\n Name: TTRS %s\n Key1: %s\n Key2: %s",
-      itba->ba_strName,
-      _pInput->GetButtonName( itba->ba_iFirstKey),
-      _pInput->GetButtonName( itba->ba_iSecondKey) );
+      (const char *) itba->ba_strName,
+      (const char *) _pInput->GetButtonName( itba->ba_iFirstKey),
+      (const char *) _pInput->GetButtonName( itba->ba_iSecondKey) );
     strmFile.PutLine_t( strLine);
 
     // export pressed command
-    strLine.PrintF(" Pressed:  %s", itba->ba_strCommandLineWhenPressed);
+    strLine.PrintF(" Pressed:  %s", (const char *) itba->ba_strCommandLineWhenPressed);
     {for( INDEX iLetter = 0; strLine[ iLetter] != 0; iLetter++)
     {
       // delete EOL-s
@@ -342,7 +342,7 @@ void CControls::Save_t( CTFileName fnFile)
     strmFile.PutLine_t( strLine);
 
     // export released command
-    strLine.PrintF(" Released: %s", itba->ba_strCommandLineWhenReleased);
+    strLine.PrintF(" Released: %s", (const char *) itba->ba_strCommandLineWhenReleased);
     {for( INDEX iLetter = 0; strLine[ iLetter] != 0; iLetter++)
     {
       // delete EOL-s
@@ -378,13 +378,13 @@ void CControls::Save_t( CTFileName fnFile)
     
 
     strLine.PrintF("Axis \"%s\" \"%s\" %g %g %s %s %s",
-      _pGame->gm_astrAxisNames[iAxis], 
-      _pInput->GetAxisName(ctrl_aaAxisActions[iAxis].aa_iAxisAction),
+      (const char *) _pGame->gm_astrAxisNames[iAxis], 
+      (const char *) _pInput->GetAxisName(ctrl_aaAxisActions[iAxis].aa_iAxisAction),
       ctrl_aaAxisActions[ iAxis].aa_fSensitivity,
       ctrl_aaAxisActions[ iAxis].aa_fDeadZone,
-      strIfInverted,
-      strIfRelative,
-      strIfSmooth);
+      (const char *) strIfInverted,
+      (const char *) strIfRelative,
+      (const char *) strIfSmooth);
     strmFile.PutLine_t( strLine);
   }
 

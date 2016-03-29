@@ -13,7 +13,7 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include "Engine/StdH.h"
 
 #include <Engine/Graphics/GfxLibrary.h>
 #include <Engine/Base/Translation.h>
@@ -96,9 +96,12 @@ void (__stdcall *pglActiveTextureARB)(GLenum texunit) = NULL;
 void (__stdcall *pglClientActiveTextureARB)(GLenum texunit) = NULL;
 
 // t-buffer support
+#ifdef PLATFORM_WIN32
 char *(__stdcall *pwglGetExtensionsStringARB)(HDC hdc);
 BOOL  (__stdcall *pwglChoosePixelFormatARB)(HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList, UINT nMaxFormats, int *piFormats, UINT *nNumFormats);
 BOOL  (__stdcall *pwglGetPixelFormatAttribivARB)(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, int *piAttributes, int *piValues);
+#endif
+
 void  (__stdcall *pglTBufferMask3DFX)(GLuint mask);
 
 // NV occlusion query
@@ -503,6 +506,7 @@ void CGfxLibrary::InitContext_OGL(void)
                                   GFX_fMaxDepthRange = 1.0f;
   // (re)set some OpenGL defaults
   gfxPolygonMode( GFX_FILL);
+  pglFrontFace( GL_CCW);
   pglShadeModel( GL_SMOOTH);
   pglEnable( GL_SCISSOR_TEST);
   pglDrawBuffer( GL_BACK);
@@ -532,7 +536,7 @@ void CGfxLibrary::InitContext_OGL(void)
 
   // report
   CPrintF( TRANS("\n* OpenGL context created: *----------------------------------\n"));
-  CPrintF( "  (%s, %s, %s)\n\n", da.da_strVendor, da.da_strRenderer, da.da_strVersion);
+  CPrintF( "  (%s, %s, %s)\n\n", (const char *) da.da_strVendor, (const char *) da.da_strRenderer, (const char *) da.da_strVersion);
 
   // test for used extensions
   GLint   gliRet;
@@ -541,31 +545,39 @@ void CGfxLibrary::InitContext_OGL(void)
 
   // check for WGL extensions, too
   go_strWinExtensions = "";
+#ifdef PLATFORM_WIN32
   pwglGetExtensionsStringARB = (char* (__stdcall*)(HDC))pwglGetProcAddress("wglGetExtensionsStringARB");
   if( pwglGetExtensionsStringARB != NULL) {
     AddExtension_OGL( NONE, "WGL_ARB_extensions_string"); // register
     CTempDC tdc(gl_pvpActive->vp_hWnd);
     go_strWinExtensions = (char*)pwglGetExtensionsStringARB(tdc.hdc);
   }
+#endif
 
   // multitexture is supported only thru GL_EXT_texture_env_combine extension
   gl_ctTextureUnits = 1;
   gl_ctRealTextureUnits = 1;
   pglActiveTextureARB       = NULL;
   pglClientActiveTextureARB = NULL;
+
+// This renders badly on the current Intel Macs...my bug, probably.  !!! FIXME
+#if PLATFORM_MACOSX
+    CPrintF("Forcibly disabled multitexturing for now on Mac OS X.");
+#else
   if( HasExtension( go_strExtensions, "GL_ARB_multitexture")) {
     pglGetIntegerv( GL_MAX_TEXTURE_UNITS_ARB, (int*)&gl_ctRealTextureUnits); // get number of texture units
-    if( gl_ctRealTextureUnits>1 && HasExtension( go_strExtensions, "GL_EXT_texture_env_combine")) {
+    if( gl_ctRealTextureUnits>1 && (HasExtension( go_strExtensions, "GL_EXT_texture_env_combine") || HasExtension( go_strExtensions, "GL_ARB_texture_env_combine")) ) {
       AddExtension_OGL( NONE, "GL_ARB_multitexture");
       AddExtension_OGL( NONE, "GL_EXT_texture_env_combine");
-      pglActiveTextureARB       = (void (__stdcall*)(GLenum))pwglGetProcAddress( "glActiveTextureARB");
-      pglClientActiveTextureARB = (void (__stdcall*)(GLenum))pwglGetProcAddress( "glClientActiveTextureARB");
+      pglActiveTextureARB       = (void (__stdcall*)(GLenum))OGL_GetProcAddress( "glActiveTextureARB");
+      pglClientActiveTextureARB = (void (__stdcall*)(GLenum))OGL_GetProcAddress( "glClientActiveTextureARB");
       ASSERT( pglActiveTextureARB!=NULL && pglClientActiveTextureARB!=NULL);
       gl_ctTextureUnits = Min( GFX_MAXTEXUNITS, gl_ctRealTextureUnits);
     } else {
       CPrintF( TRANS("  GL_TEXTURE_ENV_COMBINE extension missing - multi-texturing cannot be used.\n"));
     }
   }
+#endif
 
   // find all supported texture compression extensions
   TestExtension_OGL( GLF_EXTC_ARB,    "GL_ARB_texture_compression");
@@ -610,8 +622,8 @@ void CGfxLibrary::InitContext_OGL(void)
   pglUnlockArraysEXT = NULL;
   if( HasExtension( go_strExtensions, "GL_EXT_compiled_vertex_array")) {
     AddExtension_OGL( GLF_EXT_COMPILEDVERTEXARRAY, "GL_EXT_compiled_vertex_array");
-    pglLockArraysEXT   = (void (__stdcall*)(GLint,GLsizei))pwglGetProcAddress( "glLockArraysEXT");
-    pglUnlockArraysEXT = (void (__stdcall*)(void)         )pwglGetProcAddress( "glUnlockArraysEXT");
+    pglLockArraysEXT   = (void (__stdcall*)(GLint,GLsizei))OGL_GetProcAddress( "glLockArraysEXT");
+    pglUnlockArraysEXT = (void (__stdcall*)(void)         )OGL_GetProcAddress( "glUnlockArraysEXT");
     ASSERT( pglLockArraysEXT!=NULL && pglUnlockArraysEXT!=NULL);
   }
 
@@ -620,8 +632,8 @@ void CGfxLibrary::InitContext_OGL(void)
   pwglGetSwapIntervalEXT = NULL;
   if( HasExtension( go_strExtensions, "WGL_EXT_swap_control")) {
     AddExtension_OGL( GLF_VSYNC, "WGL_EXT_swap_control");
-    pwglSwapIntervalEXT    = (GLboolean (__stdcall*)(GLint))pwglGetProcAddress( "wglSwapIntervalEXT");
-    pwglGetSwapIntervalEXT = (GLint     (__stdcall*)(void) )pwglGetProcAddress( "wglGetSwapIntervalEXT");
+    pwglSwapIntervalEXT    = (GLboolean (__stdcall*)(GLint))OGL_GetProcAddress( "wglSwapIntervalEXT");
+    pwglGetSwapIntervalEXT = (GLint     (__stdcall*)(void) )OGL_GetProcAddress( "wglGetSwapIntervalEXT");
     ASSERT( pwglSwapIntervalEXT!=NULL && pwglGetSwapIntervalEXT!=NULL);
   }
 
@@ -636,8 +648,8 @@ void CGfxLibrary::InitContext_OGL(void)
   gl_iMaxTessellationLevel = 0;
   if( HasExtension( go_strExtensions, "GL_ATI_pn_triangles")) {
     AddExtension_OGL( NONE, "GL_ATI_pn_triangles");
-    pglPNTrianglesiATI = (void (__stdcall*)(GLenum,GLint  ))pwglGetProcAddress( "glPNTrianglesiATI");
-    pglPNTrianglesfATI = (void (__stdcall*)(GLenum,GLfloat))pwglGetProcAddress( "glPNTrianglesfATI");
+    pglPNTrianglesiATI = (void (__stdcall*)(GLenum,GLint  ))OGL_GetProcAddress( "glPNTrianglesiATI");
+    pglPNTrianglesfATI = (void (__stdcall*)(GLenum,GLfloat))OGL_GetProcAddress( "glPNTrianglesfATI");
     ASSERT( pglPNTrianglesiATI!=NULL && pglPNTrianglesfATI!=NULL);
     // check max possible tessellation
     pglGetIntegerv( GL_MAX_PN_TRIANGLES_TESSELATION_LEVEL_ATI, &gliRet);
@@ -645,6 +657,7 @@ void CGfxLibrary::InitContext_OGL(void)
     OGL_CHECKERROR;
   } 
 
+#ifdef PLATFORM_WIN32
   // if T-buffer is supported
   if( _TBCapability) {
     // add extension and disable t-buffer usage by default
@@ -652,6 +665,7 @@ void CGfxLibrary::InitContext_OGL(void)
     pglDisable( GL_MULTISAMPLE_3DFX);
     OGL_CHECKERROR;
   }
+#endif
 
   // test for clamp to edge
   TestExtension_OGL( GLF_EXT_EDGECLAMP, "GL_EXT_texture_edge_clamp");
@@ -817,6 +831,14 @@ BOOL CGfxLibrary::InitDriver_OGL( BOOL b3Dfx/*=FALSE*/)
   return TRUE;
 } 
 
+static void ClearFunctionPointers(void)
+{
+  // clear gl function pointers
+  #define DLLFUNCTION(dll, output, name, inputs, params, required) p##name = NULL;
+  #include "gl_functions.h"
+  #undef DLLFUNCTION
+}
+
 
 // shutdown OpenGL driver
 void CGfxLibrary::EndDriver_OGL(void)
@@ -828,78 +850,15 @@ void CGfxLibrary::EndDriver_OGL(void)
       td.td_tpLocal.Clear();
       td.Unbind();
     }}
-  }
-  // unbind fog, haze and flat texture
+  } // unbind fog/haze
   gfxDeleteTexture( _fog_ulTexture); 
   gfxDeleteTexture( _haze_ulTexture);
   ASSERT( _ptdFlat!=NULL);
   _ptdFlat->td_tpLocal.Clear();
   _ptdFlat->Unbind();
 
-  // shut the driver down
-  if( go_hglRC!=NULL) {
-    if( pwglMakeCurrent!=NULL) {
-      BOOL bRes = pwglMakeCurrent(NULL, NULL);
-      WIN_CHECKERROR( bRes, "MakeCurrent(NULL, NULL)");
-    }
-    ASSERT( pwglDeleteContext!=NULL);
-    BOOL bRes = pwglDeleteContext(go_hglRC);
-    WIN_CHECKERROR( bRes, "DeleteContext");
-    go_hglRC = NULL;
-  }
-  OGL_ClearFunctionPointers();
-}
-
-
-
-// prepare current viewport for rendering thru OpenGL
-BOOL CGfxLibrary::SetCurrentViewport_OGL(CViewPort *pvp)
-{
-  // if must init entire opengl
-  if( gl_ulFlags & GLF_INITONNEXTWINDOW)
-  {
-    gl_ulFlags &= ~GLF_INITONNEXTWINDOW;
-    // reopen window
-    pvp->CloseCanvas();
-    pvp->OpenCanvas();
-    // init now
-    CTempDC tdc(pvp->vp_hWnd);
-    if( !CreateContext_OGL(tdc.hdc)) return FALSE;
-    gl_pvpActive = pvp; // remember as current viewport (must do that BEFORE InitContext)
-    InitContext_OGL();
-    pvp->vp_ctDisplayChanges = gl_ctDriverChanges;
-    return TRUE;
-  }
-
-  // if window was not set for this driver
-  if( pvp->vp_ctDisplayChanges<gl_ctDriverChanges)
-  {
-    // reopen window
-    pvp->CloseCanvas();
-    pvp->OpenCanvas();
-    // set it
-    CTempDC tdc(pvp->vp_hWnd);
-    if( !SetupPixelFormat_OGL(tdc.hdc)) return FALSE;
-    pvp->vp_ctDisplayChanges = gl_ctDriverChanges;
-  }
-
-  if( gl_pvpActive!=NULL) {
-    // fail, if only one window is allowed (3dfx driver), already initialized and trying to set non-primary viewport
-    const BOOL bOneWindow = (gl_gaAPI[GAT_OGL].ga_adaAdapter[gl_iCurrentAdapter].da_ulFlags & DAF_ONEWINDOW);
-    if( bOneWindow && gl_pvpActive->vp_hWnd!=NULL && gl_pvpActive->vp_hWnd!=pvp->vp_hWnd) return FALSE;
-    // no need to set context if it is the same window as last time
-    if( gl_pvpActive->vp_hWnd==pvp->vp_hWnd) return TRUE;
-  }
-
-  // try to set context to this window
-  pwglMakeCurrent( NULL, NULL);
-  CTempDC tdc(pvp->vp_hWnd);
-  // fail, if cannot set context to this window
-  if( !pwglMakeCurrent( tdc.hdc, go_hglRC)) return FALSE;
-
-  // remember as current window
-  gl_pvpActive = pvp;
-  return TRUE;
+  PlatformEndDriver_OGL();
+  ClearFunctionPointers();
 }
 
 

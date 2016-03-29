@@ -13,11 +13,12 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include "SeriousSam/StdH.h"
 #include "resource.h"
 
 #define NAME "Splash"
 
+#ifdef PLATFORM_WIN32
 static HBITMAP _hbmSplash = NULL;
 static BITMAP _bmSplash;
 static HBITMAP _hbmSplashMask = NULL;
@@ -49,10 +50,12 @@ static long FAR PASCAL SplashWindowProc( HWND hWnd, UINT message,
   }
   return DefWindowProc(hWnd, message, wParam, lParam);
 }
+#endif
 
 void ShowSplashScreen(HINSTANCE hInstance)
 {
-
+// !!! FIXME: wire this up for SDL?
+#ifdef PLATFORM_WIN32
   _hbmSplash = LoadBitmapA(hInstance, (char*)IDB_SPLASH);
   if (_hbmSplash==NULL) {
     return;
@@ -110,14 +113,17 @@ void ShowSplashScreen(HINSTANCE hInstance)
   GetClientRect(hwnd, &rect); 
   InvalidateRect(hwnd, &rect, TRUE); 
   UpdateWindow(hwnd); 
+#endif
 }
 
 void HideSplashScreen(void)
 {
+#ifdef PLATFORM_WIN32
   if (hwnd==NULL) {
     return;
   }
   DestroyWindow(hwnd);
   DeleteObject(_hbmSplash);
   DeleteObject(_hbmSplashMask);
+#endif
 }
