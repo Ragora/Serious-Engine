@@ -1073,7 +1073,7 @@ void CGame::InitInternal( void)
   try {
     Load_t();
   } catch (char *strError) {
-    CPrintF(TRANS("Cannot load game settings:\n%s\n  Using defaults\n"), strError);
+    CPrintF(TRANSV("Cannot load game settings:\n%s\n  Using defaults\n"), strError);
   }
 
   CON_DiscardLastLineTimes();
@@ -1167,7 +1167,7 @@ BOOL CGame::NewGame(const CTString &strSessionName, const CTFileName &fnWorld,
     // stop network provider
     _pNetwork->StopProvider();
     // and display error
-    CPrintF(TRANS("Cannot start game:\n%s\n"), strError);
+    CPrintF(TRANSV("Cannot start game:\n%s\n"), strError);
     return FALSE;
   }
 
@@ -1213,7 +1213,7 @@ BOOL CGame::JoinGame(const CNetworkSession &session)
     // stop network provider
     _pNetwork->StopProvider();
     // and display error
-    CPrintF(TRANS("Cannot join game:\n%s\n"), strError);
+    CPrintF(TRANSV("Cannot join game:\n%s\n"), strError);
     return FALSE;
   }
 
@@ -1245,12 +1245,12 @@ BOOL CGame::LoadGame(const CTFileName &fnGame)
   // start the new session
   try {
     _pNetwork->Load_t( fnGame);
-    CPrintF(TRANS("Loaded game: %s\n"), (const char *) fnGame);
+    CPrintF(TRANSV("Loaded game: %s\n"), (const char *) fnGame);
   } catch (char *strError) {
     // stop network provider
     _pNetwork->StopProvider();
     // and display error
-    CPrintF(TRANS("Cannot load game: %s\n"), strError);
+    CPrintF(TRANSV("Cannot load game: %s\n"), strError);
     return FALSE;
   }
 
@@ -1295,12 +1295,12 @@ BOOL CGame::StartDemoPlay(const CTFileName &fnDemo)
   // start the new session
   try {
     _pNetwork->StartDemoPlay_t( fnDemo);
-    CPrintF(TRANS("Started playing demo: %s\n"), (const char *) fnDemo);
+    CPrintF(TRANSV("Started playing demo: %s\n"), (const char *) fnDemo);
   } catch (char *strError) {
     // stop network provider
     _pNetwork->StopProvider();
     // and display error
-    CPrintF(TRANS("Cannot play demo: %s\n"), strError);
+    CPrintF(TRANSV("Cannot play demo: %s\n"), strError);
     gm_bFirstLoading = FALSE;
     return FALSE;
   }
@@ -1339,13 +1339,13 @@ BOOL CGame::StartDemoRec(const CTFileName &fnDemo)
   // save demo recording
   try {
     _pNetwork->StartDemoRec_t( fnDemo);
-    CPrintF(TRANS("Started recording demo: %s\n"), (const char *) fnDemo);
+    CPrintF(TRANSV("Started recording demo: %s\n"), (const char *) fnDemo);
     // save a thumbnail
     SaveThumbnail(fnDemo.NoExt()+"Tbn.tex");
     return TRUE;
   } catch (char *strError) {
     // and display error
-    CPrintF(TRANS("Cannot start recording: %s\n"), strError);
+    CPrintF(TRANSV("Cannot start recording: %s\n"), strError);
     return FALSE;
   }
 }
@@ -1357,7 +1357,7 @@ void CGame::StopDemoRec(void)
   if (!gm_bGameOn) return;
 
   _pNetwork->StopDemoRec();
-  CPrintF(TRANS("Finished recording.\n"));
+  CPrintF(TRANSV("Finished recording.\n"));
 }
 
 BOOL CGame::SaveGame(const CTFileName &fnGame)
@@ -1367,7 +1367,7 @@ BOOL CGame::SaveGame(const CTFileName &fnGame)
   INDEX ctLivePlayers = GetLivePlayersCount();
   if (ctPlayers>0 && ctLivePlayers<=0) {
     // display error
-    CPrintF(TRANS("Won't save game when dead!\n"));
+    CPrintF(TRANSV("Won't save game when dead!\n"));
     // do not save
     return FALSE;
   }
@@ -1375,12 +1375,12 @@ BOOL CGame::SaveGame(const CTFileName &fnGame)
   // save new session
   try {
     _pNetwork->Save_t( fnGame);
-    CPrintF(TRANS("Saved game: %s\n"), (const char *) fnGame);
+    CPrintF(TRANSV("Saved game: %s\n"), (const char *) fnGame);
     SaveThumbnail(fnGame.NoExt()+"Tbn.tex");
     return TRUE;
   } catch (char *strError) {
     // and display error
-    CPrintF(TRANS("Cannot save game: %s\n"), (const char *) strError);
+    CPrintF(TRANSV("Cannot save game: %s\n"), (const char *) strError);
     return FALSE;
   }
 }
@@ -1773,7 +1773,7 @@ BOOL CGame::AddPlayers(void)
       }
     }
   } catch (char *strError) {
-    CPrintF(TRANS("Cannot add player:\n%s\n"), strError);
+    CPrintF(TRANSV("Cannot add player:\n%s\n"), strError);
     return FALSE;
   }
 
@@ -2305,7 +2305,7 @@ void CGame::GameRedrawView( CDrawPort *pdpDrawPort, ULONG ulFlags)
       // print pause indicators
       CTString strIndicator;
       if (_pNetwork->IsDisconnected()) {
-        strIndicator.PrintF(TRANS("Disconnected: %s\nPress F9 to reconnect"), (const char *)_pNetwork->WhyDisconnected());
+        strIndicator.PrintF(TRANSV("Disconnected: %s\nPress F9 to reconnect"), (const char *)_pNetwork->WhyDisconnected());
       } else if (_pNetwork->IsWaitingForPlayers()) {
         strIndicator = TRANS("Waiting for all players to connect");
       } else if (_pNetwork->IsWaitingForServer()) {

@@ -126,7 +126,7 @@ BOOL GetReplacingFile(CTFileName fnSourceFile, CTFileName &fnReplacingFile,
     (void) strError;
   }
   CTString strTitle;
-  strTitle.PrintF(TRANS("For:\"%s\""), (const char *) (CTString&)fnSourceFile);
+  strTitle.PrintF(TRANSV("For:\"%s\""), (const char *) (CTString&)fnSourceFile);
   // call file requester for substituting file
   CTString strDefaultFile;
   strDefaultFile = fnSourceFile.FileName() + fnSourceFile.FileExt();

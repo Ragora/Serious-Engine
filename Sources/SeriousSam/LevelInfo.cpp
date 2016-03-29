@@ -103,7 +103,7 @@ int qsort_CompareLevels(const void *elem1, const void *elem2 )
 // init level-info subsystem
 void LoadLevelsList(void)
 {
-  CPrintF(TRANS("Reading levels directory...\n"));
+  CPrintF(TRANSV("Reading levels directory...\n"));
 
   // list the levels directory with subdirs
   CDynamicStackArray<CTFileName> afnmDir;
@@ -113,11 +113,11 @@ void LoadLevelsList(void)
   for (INDEX i=0; i<afnmDir.Count(); i++) {
     CTFileName fnm = afnmDir[i];
 
-    CPrintF(TRANS("  file '%s' : "), (const char *)fnm);
+    CPrintF(TRANSV("  file '%s' : "), (const char *)fnm);
     // try to load its info, and if valid
     CLevelInfo li;
     if (GetLevelInfo(li, fnm)) {
-      CPrintF(TRANS("'%s' spawn=0x%08x\n"), (const char *) li.li_strName, li.li_ulSpawnFlags);
+      CPrintF(TRANSV("'%s' spawn=0x%08x\n"), (const char *) li.li_strName, li.li_ulSpawnFlags);
 
       // create new info for that file
       CLevelInfo *pliNew = new CLevelInfo;
@@ -125,7 +125,7 @@ void LoadLevelsList(void)
       // add it to list of all levels
       _lhAllLevels.AddTail(pliNew->li_lnNode);
     } else {
-      CPrintF(TRANS("invalid level\n"));
+      CPrintF(TRANSV("invalid level\n"));
     }
   }
 
@@ -240,7 +240,7 @@ int qsort_CompareDemos(const void *elem1, const void *elem2 )
 // init list of autoplay demos
 void LoadDemosList(void)
 {
-  CPrintF(TRANS("Reading demos directory...\n"));
+  CPrintF(TRANSV("Reading demos directory...\n"));
 
   // list the levels directory with subdirs
   CDynamicStackArray<CTFileName> afnmDir;

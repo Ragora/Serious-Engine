@@ -872,7 +872,7 @@ void CInput::GetInput(BOOL bPreScan)
         // if joystick reading failed
         if (!bSucceeded && inp_bAutoDisableJoysticks) {
           // kill it, so it doesn't slow down CPU
-          CPrintF(TRANS("Joystick %d failed, disabling it!\n"), iJoy+1);
+          CPrintF(TRANSV("Joystick %d failed, disabling it!\n"), iJoy+1);
           inp_abJoystickOn[iJoy] = FALSE;
         }
       }

@@ -472,7 +472,7 @@ BOOL CBlockBuffer::ReadBlockToStream(CTStream &strm)
     ASSERT(slSize == bh.bh_slSize);
   } catch (char *strError) {
     ASSERT(FALSE);
-    CPrintF(TRANS("Buffer error reading to stream: %s\n"), strError);
+    CPrintF(TRANSV("Buffer error reading to stream: %s\n"), strError);
     return FALSE;
   }
 

@@ -699,10 +699,10 @@ CTString GetResolutionDescription(CDisplayMode &dm)
   CTString str;
   // if dual head
   if (dm.IsDualHead()) {
-    str.PrintF(TRANS("%dx%d double"), dm.dm_pixSizeI/2, dm.dm_pixSizeJ);
+    str.PrintF(TRANSV("%dx%d double"), dm.dm_pixSizeI/2, dm.dm_pixSizeJ);
   // if widescreen
   } else if (dm.IsWideScreen()) {
-    str.PrintF(TRANS("%dx%d wide"), dm.dm_pixSizeI, dm.dm_pixSizeJ);
+    str.PrintF(TRANSV("%dx%d wide"), dm.dm_pixSizeI, dm.dm_pixSizeJ);
   // otherwise it is normal
   } else {
     str.PrintF("%dx%d", dm.dm_pixSizeI, dm.dm_pixSizeJ);
@@ -946,7 +946,7 @@ void ModConnectConfirm(void)
     return;
   }
 
-  CPrintF(TRANS("Server is running a different MOD (%s).\nYou need to reload to connect.\n"), (const char *) _fnmModSelected);
+  CPrintF(TRANSV("Server is running a different MOD (%s).\nYou need to reload to connect.\n"), (const char *) _fnmModSelected);
   _pConfimedYes = &ModConnect;
   _pConfimedNo = NULL;
   mgConfirmLabel.mg_strText = TRANS("CHANGE THE MOD?");
@@ -4289,7 +4289,7 @@ void CControlsMenu::StartMenu(void)
 
   ControlsMenuOn();
 
-  mgControlsNameLabel.mg_strText.PrintF(TRANS("CONTROLS FOR: %s"), (const char *) _pGame->gm_apcPlayers[iPlayer].GetNameForPrinting());
+  mgControlsNameLabel.mg_strText.PrintF(TRANSV("CONTROLS FOR: %s"), (const char *) _pGame->gm_apcPlayers[iPlayer].GetNameForPrinting());
 
   ObtainActionSettings();
   CGameMenu::StartMenu();
@@ -4571,7 +4571,7 @@ BOOL CLoadSaveMenu::ParseFile(const CTFileName &fnm, CTString &strName)
       INDEX iCtl = -1;
       strName.ScanF("Controls%d", &iCtl);
       if (iCtl>=0 && iCtl<=7) {
-        strName.PrintF(TRANS("From player: %s"), (const char *) (_pGame->gm_apcPlayers[iCtl].GetNameForPrinting()));
+        strName.PrintF(TRANSV("From player: %s"), (const char *) (_pGame->gm_apcPlayers[iCtl].GetNameForPrinting()));
       }
     }
   }

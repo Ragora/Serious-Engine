@@ -210,21 +210,21 @@ void MakeFatalError(void* pArgs)
 extern void ReportGlobalMemoryStatus(void)
 {
 #ifdef PLATFORM_WIN32
-   CPrintF(TRANS("Global memory status...\n"));
+   CPrintF(TRANSV("Global memory status...\n"));
 
    MEMORYSTATUS ms;
    GlobalMemoryStatus(&ms);
 
 #define MB (1024*1024)
-   CPrintF(TRANS("  Physical memory used: %4d/%4dMB\n"), (ms.dwTotalPhys    -ms.dwAvailPhys    )/MB, ms.dwTotalPhys    /MB);
-   CPrintF(TRANS("  Page file used:       %4d/%4dMB\n"), (ms.dwTotalPageFile-ms.dwAvailPageFile)/MB, ms.dwTotalPageFile/MB);
-   CPrintF(TRANS("  Virtual memory used:  %4d/%4dMB\n"), (ms.dwTotalVirtual -ms.dwAvailVirtual )/MB, ms.dwTotalVirtual /MB);
-   CPrintF(TRANS("  Memory load: %3d%%\n"), ms.dwMemoryLoad);
+   CPrintF(TRANSV("  Physical memory used: %4d/%4dMB\n"), (ms.dwTotalPhys    -ms.dwAvailPhys    )/MB, ms.dwTotalPhys    /MB);
+   CPrintF(TRANSV("  Page file used:       %4d/%4dMB\n"), (ms.dwTotalPageFile-ms.dwAvailPageFile)/MB, ms.dwTotalPageFile/MB);
+   CPrintF(TRANSV("  Virtual memory used:  %4d/%4dMB\n"), (ms.dwTotalVirtual -ms.dwAvailVirtual )/MB, ms.dwTotalVirtual /MB);
+   CPrintF(TRANSV("  Memory load: %3d%%\n"), ms.dwMemoryLoad);
 
    DWORD dwMin;
    DWORD dwMax;
    GetProcessWorkingSetSize(GetCurrentProcess(), &dwMin, &dwMax);
-   CPrintF(TRANS("  Process working set: %dMB-%dMB\n\n"), dwMin/(1024*1024), dwMax/(1024*1024));
+   CPrintF(TRANSV("  Process working set: %dMB-%dMB\n\n"), dwMin/(1024*1024), dwMax/(1024*1024));
 #endif
 }
 

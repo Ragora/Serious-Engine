@@ -171,7 +171,7 @@ functions:
   virtual CTString GetPlayerKillDescription(const CTString &strPlayerName, const EDeath &eDeath)
   {
     CTString str;
-    str.PrintF(TRANS("%s was -*blown away*- by an Air Elemental"), (const char *) strPlayerName);
+    str.PrintF(TRANSV("%s was -*blown away*- by an Air Elemental"), (const char *) strPlayerName);
     return str;
   }
   virtual const CTFileName &GetComputerMessageName(void) const {

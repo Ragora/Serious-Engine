@@ -304,8 +304,8 @@ void CHashTable_TYPE::ReportEfficiency()
   dAvg = dSum/ht_ctCompartments; // average number of full slots per compartement
   dStDev = sqrt((dSum2-2*dSum*dAvg+ulCount*dAvg*dAvg)/(ulCount-1));
 
-  CPrintF(TRANS("Hash table efficiency report:\n"));
-  CPrintF(TRANS("  Compartements: %ld,  Slots per compartement: %ld,  Full slots: %ld\n"),ht_ctCompartments,ht_ctSlotsPerComp,ulCount);
-  CPrintF(TRANS("  Percentage of full slots: %5.2f%%,  Average full slots per compartement: %5.2f \n"),dFullPercent*100,dAvg);
-  CPrintF(TRANS("  Standard deviation is: %5.2f\n"),dStDev);
+  CPrintF(TRANSV("Hash table efficiency report:\n"));
+  CPrintF(TRANSV("  Compartements: %ld,  Slots per compartement: %ld,  Full slots: %ld\n"),ht_ctCompartments,ht_ctSlotsPerComp,ulCount);
+  CPrintF(TRANSV("  Percentage of full slots: %5.2f%%,  Average full slots per compartement: %5.2f \n"),dFullPercent*100,dAvg);
+  CPrintF(TRANSV("  Standard deviation is: %5.2f\n"),dStDev);
 }

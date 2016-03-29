@@ -206,7 +206,7 @@ static void DirectoryLockOn(void)
   // try to open lock file
 
   if (_pFileSystem->Exists(_fnmLock))
-    CPrintF(TRANS("WARNING: SeriousSam didn't shut down properly last time!\n"));
+    CPrintF(TRANSV("WARNING: SeriousSam didn't shut down properly last time!\n"));
 
   _hLock = fopen(_fnmLock, "w");
   if (_hLock == NULL) {
@@ -415,7 +415,7 @@ void InitializeGame(void)
   try {
     #ifdef STATICALLY_LINKED
       #define fnmExpanded NULL
-      CPrintF(TRANS("Loading game library '%s'...\n"), "(statically linked)");
+      CPrintF(TRANSV("Loading game library '%s'...\n"), "(statically linked)");
     #else
       CTFileName fnmDLL;
       #ifndef NDEBUG
@@ -427,7 +427,7 @@ void InitializeGame(void)
       fnmDLL = CDynamicLoader::ConvertLibNameToPlatform(fnmDLL);
       CTFileName fnmExpanded;
       ExpandFilePath(EFP_READ | EFP_NOZIPS,fnmDLL,fnmExpanded);
-      CPrintF(TRANS("Loading game library '%s'...\n"), (const char *)fnmExpanded);
+      CPrintF(TRANSV("Loading game library '%s'...\n"), (const char *)fnmExpanded);
     #endif
   
     const char *err;
@@ -575,8 +575,8 @@ BOOL Init( HINSTANCE hInstance, int nCmdShow, CTString strCmdLine)
   // !! NOTE !! Re-enable these to allow mod support.
   //LoadStringVar(CTString("Data\\Var\\Sam_Version.var"), sam_strVersion);
   //LoadStringVar(CTString("Data\\Var\\ModName.var"), sam_strModName);
-  CPrintF(TRANS("Serious Sam version: %s\n"), (const char *) sam_strVersion);
-  CPrintF(TRANS("Active mod: %s\n"), (const char *) sam_strModName);
+  CPrintF(TRANSV("Serious Sam version: %s\n"), (const char *) sam_strVersion);
+  CPrintF(TRANSV("Active mod: %s\n"), (const char *) sam_strModName);
   InitializeMenus();      
   
   // if there is a mod
@@ -619,7 +619,7 @@ BOOL Init( HINSTANCE hInstance, int nCmdShow, CTString strCmdLine)
       _pShell->SetINDEX("net_iPort", cmd_iPort);
       strPort.PrintF(":%d", cmd_iPort);
     }
-    CPrintF(TRANS("Command line connection: '%s%s'\n"), (const char *) cmd_strServer, (const char *) strPort);
+    CPrintF(TRANSV("Command line connection: '%s%s'\n"), (const char *) cmd_strServer, (const char *) strPort);
     // go to join menu
     _pGame->gam_strJoinAddress = cmd_strServer;
     if (cmd_bQuickJoin) {
@@ -630,11 +630,11 @@ BOOL Init( HINSTANCE hInstance, int nCmdShow, CTString strCmdLine)
     }
   // if starting world from command line
   } else if (cmd_strWorld!="") {
-    CPrintF(TRANS("Command line world: '%s'\n"), (const char *) cmd_strWorld);
+    CPrintF(TRANSV("Command line world: '%s'\n"), (const char *) cmd_strWorld);
     // try to start the game with that level
     try {
       if (cmd_iGoToMarker>=0) {
-        CPrintF(TRANS("Command line marker: %d\n"), cmd_iGoToMarker);
+        CPrintF(TRANSV("Command line marker: %d\n"), cmd_iGoToMarker);
         CTString strCommand;
         strCommand.PrintF("cht_iGoToMarker = %d;", cmd_iGoToMarker);
         _pShell->Execute(strCommand);
@@ -648,7 +648,7 @@ BOOL Init( HINSTANCE hInstance, int nCmdShow, CTString strCmdLine)
         StartSinglePlayerGame();
       }
     } catch (char *strError) {
-      CPrintF(TRANS("Cannot start '%s': '%s'\n"), (const char *) cmd_strWorld, strError);
+      CPrintF(TRANSV("Cannot start '%s': '%s'\n"), (const char *) cmd_strWorld, strError);
     }
   // if no relevant starting at command line
   } else {
@@ -1267,7 +1267,7 @@ int SubMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int 
     // if addon is to be executed
     if (_iAddonExecState==1) {
       // print header and start console
-      CPrintF(TRANS("---- Executing addon: '%s'\n"), (const char*)_fnmAddonToExec);
+      CPrintF(TRANSV("---- Executing addon: '%s'\n"), (const char*)_fnmAddonToExec);
       sam_bToggleConsole = TRUE;
       _iAddonExecState = 2;
     // if addon is ready for execution
@@ -1276,7 +1276,7 @@ int SubMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int 
       CTString strCmd;
       strCmd.PrintF("include \"%s\"", (const char*)_fnmAddonToExec);
       _pShell->Execute(strCmd);
-      CPrintF(TRANS("Addon done, press Escape to close console\n"));
+      CPrintF(TRANSV("Addon done, press Escape to close console\n"));
       _iAddonExecState = 3;
     }
 
@@ -1636,7 +1636,7 @@ void StartNewMode( enum GfxAPIType eGfxAPI, INDEX iAdapter, PIX pixSizeI, PIX pi
       eColorDepth = (DisplayDepth)aDefaultModes[iMode][0];
       eGfxAPI     = (GfxAPIType)  aDefaultModes[iMode][1];
       iAdapter    =               aDefaultModes[iMode][2];
-      CPrintF(TRANS("\nTrying recovery mode %d...\n"), iMode);
+      CPrintF(TRANSV("\nTrying recovery mode %d...\n"), iMode);
       bSuccess = TryToSetDisplayMode( eGfxAPI, iAdapter, pixSizeI, pixSizeJ, eColorDepth, bFullScreenMode);
       if( bSuccess) break;
     }

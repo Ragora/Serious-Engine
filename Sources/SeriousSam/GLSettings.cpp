@@ -129,12 +129,12 @@ extern void ApplyGLSettings(BOOL bForce)
   // if none found
   if (pse==NULL) {
     // error
-    CPrintF(TRANS("No matching preferences found! Automatic adjustment disabled!\n"));
+    CPrintF(TRANSV("No matching preferences found! Automatic adjustment disabled!\n"));
     return;
   }
 
   // report
-  CPrintF(TRANS("Matching: %s (%s)\n"),
+  CPrintF(TRANSV("Matching: %s (%s)\n"),
             (const char *) pse->se_strRenderer,
             (const char *) pse->se_strDescription);
 
@@ -144,17 +144,17 @@ extern void ApplyGLSettings(BOOL bForce)
     // if same as last
     if( pse->se_strDescription==_strLastRenderer && sam_iVideoSetup==_iLastPreferences) {
       // do nothing
-      CPrintF(TRANS("Similar to last, keeping same preferences.\n"));
+      CPrintF(TRANSV("Similar to last, keeping same preferences.\n"));
       return;
     }
-    CPrintF(TRANS("Different than last, applying new preferences.\n"));
+    CPrintF(TRANSV("Different than last, applying new preferences.\n"));
   } else {
-    CPrintF(TRANS("Applying new preferences.\n"));
+    CPrintF(TRANSV("Applying new preferences.\n"));
   } 
 
   // clamp rendering preferences (just to be on the safe side)
   sam_iVideoSetup = Clamp( sam_iVideoSetup, 0L, 3L);
-  CPrintF(TRANS("Mode: %s\n"), (const char *) RenderingPreferencesDescription(sam_iVideoSetup));
+  CPrintF(TRANSV("Mode: %s\n"), (const char *) RenderingPreferencesDescription(sam_iVideoSetup));
   // if not in custom mode
   if (sam_iVideoSetup<3) {
     // execute the script
@@ -165,7 +165,7 @@ extern void ApplyGLSettings(BOOL bForce)
     _pShell->Execute("RefreshTextures();");
   }
   // done
-  CPrintF(TRANS("Done.\n\n"));
+  CPrintF(TRANSV("Done.\n\n"));
 
   // remember settings
   _strLastRenderer = pse->se_strDescription; 

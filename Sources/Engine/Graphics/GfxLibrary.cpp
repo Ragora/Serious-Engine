@@ -1116,7 +1116,7 @@ void CGfxLibrary::Init(void)
 
 #ifdef PLATFORM_WIN32
   // report desktop settings
-  CPrintF(TRANS("Desktop settings...\n"));
+  CPrintF(TRANSV("Desktop settings...\n"));
 
   HDC hdc = GetDC(NULL); 
   SLONG slBPP = GetDeviceCaps(hdc, PLANES) * GetDeviceCaps(hdc, BITSPIXEL); 
@@ -1124,10 +1124,10 @@ void CGfxLibrary::Init(void)
 
   gfx_ctMonitors = GetSystemMetrics(SM_CMONITORS);
 
-  CPrintF(TRANS("  Color Depth: %dbit\n"), slBPP);
-  CPrintF(TRANS("  Screen: %dx%d\n"), GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN));
-  CPrintF(TRANS("  Virtual screen: %dx%d\n"), GetSystemMetrics(SM_CXVIRTUALSCREEN), GetSystemMetrics(SM_CYVIRTUALSCREEN));
-  CPrintF(TRANS("  Monitors directly reported: %d\n"), gfx_ctMonitors);
+  CPrintF(TRANSV("  Color Depth: %dbit\n"), slBPP);
+  CPrintF(TRANSV("  Screen: %dx%d\n"), GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN));
+  CPrintF(TRANSV("  Virtual screen: %dx%d\n"), GetSystemMetrics(SM_CXVIRTUALSCREEN), GetSystemMetrics(SM_CYVIRTUALSCREEN));
+  CPrintF(TRANSV("  Monitors directly reported: %d\n"), gfx_ctMonitors);
 
 #else
 

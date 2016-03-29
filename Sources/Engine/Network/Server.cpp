@@ -306,7 +306,7 @@ void CServer::SendDisconnectMessage(INDEX iClient, const char *strExplanation, B
     _pNetwork->SendToClientReliable(iClient, strmDisconnect);
   }
   // report that it has gone away
-  CPrintF(TRANS("Client '%s' ordered to disconnect: %s\n"), 
+  CPrintF(TRANSV("Client '%s' ordered to disconnect: %s\n"), 
     (const char *) _cmiComm.Server_GetClientName(iClient), strExplanation);
   // if not disconnected before
   if (sso.sso_iDisconnectedState==0) {
@@ -315,7 +315,7 @@ void CServer::SendDisconnectMessage(INDEX iClient, const char *strExplanation, B
   // if the client was already kicked before, but is still hanging here
   } else {
     // force the disconnection
-    CPrintF(TRANS("Forcing client '%s' to disconnect\n"), 
+    CPrintF(TRANSV("Forcing client '%s' to disconnect\n"), 
       (const char *) _cmiComm.Server_GetClientName(iClient));
     sso.sso_iDisconnectedState = 2;
   }
@@ -527,7 +527,7 @@ void CServer::ResendGameStreamBlocks(INDEX iClient, INDEX iSequence0, INDEX ctSe
 {
   extern INDEX net_bReportMiscErrors;
   if (net_bReportMiscErrors) {
-    CPrintF(TRANS("Server: Resending sequences %d-%d(%d) to '%s'..."), 
+    CPrintF(TRANSV("Server: Resending sequences %d-%d(%d) to '%s'..."), 
       iSequence0, iSequence0+ctSequences-1, ctSequences, (const char *) _cmiComm.Server_GetClientName(iClient));
   }
 
@@ -569,7 +569,7 @@ void CServer::ResendGameStreamBlocks(INDEX iClient, INDEX iSequence0, INDEX ctSe
   _pNetwork->SendToClient(iClient, nmPackedBlocks);
   extern INDEX net_bReportMiscErrors;
   if (net_bReportMiscErrors) {
-    CPrintF(TRANS(" sent %d-%d(%d - %db)\n"), 
+    CPrintF(TRANSV(" sent %d-%d(%d - %db)\n"), 
       iSequence0, iSequence, iSequence-iSequence0-1, nmPackedBlocks.nm_slSize);
   }
 }
@@ -723,7 +723,7 @@ void CServer::ServerLoop(void)
 //  try {
 //    _cmiComm.Server_Accept_t();
 //  } catch (char *strError) {
-//    CPrintF(TRANS("Accepting failed, no more clients can connect: %s\n"), strError);
+//    CPrintF(TRANSV("Accepting failed, no more clients can connect: %s\n"), strError);
 //  }
   // handle all incoming messages
   HandleAll();
@@ -875,7 +875,7 @@ void CServer::ConnectRemoteSessionState(INDEX iClient, CNetworkMessage &nm)
   if (iMajor!=_SE_BUILD_MAJOR || iMinor!=_SE_BUILD_MINOR) {
     // disconnect the client
     CTString strExplanation;
-    strExplanation.PrintF(TRANS(
+    strExplanation.PrintF(TRANSV(
       "This server runs version %d.%d, your version is %d.%d.\n"
       "Please visit http://www.croteam.com for information on version updating."),
       _SE_BUILD_MAJOR, _SE_BUILD_MINOR, iMajor, iMinor);
@@ -1005,7 +1005,7 @@ void CServer::ConnectRemoteSessionState(INDEX iClient, CNetworkMessage &nm)
     // send the stream to the remote session state
     _pNetwork->SendToClientReliable(iClient, strmInfo);
   
-    CPrintF(TRANS("Server: Sent initialization info to '%s' (%dk)\n"),
+    CPrintF(TRANSV("Server: Sent initialization info to '%s' (%dk)\n"),
       (const char*)_cmiComm.Server_GetClientName(iClient), slSize/1024);
   // if failed
   } catch (char *strError) {
@@ -1013,7 +1013,7 @@ void CServer::ConnectRemoteSessionState(INDEX iClient, CNetworkMessage &nm)
     sso.Deactivate();
 
     // report error
-    CPrintF(TRANS("Server: Cannot prepare connection data: %s\n"), strError);
+    CPrintF(TRANSV("Server: Cannot prepare connection data: %s\n"), strError);
   }
 }
 
@@ -1073,11 +1073,11 @@ void CServer::SendSessionStateData(INDEX iClient)
     // send the stream to the remote session state
     _pNetwork->SendToClientReliable(iClient, strmInfo);
   
-    CPrintF(TRANS("Server: Sent connection data to '%s' (%dk->%dk->%dk)\n"),
+    CPrintF(TRANSV("Server: Sent connection data to '%s' (%dk->%dk->%dk)\n"),
       (const char*)_cmiComm.Server_GetClientName(iClient), 
       slFullSize/1024, slDeltaSize/1024, slSize/1024);
     if (net_bDumpConnectionInfo) {
-      CPrintF(TRANS("Server: Connection data dumped.\n"));
+      CPrintF(TRANSV("Server: Connection data dumped.\n"));
     }
 
   // if failed
@@ -1086,7 +1086,7 @@ void CServer::SendSessionStateData(INDEX iClient)
     sso.Deactivate();
 
     // report error
-    CPrintF(TRANS("Server: Cannot prepare connection data: %s\n"), strError);
+    CPrintF(TRANSV("Server: Cannot prepare connection data: %s\n"), strError);
   }
 }
 
@@ -1096,7 +1096,7 @@ void CServer::HandleAll()
   // clear last accepted client info
   INDEX iClient = -1;
 /*  if (_cmiComm.GetLastAccepted(iClient)) {
-    CPrintF(TRANS("Server: Accepted session connection by '%s'\n"),
+    CPrintF(TRANSV("Server: Accepted session connection by '%s'\n"),
       (const char *) _cmiComm.Server_GetClientName(iClient));
   }
 	*/
@@ -1140,7 +1140,7 @@ void CServer::HandleAllForAClient(INDEX iClient)
 
   // if the client is disconnected
   if (!_cmiComm.Server_IsClientUsed(iClient) || sso.sso_iDisconnectedState>1) {
-    CPrintF(TRANS("Server: Client '%s' disconnected.\n"), (const char *) _cmiComm.Server_GetClientName(iClient));
+    CPrintF(TRANSV("Server: Client '%s' disconnected.\n"), (const char *) _cmiComm.Server_GetClientName(iClient));
     // clear it
     _cmiComm.Server_ClearClient(iClient);
     // free all that data that was allocated for the client
@@ -1164,7 +1164,7 @@ void CServer::HandleAllForAClient(INDEX iClient)
 
 	// if the client has confirmed disconnect in this loop
   if (!_cmiComm.Server_IsClientUsed(iClient) || sso.sso_iDisconnectedState>1) {
-    CPrintF(TRANS("Server: Client '%s' disconnected.\n"), (const char *) _cmiComm.Server_GetClientName(iClient));
+    CPrintF(TRANSV("Server: Client '%s' disconnected.\n"), (const char *) _cmiComm.Server_GetClientName(iClient));
     // clear it
     _cmiComm.Server_ClearClient(iClient);
     // free all that data that was allocated for the client
@@ -1250,7 +1250,7 @@ void CServer::Handle(INDEX iClient, CNetworkMessage &nmMessage)
     } break;
   // if remote server asks for data
   case MSG_REQ_STATEDELTA: {
-    CPrintF(TRANS("Sending statedelta response\n"));
+    CPrintF(TRANSV("Sending statedelta response\n"));
     SendSessionStateData(iClient);
     } break;
   // if player asks for registration
@@ -1259,7 +1259,7 @@ void CServer::Handle(INDEX iClient, CNetworkMessage &nmMessage)
     // check that someone doesn't add too many players
     if (iClient>0 && GetPlayersCountForClient(iClient)>=sso.sso_ctLocalPlayers) {
       CTString strMessage;
-      strMessage.PrintF(TRANS("Protocol violation"));
+      strMessage.PrintF(TRANSV("Protocol violation"));
       SendDisconnectMessage(iClient, strMessage);
     }
 
@@ -1282,7 +1282,7 @@ void CServer::Handle(INDEX iClient, CNetworkMessage &nmMessage)
     if (CharacterNameIsUsed(pcCharacter)) {
       // send refusal message
       CTString strMessage;
-      strMessage.PrintF(TRANS("Player character '%s' already exists in this session."),
+      strMessage.PrintF(TRANSV("Player character '%s' already exists in this session."),
         (const char *) pcCharacter.GetName());
       SendDisconnectMessage(iClient, strMessage);
 
@@ -1513,7 +1513,7 @@ void CServer::Handle(INDEX iClient, CNetworkMessage &nmMessage)
       if (iClient==0) {
         strFrom = TRANS("Server");
       } else {
-        strFrom.PrintF(TRANS("Client %d"), iClient);
+        strFrom.PrintF(TRANSV("Client %d"), iClient);
       }
       nmOut<<strFrom;
     }
@@ -1535,7 +1535,7 @@ void CServer::Handle(INDEX iClient, CNetworkMessage &nmMessage)
   } break;
   // if a crc response is received
     case MSG_REQ_CRCLIST: {
-      CPrintF(TRANS("Sending CRC response\n"));
+      CPrintF(TRANSV("Sending CRC response\n"));
     // create CRC challenge
     CTMemoryStream strmCRC;
     strmCRC<<INDEX(MSG_REQ_CRCCHECK);
@@ -1544,7 +1544,7 @@ void CServer::Handle(INDEX iClient, CNetworkMessage &nmMessage)
 
     // send the stream to the remote session state
     _pNetwork->SendToClientReliable(iClient, strmCRC);
-    CPrintF(TRANS("Server: Sent CRC challenge to '%s' (%dk)\n"),
+    CPrintF(TRANSV("Server: Sent CRC challenge to '%s' (%dk)\n"),
       (const char*)_cmiComm.Server_GetClientName(iClient), slSize/1024);
 
   } break;
@@ -1560,7 +1560,7 @@ void CServer::Handle(INDEX iClient, CNetworkMessage &nmMessage)
       SendDisconnectMessage(iClient, TRANS("Wrong CRC check."));
     // if same
     } else {
-      CPrintF(TRANS("Server: Client '%s', CRC check OK\n"), 
+      CPrintF(TRANSV("Server: Client '%s', CRC check OK\n"), 
         (const char*)_cmiComm.Server_GetClientName(iClient));
       // use the piggybacked sequence number to initiate sending stream to it
       CSessionSocket &sso = srv_assoSessions[iClient];
@@ -1579,17 +1579,17 @@ void CServer::Handle(INDEX iClient, CNetworkMessage &nmMessage)
     if (net_strAdminPassword=="") {
       CNetworkMessage nmRes(MSG_ADMIN_RESPONSE);
       nmRes<<CTString(TRANS("Remote administration not allowed on this server.\n"));
-      CPrintF(TRANS("Server: Client '%s', Tried to use remote administration.\n"), 
+      CPrintF(TRANSV("Server: Client '%s', Tried to use remote administration.\n"), 
         (const char*)_cmiComm.Server_GetClientName(iClient));
       _pNetwork->SendToClientReliable(iClient, nmRes);
     } else if (net_strAdminPassword!=strPassword) {
-      CPrintF(TRANS("Server: Client '%s', Wrong password for remote administration.\n"), 
+      CPrintF(TRANSV("Server: Client '%s', Wrong password for remote administration.\n"), 
         (const char*)_cmiComm.Server_GetClientName(iClient));
       SendDisconnectMessage(iClient, TRANS("Wrong admin password. The attempt was logged."));
       break;
     } else {
 
-      CPrintF(TRANS("Server: Client '%s', Admin cmd: %s\n"), 
+      CPrintF(TRANSV("Server: Client '%s', Admin cmd: %s\n"), 
         (const char*)_cmiComm.Server_GetClientName(iClient), (const char *) strCommand);
 
       con_bCapture = TRUE;

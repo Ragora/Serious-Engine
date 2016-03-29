@@ -37,7 +37,7 @@ BOOL CGfxLibrary::InitDriver_OGL(BOOL init3dfx)
   CTString strDriverFileName = ((envlib) ? envlib : "libGL.so.1");
 
   if (SDL_GL_LoadLibrary(strDriverFileName) == -1) {
-    CPrintF(TRANS("Cannot load OpenGL driver '%s'"), (const char *) strDriverFileName);
+    CPrintF(TRANSV("Cannot load OpenGL driver '%s'"), (const char *) strDriverFileName);
     SDL_QuitSubSystem(SDL_INIT_VIDEO);
     return(FALSE);
   }

@@ -151,12 +151,12 @@ CTString GetZlibError(int ierr)
   case Z_VERSION_ERROR: return TRANS("Z_VERSION_ERROR"); break;
   case Z_ERRNO        : {
     CTString strError;
-    strError.PrintF(TRANS("Z_ERRNO: %s"), strerror(errno));
+    strError.PrintF(TRANSV("Z_ERRNO: %s"), strerror(errno));
     return strError; 
                         } break;
   default: {
     CTString strError;
-    strError.PrintF(TRANS("Unknown ZLIB error: %d"), ierr);
+    strError.PrintF(TRANSV("Unknown ZLIB error: %d"), ierr);
     return strError; 
            } break;
   }
@@ -380,7 +380,7 @@ void ReadZIPDirectory_t(CTFileName *pfnmZip)
   }
 
   // report that file was read
-  CPrintF(TRANS("  %s: %d files\n"), (const char *) (CTString&)*pfnmZip, ctFiles++);
+  CPrintF(TRANSV("  %s: %d files\n"), (const char *) (CTString&)*pfnmZip, ctFiles++);
 }
 
 // add one zip archive to current active set

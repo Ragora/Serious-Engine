@@ -269,7 +269,7 @@ functions:
   virtual CTString GetPlayerKillDescription(const CTString &strPlayerName, const EDeath &eDeath)
   {
     CTString str;
-    str.PrintF(TRANS("A Grunt sent %s into the halls of Valhalla"), (const char *) strPlayerName);
+    str.PrintF(TRANSV("A Grunt sent %s into the halls of Valhalla"), (const char *) strPlayerName);
     return str;
   }
 

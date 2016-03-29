@@ -410,11 +410,11 @@ static void KickClient(INDEX iClient, const CTString &strReason)
   }
   iClient = Clamp(iClient, INDEX(0), INDEX(NET_MAXGAMECOMPUTERS));
   if (!_pNetwork->ga_srvServer.srv_assoSessions[iClient].IsActive()) {
-    CPrintF(TRANS("Client not connected!\n"));
+    CPrintF(TRANSV("Client not connected!\n"));
     return;
   }
   if (iClient == 0) {
-    CPrintF(TRANS("Can't kick local client!\n"));
+    CPrintF(TRANSV("Can't kick local client!\n"));
     return;
   }
   CPrintF( TRANS("Kicking %d with explanation '%s'...\n"), iClient, (const char *) strReason);
@@ -1657,7 +1657,7 @@ void CNetworkLibrary::ChangeLevel_internal(void)
     // if failed
     } catch(char *strError) {
       // report error
-      CPrintF(TRANS("Cannot change level:\n%s"), strError);
+      CPrintF(TRANSV("Cannot change level:\n%s"), strError);
       // try to
       try {
         // load the old world
@@ -1843,7 +1843,7 @@ void CNetworkLibrary::MainLoop(void)
         StartDemoRec_t(strName);
         dem_iRecordedNumber+=1;
       } catch(char *strError) {
-        CPrintF(TRANS("Demo recording error: %s\n"), strError);
+        CPrintF(TRANSV("Demo recording error: %s\n"), strError);
       }
     }
   }
@@ -1989,11 +1989,11 @@ void CNetworkLibrary::MainLoop(void)
         CTString strAdr = AddressToString(ulFrom);
 
         if (net_strAdminPassword=="" || net_strAdminPassword!=strPass) {
-          CPrintF(TRANS("Server: Client '%s', Wrong password for remote administration.\n"), (const char*)strAdr);
+          CPrintF(TRANSV("Server: Client '%s', Wrong password for remote administration.\n"), (const char*)strAdr);
           continue;
         }
 
-        CPrintF(TRANS("Server: Client '%s', Admin cmd: %s\n"), (const char*)strAdr, strCmd);
+        CPrintF(TRANSV("Server: Client '%s', Admin cmd: %s\n"), (const char*)strAdr, strCmd);
 
         con_bCapture = TRUE;
         con_strCapture = "";
@@ -2498,7 +2498,7 @@ void CNetworkLibrary::FinishCRCGather(void)
     ga_ulCRC = CRCT_MakeCRCForFiles_t(strmCRC);
 
   } catch (char *strError) {
-    CPrintF(TRANS("Warning, cannot get CRCs: %s\n"), strError);
+    CPrintF(TRANSV("Warning, cannot get CRCs: %s\n"), strError);
   }
 }
 

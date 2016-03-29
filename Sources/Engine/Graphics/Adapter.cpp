@@ -310,7 +310,7 @@ void CGfxLibrary::InitAPIs(void)
 
   if (SDL_Init(SDL_INIT_VIDEO) == -1)
   {
-    CPrintF(TRANS("SDL_Init failed! Reason: %s\n"), SDL_GetError());
+    CPrintF(TRANSV("SDL_Init failed! Reason: %s\n"), SDL_GetError());
     return;
   }
 
@@ -392,12 +392,12 @@ BOOL CDS_SetMode( PIX pixSizeI, PIX pixSizeJ, enum DisplayDepth dd)
       case DISP_CHANGE_NOTUPDATED:  strError = "DISP_CHANGE_NOTUPDATED"; break;
       default: strError.PrintF("%d", lRes); break;
       }
-      CPrintF(TRANS("CDS error: %s\n"), strError);
+      CPrintF(TRANSV("CDS error: %s\n"), strError);
       return FALSE;
     }
   }
   // report
-  CPrintF(TRANS("  CDS: mode set to %dx%dx%d\n"), pixSizeI, pixSizeJ, devmode.dmBitsPerPel);
+  CPrintF(TRANSV("  CDS: mode set to %dx%dx%d\n"), pixSizeI, pixSizeJ, devmode.dmBitsPerPel);
 #endif
   return TRUE;
 }
@@ -412,7 +412,7 @@ void CDS_ResetMode(void)
 #ifdef PLATFORM_WIN32
   LONG lRes = ChangeDisplaySettings( NULL, 0);
   ASSERT(lRes==DISP_CHANGE_SUCCESSFUL);
-  CPrintF(TRANS("  CDS: mode reset to original desktop settings\n"));
+  CPrintF(TRANSV("  CDS: mode reset to original desktop settings\n"));
 #endif
 }
 

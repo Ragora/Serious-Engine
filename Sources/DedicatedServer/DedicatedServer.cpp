@@ -43,7 +43,7 @@ void InitializeGame(void)
 {
   #ifdef STATICALLY_LINKED
     #define fnmExpanded NULL
-    CPrintF(TRANS("Loading game library '%s'...\n"), "(statically linked)");
+    CPrintF(TRANSV("Loading game library '%s'...\n"), "(statically linked)");
   #else
     CTFileName fnmDLL;
     #ifndef NDEBUG
@@ -55,7 +55,7 @@ void InitializeGame(void)
     fnmDLL = CDynamicLoader::ConvertLibNameToPlatform(fnmDLL);
     CTFileName fnmExpanded;
     ExpandFilePath(EFP_READ | EFP_NOZIPS,fnmDLL,fnmExpanded);
-    CPrintF(TRANS("Loading game library '%s'...\n"), (const char *)fnmExpanded);
+    CPrintF(TRANSV("Loading game library '%s'...\n"), (const char *)fnmExpanded);
   #endif
 
   CDynamicLoader *loader = CDynamicLoader::GetInstance(fnmExpanded);
@@ -282,7 +282,7 @@ BOOL Init(int argc, char* argv[])
   _pNetwork->md_strGameID = sam_strGameName;
 
   LoadStringVar(CTString("Data\\Var\\Sam_Version.var"), _strSamVersion);
-  CPrintF(TRANS("Serious Sam version: %s\n"), (const char *) _strSamVersion);
+  CPrintF(TRANSV("Serious Sam version: %s\n"), (const char *) _strSamVersion);
 
   #if (defined PLATFORM_WIN32)
     SetConsoleCtrlHandler(HandlerRoutine, TRUE);
@@ -336,7 +336,7 @@ void RoundBegin(void)
       // if this is first round
       if (iRound==1) {
         // error
-        CPrintF(TRANS("No scripts present!\n"));
+        CPrintF(TRANSV("No scripts present!\n"));
         _bRunning = FALSE;
         return;
       }
@@ -350,7 +350,7 @@ void RoundBegin(void)
 
   // start the level specified there
   if (ded_strLevel=="") {
-    CPrintF(TRANS("ERROR: No next level specified!\n"));
+    CPrintF(TRANSV("ERROR: No next level specified!\n"));
     _bRunning = FALSE;
   } else {
     EnableLoadingHook();
@@ -359,9 +359,9 @@ void RoundBegin(void)
     _bRestart = 0;
     DisableLoadingHook();
     _tvLastLevelEnd = CTimerValue((__int64) -1);
-    CPrintF(TRANS("\nALL OK: Dedicated server is now running!\n"));
-    CPrintF(TRANS("Use Ctrl+C to shutdown the server.\n"));
-    CPrintF(TRANS("DO NOT use the 'Close' button, it might leave the port hanging!\n\n"));
+    CPrintF(TRANSV("\nALL OK: Dedicated server is now running!\n"));
+    CPrintF(TRANSV("Use Ctrl+C to shutdown the server.\n"));
+    CPrintF(TRANSV("DO NOT use the 'Close' button, it might leave the port hanging!\n\n"));
   }
 }
 
@@ -477,7 +477,7 @@ int SubMain(int argc, char* argv[])
         _bForceRestart = FALSE;
         _bRestart = FALSE;
         RoundEnd();
-        CPrintF(TRANS("\nNOTE: Restarting server!\n\n"));
+        CPrintF(TRANSV("\nNOTE: Restarting server!\n\n"));
         RoundBegin();
       } else {
         _bRestart = FALSE;

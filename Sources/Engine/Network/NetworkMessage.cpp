@@ -175,7 +175,7 @@ BOOL CNetworkMessage::EndOfMessage(void)
 void CNetworkMessage::Read(void *pvBuffer, SLONG slSize)
 {
   if (nm_pubPointer+slSize > nm_pubMessage+nm_slSize) {
-    CPrintF(TRANS("Warning: Message over-reading!\n"));
+    CPrintF(TRANSV("Warning: Message over-reading!\n"));
     ASSERT(FALSE);
     memset(pvBuffer, 0, slSize);
     return;
@@ -187,7 +187,7 @@ void CNetworkMessage::Read(void *pvBuffer, SLONG slSize)
 void CNetworkMessage::Write(const void *pvBuffer, SLONG slSize)
 {
   if (nm_pubPointer+slSize > nm_pubMessage+nm_slMaxSize) {
-    CPrintF(TRANS("Warning: Message over-writing!\n"));
+    CPrintF(TRANSV("Warning: Message over-writing!\n"));
     ASSERT(FALSE);
     return;
   }
@@ -236,7 +236,7 @@ CNetworkMessage &CNetworkMessage::operator<<(const CTString &str)
       *nm_pubPointer++ = 0;
       nm_slSize++;
       // report error and stop
-      CPrintF(TRANS("Warning: Message over-writing!\n"));
+      CPrintF(TRANSV("Warning: Message over-writing!\n"));
       ASSERT(FALSE);
       return *this;
     }

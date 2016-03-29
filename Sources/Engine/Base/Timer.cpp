@@ -270,7 +270,7 @@ static __int64 GetCPUSpeedHz(void)
   // if not found in registry
   if( !bFoundInReg) {
     // use measured
-    CPrintF(TRANS("  CPU speed not found in registry, using calculated value\n\n"));
+    CPrintF(TRANSV("  CPU speed not found in registry, using calculated value\n\n"));
     return (__int64)slSpeedRead*1000000;
   // if found in registry
   } else {
@@ -278,7 +278,7 @@ static __int64 GetCPUSpeedHz(void)
     const INDEX iTolerance = slSpeedRead *1/100; // %1 tolerance should be enough
     if( abs(slSpeedRead-slSpeedReg) > iTolerance) {
       // report warning and use registry value
-      CPrintF(TRANS("  WARNING: calculated CPU speed different than stored in registry!\n\n"));
+      CPrintF(TRANSV("  WARNING: calculated CPU speed different than stored in registry!\n\n"));
       return (__int64)slSpeedReg*1000000;
     }
     // use measured value

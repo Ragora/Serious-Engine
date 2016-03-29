@@ -661,7 +661,7 @@ void CTString::LoadVar(const class CTFileName &fnmFile)
     str.Load_t(fnmFile);
     *this = str;
   } catch (char *strError) {
-    CPrintF(TRANS("Cannot load variable from '%s':\n%s\n"), (const char *) (CTString&)fnmFile, strError);
+    CPrintF(TRANSV("Cannot load variable from '%s':\n%s\n"), (const char *) (CTString&)fnmFile, strError);
   }
 }
 
@@ -670,7 +670,7 @@ void CTString::SaveVar(const class CTFileName &fnmFile)
   try {
     Save_t(fnmFile);
   } catch (char *strError) {
-    CPrintF(TRANS("Cannot save variable to '%s':\n%s\n"), (const char *) (CTString&)fnmFile, strError);
+    CPrintF(TRANSV("Cannot save variable to '%s':\n%s\n"), (const char *) (CTString&)fnmFile, strError);
   }
 }
 

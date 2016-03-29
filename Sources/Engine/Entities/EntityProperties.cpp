@@ -604,9 +604,9 @@ void CEntityComponent::Obtain_t(void)  // throw char *
   // if not already loaded and should not be precaching now
   if( ctUsed<=1 && !_precache_bNowPrecaching) {
     // report warning
-    CPrintF(TRANS("Not precached: (0x%08X)'%s'\n"), this->ec_slID, (const char *) ec_fnmComponent);
+    CPrintF(TRANSV("Not precached: (0x%08X)'%s'\n"), this->ec_slID, (const char *) ec_fnmComponent);
   }
-  //CPrintF(TRANS("Precaching NOW: (0x%08X)'%s'\n"), this->ec_slID, (const char *) ec_fnmComponent);
+  //CPrintF(TRANSV("Precaching NOW: (0x%08X)'%s'\n"), this->ec_slID, (const char *) ec_fnmComponent);
 
   // add to CRC
   AddToCRCTable();

@@ -3017,7 +3017,7 @@ functions:
         strMessage.DeleteChar(iLen-1);
       };
       if( iAmmoTypes>4 ) {
-        strMessage.PrintF(TRANS("Ammo pack"));
+        strMessage.PrintF(TRANSV("Ammo pack"));
       };
 
       ((CPlayer&)*m_penPlayer).ItemPicked(strMessage, 0);

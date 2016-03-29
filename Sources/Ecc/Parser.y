@@ -10,29 +10,29 @@
 
 #define YYINITDEPTH 1000
 
-static char *_strCurrentClass;
+static const char *_strCurrentClass;
 static int _iCurrentClassID;
-static char *_strCurrentBase;
-static char *_strCurrentDescription;
-static char *_strCurrentThumbnail;
-static char *_strCurrentEnum;
+static const char *_strCurrentBase;
+static const char *_strCurrentDescription;
+static const char *_strCurrentThumbnail;
+static const char *_strCurrentEnum;
 static int _bClassIsExported = 0;
 
-static char *_strCurrentPropertyID;         
-static char *_strCurrentPropertyIdentifier; 
-static char *_strCurrentPropertyPropertyType;
-static char *_strCurrentPropertyEnumType;   
-static char *_strCurrentPropertyDataType;
-static char *_strCurrentPropertyName;       
-static char *_strCurrentPropertyShortcut;
-static char *_strCurrentPropertyColor;
-static char *_strCurrentPropertyFlags;
-static char *_strCurrentPropertyDefaultCode;
+static const char *_strCurrentPropertyID;
+static const char *_strCurrentPropertyIdentifier; 
+static const char *_strCurrentPropertyPropertyType;
+static const char *_strCurrentPropertyEnumType;   
+static const char *_strCurrentPropertyDataType;
+static const char *_strCurrentPropertyName;       
+static const char *_strCurrentPropertyShortcut;
+static const char *_strCurrentPropertyColor;
+static const char *_strCurrentPropertyFlags;
+static const char *_strCurrentPropertyDefaultCode;
 
-static char *_strCurrentComponentIdentifier;
-static char *_strCurrentComponentType;
-static char *_strCurrentComponentID;     
-static char *_strCurrentComponentFileName;
+static const char *_strCurrentComponentIdentifier;
+static const char *_strCurrentComponentType;
+static const char *_strCurrentComponentID;     
+static const char *_strCurrentComponentFileName;
 
 static int _ctInProcedureHandler = 0;
 static char _strLastProcedureName[256];
@@ -52,7 +52,7 @@ static int _bInProcedure;   // set if currently compiling a procedure
 static int _bInHandler;
 static int _bHasOtherwise;  // set if current 'wait' block has an 'otherwise' statement
 
-static char *_strCurrentEvent;
+static const char *_strCurrentEvent;
 static int _bFeature_AbstractBaseClass;
 static int _bFeature_ImplementsOnInitClass;
 static int _bFeature_ImplementsOnEndClass;
@@ -89,7 +89,7 @@ char *RemoveLineDirective(char *str)
     return str;
   }
 }
-char *GetLineDirective(SType &st) 
+const char *GetLineDirective(SType &st)
 {
   char *str = st.strString;
   if (str[0]=='\n' && str[1]=='#' && str[2]=='l') {
@@ -883,9 +883,9 @@ function_list
 function_implementation
   : opt_export opt_virtual return_type opt_tilde identifier '(' parameters_list ')' opt_const
   '{' statements '}' opt_semicolon {
-    char *strReturnType = $3.strString;
-    char *strFunctionHeader = ($4+$5+$6+$7+$8+$9).strString;
-    char *strFunctionBody = ($10+$11+$12).strString;
+    const char *strReturnType = $3.strString;
+    const char *strFunctionHeader = ($4+$5+$6+$7+$8+$9).strString;
+    const char *strFunctionBody = ($10+$11+$12).strString;
     if (strcmp($5.strString, _strCurrentClass)==0) {
       if (strcmp(strReturnType+strlen(strReturnType)-4, "void")==0 ) {
         strReturnType = "";

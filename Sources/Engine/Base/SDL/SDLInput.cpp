@@ -620,7 +620,7 @@ LONG CInput::PlatformGetJoystickCount(void)
 // check if a joystick exists
 BOOL CInput::CheckJoystick(INDEX iJoy)
 {
-  CPrintF(TRANS("  joy %d:"), iJoy + 1);
+  CPrintF(TRANSV("  joy %d:"), iJoy + 1);
 
   assert(ctJoysticks > iJoy);
   CPrintF(" '%s'\n", SDL_JoystickName(iJoy));
@@ -636,10 +636,10 @@ BOOL CInput::CheckJoystick(INDEX iJoy)
   sticks[iJoy] = stick;
 
   int ctAxes = SDL_JoystickNumAxes(stick);
-  CPrintF(TRANS("    %d axes\n"), ctAxes);
-  CPrintF(TRANS("    %d buttons\n"), SDL_JoystickNumButtons(stick));
+  CPrintF(TRANSV("    %d axes\n"), ctAxes);
+  CPrintF(TRANSV("    %d buttons\n"), SDL_JoystickNumButtons(stick));
   if (SDL_JoystickNumHats(stick) > 0) {
-    CPrintF(TRANS("    POV hat present\n"));
+    CPrintF(TRANSV("    POV hat present\n"));
   }
 
   // for each axis
@@ -938,7 +938,7 @@ void CInput::GetInput(BOOL bPreScan)
         // if joystick reading failed
         if (!bSucceeded && inp_bAutoDisableJoysticks) {
           // kill it, so it doesn't slow down CPU
-          CPrintF(TRANS("Joystick %d failed, disabling it!\n"), iJoy+1);
+          CPrintF(TRANSV("Joystick %d failed, disabling it!\n"), iJoy+1);
           inp_abJoystickOn[iJoy] = FALSE;
         }
       }

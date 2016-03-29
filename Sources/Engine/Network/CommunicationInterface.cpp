@@ -297,7 +297,7 @@ void CCommunicationInterface::InitWinsock(void)
   if (iResult==0) {
     // remember that
     cci_bWinSockOpen = TRUE;
-    CPrintF(TRANS("  winsock opened ok\n"));
+    CPrintF(TRANSV("  winsock opened ok\n"));
   }
 #else
     cci_bWinSockOpen = TRUE;
@@ -337,11 +337,11 @@ void CCommunicationInterface::PrepareForUse(BOOL bUseNetwork, BOOL bClient)
   EndWinsock();
 
   if (bUseNetwork) {
-    CPrintF(TRANS("Initializing TCP/IP...\n"));
+    CPrintF(TRANSV("Initializing TCP/IP...\n"));
     if (bClient) {
-      CPrintF(TRANS("  opening as client\n"));
+      CPrintF(TRANSV("  opening as client\n"));
     } else {
-      CPrintF(TRANS("  opening as server\n"));
+      CPrintF(TRANSV("  opening as server\n"));
     }
 
     // make sure winsock is on
@@ -351,7 +351,7 @@ void CCommunicationInterface::PrepareForUse(BOOL bUseNetwork, BOOL bClient)
     cm_ulLocalHost = 0;
     // if there is a desired local address
     if (net_strLocalHost!="") {
-      CPrintF(TRANS("  user forced local address: %s\n"), (const char*)net_strLocalHost);
+      CPrintF(TRANSV("  user forced local address: %s\n"), (const char*)net_strLocalHost);
       // use that address
       cm_strName = net_strLocalHost;
       cm_ulLocalHost = StringToAddress(cm_strName);
@@ -359,12 +359,12 @@ void CCommunicationInterface::PrepareForUse(BOOL bUseNetwork, BOOL bClient)
       if (cm_ulLocalHost==0 || cm_ulLocalHost==-1) {
         cm_ulLocalHost=0;
         // report it
-        CPrintF(TRANS("  requested local address is invalid\n"));
+        CPrintF(TRANSV("  requested local address is invalid\n"));
       }
     }
 
     // if no valid desired local address
-    CPrintF(TRANS("  getting local addresses\n"));
+    CPrintF(TRANSV("  getting local addresses\n"));
     // get default
     char hostname[256];
     gethostname(hostname, sizeof(hostname)-1);
@@ -383,8 +383,8 @@ void CCommunicationInterface::PrepareForUse(BOOL bUseNetwork, BOOL bClient)
       }
     }
 
-    CPrintF(TRANS("  local addresses: %s (%s)\n"), (const char *) cm_strName, (const char *) cm_strAddress);
-    CPrintF(TRANS("  port: %d\n"), net_iPort);
+    CPrintF(TRANSV("  local addresses: %s (%s)\n"), (const char *) cm_strName, (const char *) cm_strAddress);
+    CPrintF(TRANSV("  port: %d\n"), net_iPort);
 
     // try to open master UDP socket
     try {
@@ -392,9 +392,9 @@ void CCommunicationInterface::PrepareForUse(BOOL bUseNetwork, BOOL bClient)
 			cci_pbMasterInput.pb_ppbsStats = NULL;
 			cci_pbMasterOutput.pb_ppbsStats = NULL;
       cm_ciBroadcast.SetLocal(NULL);
-      CPrintF(TRANS("  opened socket: \n"));
+      CPrintF(TRANSV("  opened socket: \n"));
     } catch (char *strError) {
-      CPrintF(TRANS("  cannot open UDP socket: %s\n"), strError);
+      CPrintF(TRANSV("  cannot open UDP socket: %s\n"), strError);
     }
   }
   
@@ -520,7 +520,7 @@ void CCommunicationInterface::SetNonBlocking_t(void)
 CTString CCommunicationInterface::GetSocketError(INDEX iError)
 {
   CTString strError;
-  strError.PrintF(TRANS("Socket %d, Error %d (%s)"),
+  strError.PrintF(TRANSV("Socket %d, Error %d (%s)"),
     cci_hSocket, iError, ErrorDescription(&SocketErrors, iError));
   return strError;
 };
@@ -862,7 +862,7 @@ BOOL CCommunicationInterface::Server_Update()
 					}
 				}
 			} else {
-        CPrintF(TRANS("Unable to deliver data to client '%s', disconnecting.\n"),(const char *) AddressToString(cm_aciClients[iClient].ci_adrAddress.adr_ulAddress));
+        CPrintF(TRANSV("Unable to deliver data to client '%s', disconnecting.\n"),(const char *) AddressToString(cm_aciClients[iClient].ci_adrAddress.adr_ulAddress));
         Server_ClearClient(iClient);
         _pNetwork->ga_srvServer.HandleClientDisconected(iClient);
 
@@ -907,7 +907,7 @@ BOOL CCommunicationInterface::Server_Update()
 				// warn about possible attack
 				extern INDEX net_bReportMiscErrors;
 				if (net_bReportMiscErrors) {
-					CPrintF(TRANS("WARNING: Invalid message from: %s\n"), (const char *) AddressToString(ppaPacket->pa_adrAddress.adr_ulAddress));
+					CPrintF(TRANSV("WARNING: Invalid message from: %s\n"), (const char *) AddressToString(ppaPacket->pa_adrAddress.adr_ulAddress));
 				}
 			}
  		}
@@ -1243,7 +1243,7 @@ BOOL CCommunicationInterface::Client_Update(void)
 				// warn about possible attack
 				extern INDEX net_bReportMiscErrors;
 				if (net_bReportMiscErrors) {
-					CPrintF(TRANS("WARNING: Invalid message from: %s\n"), (const char *) AddressToString(ppaPacket->pa_adrAddress.adr_ulAddress));
+					CPrintF(TRANSV("WARNING: Invalid message from: %s\n"), (const char *) AddressToString(ppaPacket->pa_adrAddress.adr_ulAddress));
 				}
 			}
  		}
@@ -1290,7 +1290,7 @@ void CCommunicationInterface::UpdateMasterBuffers()
 				if (!isWouldBlockError(iResult)) {
 					// report it
 					if (iResult!=WSAECONNRESET || net_bReportICMPErrors) {
-						CPrintF(TRANS("Socket error during UDP receive. %s\n"), 
+						CPrintF(TRANSV("Socket error during UDP receive. %s\n"), 
 							(const char*)GetSocketError(iResult));
 						return;
 					}
@@ -1303,7 +1303,7 @@ void CCommunicationInterface::UpdateMasterBuffers()
 					// the packet is in error
           extern INDEX net_bReportMiscErrors;          
           if (net_bReportMiscErrors) {
-					  CPrintF(TRANS("WARNING: Bad UDP packet from '%s'\n"), (const char *) AddressToString(adrIncomingAddress.adr_ulAddress));
+					  CPrintF(TRANSV("WARNING: Bad UDP packet from '%s'\n"), (const char *) AddressToString(adrIncomingAddress.adr_ulAddress));
           }
 					// there might be more to do
 					bSomethingDone = TRUE;
@@ -1349,7 +1349,7 @@ void CCommunicationInterface::UpdateMasterBuffers()
 				return;
 			// report it
 			} else if (iResult!=WSAECONNRESET || net_bReportICMPErrors) {
-        CPrintF(TRANS("Socket error during UDP send. %s\n"), 
+        CPrintF(TRANSV("Socket error during UDP send. %s\n"), 
           (const char*)GetSocketError(iResult));
       }
 			return;    

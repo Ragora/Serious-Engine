@@ -144,13 +144,13 @@ void InitStreams(void)
     LoadStringVar(CTString("DefaultMod.txt"), _fnmMod);
   }
 
-  CPrintF(TRANS("Current mod: %s\n"),
+  CPrintF(TRANSV("Current mod: %s\n"),
             (_fnmMod=="") ? TRANS("<none>") :
                             (const char *) (CTString&)_fnmMod);
   // if there is a mod active
   if (_fnmMod!="") {
     // load mod's include/exclude lists
-    CPrintF(TRANS("Loading mod include/exclude lists...\n"));
+    CPrintF(TRANSV("Loading mod include/exclude lists...\n"));
     BOOL bOK = FALSE;
     bOK |= LoadFileList(_afnmBaseWriteInc , CTString("BaseWriteInclude.lst"));
     bOK |= LoadFileList(_afnmBaseWriteExc , CTString("BaseWriteExclude.lst"));
@@ -161,7 +161,7 @@ void InitStreams(void)
     if (!bOK) {
       // the mod is not valid
       _fnmMod = CTString("");
-      CPrintF(TRANS("Error: MOD not found!\n"));
+      CPrintF(TRANSV("Error: MOD not found!\n"));
     // if mod is ok
     } else {
       // remember mod name (the parameter that is passed on cmdline)
@@ -175,7 +175,7 @@ void InitStreams(void)
   LoadStringVar(CTString("ModExt.txt"), _strModExt);
 
 
-  CPrintF(TRANS("Loading group files...\n"));
+  CPrintF(TRANSV("Loading group files...\n"));
 
   // for each group file in base directory
   struct _finddata_t c_file;

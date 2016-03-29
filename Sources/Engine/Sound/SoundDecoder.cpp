@@ -264,10 +264,10 @@ void CSoundDecoder::InitPlugins(void)
 
     // if all successful, enable mpx playing
     _bOVEnabled = TRUE;
-    CPrintF(TRANS("  " VORBISLIB " shared library loaded, ogg playing enabled\n"));
+    CPrintF(TRANSV("  " VORBISLIB " shared library loaded, ogg playing enabled\n"));
 
   } catch (char *strError) {  // !!! FIXME: should be const char* ?
-    CPrintF(TRANS("OGG playing disabled: %s\n"), strError);
+    CPrintF(TRANSV("OGG playing disabled: %s\n"), strError);
   }
 
   try {
@@ -287,10 +287,10 @@ void CSoundDecoder::InitPlugins(void)
 
     // if all successful, enable mpx playing
     _bAMP11Enabled = TRUE;
-    CPrintF(TRANS("  amp11lib shared library loaded, mpx playing enabled\n"));
+    CPrintF(TRANSV("  amp11lib shared library loaded, mpx playing enabled\n"));
 
   } catch (char *strError) {  // !!! FIXME: should be const char* ?
-    CPrintF(TRANS("MPX playing disabled: %s\n"), strError);
+    CPrintF(TRANSV("MPX playing disabled: %s\n"), strError);
   }
 }
 
@@ -412,7 +412,7 @@ CSoundDecoder::CSoundDecoder(const CTFileName &fnm)
       sdc_pogg->ogg_wfeFormat = form;
 
     } catch (char*strError) {
-      CPrintF(TRANS("Cannot open encoded audio '%s' for streaming: %s\n"), (const char*)fnm, (const char*)strError);
+      CPrintF(TRANSV("Cannot open encoded audio '%s' for streaming: %s\n"), (const char*)fnm, (const char*)strError);
       if (sdc_pogg->ogg_vfVorbisFile!=NULL) {
         delete sdc_pogg->ogg_vfVorbisFile;
         sdc_pogg->ogg_vfVorbisFile = NULL;
@@ -518,7 +518,7 @@ CSoundDecoder::CSoundDecoder(const CTFileName &fnm)
         ThrowF_t(TRANS("cannot open mpx decoder"));
       }
     } catch (char*strError) {
-      CPrintF(TRANS("Cannot open mpx '%s' for streaming: %s\n"), (const char*)fnm, (const char*)strError);
+      CPrintF(TRANSV("Cannot open mpx '%s' for streaming: %s\n"), (const char*)fnm, (const char*)strError);
       if (iZipHandle!=0) {
         UNZIPClose(iZipHandle);
       }

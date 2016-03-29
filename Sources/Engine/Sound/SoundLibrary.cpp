@@ -202,7 +202,7 @@ static BOOL StartUp_SDLaudio( CSoundLibrary &sl, BOOL bReport=TRUE)
   sl.sl_bUsingDirectSound = FALSE;
   sl.sl_bUsingEAX = FALSE;
   snd_iDevice = 0;
-  if( bReport) CPrintF(TRANS("SDL audio initialization ...\n"));
+  if( bReport) CPrintF(TRANSV("SDL audio initialization ...\n"));
 
   ASSERT(!_bDedicatedServer);
   if (_bDedicatedServer) {
@@ -218,7 +218,7 @@ static BOOL StartUp_SDLaudio( CSoundLibrary &sl, BOOL bReport=TRUE)
   else if (bps <= 16)
     desired.format = AUDIO_S16LSB;
   else {
-    CPrintF(TRANS("Unsupported bits-per-sample: %d\n"), bps);
+    CPrintF(TRANSV("Unsupported bits-per-sample: %d\n"), bps);
     return FALSE;
   }
   desired.freq = sl.sl_SwfeFormat.nSamplesPerSec;
@@ -280,10 +280,10 @@ static BOOL StartUp_SDLaudio( CSoundLibrary &sl, BOOL bReport=TRUE)
   sl.sl_slDecodeBufferSize = sl.sl_slMixerBufferSize *
                            ((44100+sl.sl_SwfeFormat.nSamplesPerSec-1)/sl.sl_SwfeFormat.nSamplesPerSec);
   if( bReport) {
-    CPrintF(TRANS("  parameters: %d Hz, %d bit, stereo, mix-ahead: %gs\n"),
+    CPrintF(TRANSV("  parameters: %d Hz, %d bit, stereo, mix-ahead: %gs\n"),
             sl.sl_SwfeFormat.nSamplesPerSec, sl.sl_SwfeFormat.wBitsPerSample, snd_tmMixAhead);
-    CPrintF(TRANS("  output buffers: %d x %d bytes\n"), 2, desired.size);
-    CPrintF(TRANS("  mpx decode: %d bytes\n"), sl.sl_slDecodeBufferSize);
+    CPrintF(TRANSV("  output buffers: %d x %d bytes\n"), 2, desired.size);
+    CPrintF(TRANSV("  mpx decode: %d bytes\n"), sl.sl_slDecodeBufferSize);
   }
 
   // initialize mixing and decoding buffer
@@ -701,7 +701,7 @@ static BOOL StartUp_dsound( CSoundLibrary &sl, BOOL bReport=TRUE)
   // update window handle (just in case)
   HRESULT (WINAPI *pDirectSoundCreate)(GUID FAR *lpGUID, LPDIRECTSOUND FAR *lplpDS, IUnknown FAR *pUnkOuter);
   
-  if( bReport) CPrintF(TRANS("Direct Sound initialization ...\n"));
+  if( bReport) CPrintF(TRANSV("Direct Sound initialization ...\n"));
   ASSERT( _hInstDS==NULL);
   _hInstDS = LoadLibraryA( "dsound.dll");
   if( _hInstDS==NULL) {
@@ -820,8 +820,8 @@ static BOOL StartUp_dsound( CSoundLibrary &sl, BOOL bReport=TRUE)
     if( snd_iDevice>=0) strDevice.PrintF( TRANS("device %d"), snd_iDevice); 
     CPrintF( TRANS("  %dHz, %dbit, %s, mix-ahead: %gs\n"), 
              sl.sl_SwfeFormat.nSamplesPerSec, sl.sl_SwfeFormat.wBitsPerSample, strDevice, snd_tmMixAhead); 
-    CPrintF(TRANS("  mixer buffer size:  %d KB\n"), sl.sl_slMixerBufferSize /1024);
-    CPrintF(TRANS("  decode buffer size: %d KB\n"), sl.sl_slDecodeBufferSize/1024);
+    CPrintF(TRANSV("  mixer buffer size:  %d KB\n"), sl.sl_slMixerBufferSize /1024);
+    CPrintF(TRANSV("  decode buffer size: %d KB\n"), sl.sl_slDecodeBufferSize/1024);
     // EAX?
     CTString strEAX = TRANS("Disabled");
     if( sl.sl_bUsingEAX) strEAX = TRANS("Enabled");
@@ -840,7 +840,7 @@ static BOOL StartUp_waveout( CSoundLibrary &sl, BOOL bReport=TRUE)
   // not using DirectSound (obviously)
   sl.sl_bUsingDirectSound = FALSE;
   sl.sl_bUsingEAX = FALSE;
-  if( bReport) CPrintF(TRANS("WaveOut initialization ...\n"));
+  if( bReport) CPrintF(TRANSV("WaveOut initialization ...\n"));
   // set maximum total number of retries for device opening
   INDEX ctMaxRetries = snd_iMaxOpenRetries;
   _ctChannelsOpened = 0;
@@ -924,11 +924,11 @@ static BOOL StartUp_waveout( CSoundLibrary &sl, BOOL bReport=TRUE)
   sl.sl_slDecodeBufferSize = sl.sl_slMixerBufferSize *
                            ((44100+sl.sl_SwfeFormat.nSamplesPerSec-1)/sl.sl_SwfeFormat.nSamplesPerSec);
   if( bReport) {
-    CPrintF(TRANS("  parameters: %d Hz, %d bit, stereo, mix-ahead: %gs\n"),
+    CPrintF(TRANSV("  parameters: %d Hz, %d bit, stereo, mix-ahead: %gs\n"),
             sl.sl_SwfeFormat.nSamplesPerSec, sl.sl_SwfeFormat.wBitsPerSample, snd_tmMixAhead);
-    CPrintF(TRANS("  output buffers: %d x %d bytes\n"), ctWOBuffers, WAVEOUTBLOCKSIZE),
-    CPrintF(TRANS("  mpx decode: %d bytes\n"), sl.sl_slDecodeBufferSize),
-    CPrintF(TRANS("  extra sound channels taken: %d\n"), _ctChannelsOpened-1);
+    CPrintF(TRANSV("  output buffers: %d x %d bytes\n"), ctWOBuffers, WAVEOUTBLOCKSIZE),
+    CPrintF(TRANSV("  mpx decode: %d bytes\n"), sl.sl_slDecodeBufferSize),
+    CPrintF(TRANSV("  extra sound channels taken: %d\n"), _ctChannelsOpened-1);
   }
 
   // initialise waveout sound buffers
@@ -969,9 +969,9 @@ static void SetFormat_internal( CSoundLibrary &sl, CSoundLibrary::SoundFormat Es
 
   // if none skip initialization
   _fLastNormalizeValue = 1;
-  if( bReport) CPrintF(TRANS("Setting sound format ...\n"));
+  if( bReport) CPrintF(TRANSV("Setting sound format ...\n"));
   if( sl.sl_EsfFormat == CSoundLibrary::SF_NONE) {
-    if( bReport) CPrintF(TRANS("  (no sound)\n"));
+    if( bReport) CPrintF(TRANSV("  (no sound)\n"));
     return;
   }
 
@@ -1052,13 +1052,13 @@ void CSoundLibrary::Init(void)
 // !!! FIXME : rcg12162001 This should probably be done everywhere, honestly.
 #ifdef PLATFORM_UNIX
   if (_bDedicatedServer) {
-    CPrintF(TRANS("Dedicated server; not initializing sound.\n"));
+    CPrintF(TRANSV("Dedicated server; not initializing sound.\n"));
     return;
   }
 #endif
 
   // print header
-  CPrintF(TRANS("Initializing sound...\n"));
+  CPrintF(TRANSV("Initializing sound...\n"));
 
   // initialize sound library and set no-sound format
   SetFormat(SF_NONE);
@@ -1072,7 +1072,7 @@ void CSoundLibrary::Init(void)
 #ifdef PLATFORM_WIN32
   // get number of devices
   INDEX ctDevices = waveOutGetNumDevs();
-  CPrintF(TRANS("  Detected devices: %d\n"), ctDevices);
+  CPrintF(TRANSV("  Detected devices: %d\n"), ctDevices);
   sl_ctWaveDevices = ctDevices;
   
   // for each device
@@ -1081,11 +1081,11 @@ void CSoundLibrary::Init(void)
     WAVEOUTCAPS woc;
     memset( &woc, 0, sizeof(woc));
     MMRESULT res = waveOutGetDevCaps(iDevice, &woc, sizeof(woc));
-    CPrintF(TRANS("    device %d: %s\n"), 
+    CPrintF(TRANSV("    device %d: %s\n"), 
       iDevice, woc.szPname);
-    CPrintF(TRANS("      ver: %d, id: %d.%d\n"), 
+    CPrintF(TRANSV("      ver: %d, id: %d.%d\n"), 
       woc.vDriverVersion, woc.wMid, woc.wPid);
-    CPrintF(TRANS("      form: 0x%08x, ch: %d, support: 0x%08x\n"), 
+    CPrintF(TRANSV("      form: 0x%08x, ch: %d, support: 0x%08x\n"), 
       woc.dwFormats, woc.wChannels, woc.dwSupport);
   }
   // done

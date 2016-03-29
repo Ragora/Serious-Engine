@@ -138,7 +138,7 @@ void CPlayerSource::ChangeCharacter(CPlayerCharacter &pcNew)
   // if the requested character has different guid
   if (!(pls_pcCharacter==pcNew)) {
     // fail
-    CPrintF(TRANS("Cannot update character - different GUID\n"));
+    CPrintF(TRANSV("Cannot update character - different GUID\n"));
   }
 
   // just request the change

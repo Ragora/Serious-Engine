@@ -916,7 +916,7 @@ BOOL SetPlayerAppearance_internal(CModelObject *pmo, const CTFileName &fnmAMC, C
   // if anything failed
   } catch (char *strError) {
     // report error
-    CPrintF(TRANS("Cannot load player model:\n%s (%d) : %s\n"), 
+    CPrintF(TRANSV("Cannot load player model:\n%s (%d) : %s\n"), 
       (const char*)_strFile, _ctLines, strError);
     return FALSE;
   }
@@ -1347,7 +1347,7 @@ CEntity *FixupCausedToPlayer(CEntity *penThis, CEntity *penCaused, BOOL bWarning
   }
 
   if (bWarning && (ent_bReportBrokenChains || GetSP()->sp_bQuickTest)) {
-    CPrintF(TRANS("WARNING: Triggering chain broken, entity: %s-%s(%s)\n"), 
+    CPrintF(TRANSV("WARNING: Triggering chain broken, entity: %s-%s(%s)\n"), 
       (const char*)penThis->GetName(),
       (const char*)penThis->GetDescription(),
       (const char*)penThis->GetClass()->GetName());

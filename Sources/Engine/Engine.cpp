@@ -125,7 +125,7 @@ BOOL APIENTRY DllMain( HANDLE hModule, DWORD  ul_reason_for_call, LPVOID lpReser
 static void DetectCPU(void)
 {
 #if (defined USE_PORTABLE_C)  // rcg10072001
-  CPrintF(TRANS("  (No CPU detection in this binary.)\n"));
+  CPrintF(TRANSV("  (No CPU detection in this binary.)\n"));
 
 #else
   char strVendor[12+1];
@@ -190,8 +190,8 @@ static void DetectCPU(void)
   INDEX iStepping = (ulTFMS>> 0)&0xF;
 
 
-  CPrintF(TRANS("  Vendor: %s\n"), strVendor);
-  CPrintF(TRANS("  Type: %d, Family: %d, Model: %d, Stepping: %d\n"),
+  CPrintF(TRANSV("  Vendor: %s\n"), strVendor);
+  CPrintF(TRANSV("  Type: %d, Family: %d, Model: %d, Stepping: %d\n"),
     iType, iFamily, iModel, iStepping);
 
   BOOL bMMX  = ulFeatures & (1<<23);
@@ -200,9 +200,9 @@ static void DetectCPU(void)
   CTString strYes = TRANS("Yes");
   CTString strNo = TRANS("No");
 
-  CPrintF(TRANS("  MMX : %s\n"), (const char *) (bMMX ?strYes:strNo));
-  CPrintF(TRANS("  CMOV: %s\n"), (const char *) (bCMOV?strYes:strNo));
-  CPrintF(TRANS("  Clock: %.0fMHz\n"), _pTimer->tm_llCPUSpeedHZ/1E6);
+  CPrintF(TRANSV("  MMX : %s\n"), (const char *) (bMMX ?strYes:strNo));
+  CPrintF(TRANSV("  CMOV: %s\n"), (const char *) (bCMOV?strYes:strNo));
+  CPrintF(TRANSV("  Clock: %.0fMHz\n"), _pTimer->tm_llCPUSpeedHZ/1E6);
 
   sys_strCPUVendor = strVendor;
   sys_iCPUType = iType;
@@ -385,17 +385,17 @@ ENGINE_API void SE_InitEngine(const char *argv0, CTString strGameID)
   _strEngineBuild.PrintF( TRANS("SeriousEngine Build: %d.%d"), _SE_BUILD_MAJOR, _SE_BUILD_MINOR);
 
   // print basic engine info
-  CPrintF(TRANS("--- Serious Engine Startup ---\n"));
+  CPrintF(TRANSV("--- Serious Engine Startup ---\n"));
   CPrintF("  %s\n\n", (const char *) _strEngineBuild);
 
   // print info on the started application
-  CPrintF(TRANS("Executable: %s\n"), strExePath);
-  CPrintF(TRANS("Assumed engine directory: %s\n"), (const char *) _fnmApplicationPath);
+  CPrintF(TRANSV("Executable: %s\n"), strExePath);
+  CPrintF(TRANSV("Assumed engine directory: %s\n"), (const char *) _fnmApplicationPath);
 
   CPrintF("\n");
 
   // report os info
-  CPrintF(TRANS("Examining underlying OS...\n"));
+  CPrintF(TRANSV("Examining underlying OS...\n"));
 
 // !!! FIXME: Abstract this somehow.
 #if (defined PLATFORM_WIN32)
@@ -415,12 +415,12 @@ ENGINE_API void SE_InitEngine(const char *argv0, CTString strGameID)
     sys_iOSBuild = osv.dwBuildNumber & 0xFFFF;
     sys_strOSMisc = osv.szCSDVersion;
 
-    CPrintF(TRANS("  Type: %s\n"), (const char*)sys_strOS);
-    CPrintF(TRANS("  Version: %d.%d, build %d\n"), 
+    CPrintF(TRANSV("  Type: %s\n"), (const char*)sys_strOS);
+    CPrintF(TRANSV("  Version: %d.%d, build %d\n"), 
       osv.dwMajorVersion, osv.dwMinorVersion, osv.dwBuildNumber & 0xFFFF);
-    CPrintF(TRANS("  Misc: %s\n"), osv.szCSDVersion);
+    CPrintF(TRANSV("  Misc: %s\n"), osv.szCSDVersion);
   } else {
-    CPrintF(TRANS("Error getting OS info: %s\n"), GetWindowsError(GetLastError()) );
+    CPrintF(TRANSV("Error getting OS info: %s\n"), GetWindowsError(GetLastError()) );
   }
 
 #elif (defined PLATFORM_MACOSX)
@@ -434,8 +434,8 @@ ENGINE_API void SE_InitEngine(const char *argv0, CTString strGameID)
     sys_iOSBuild = ((osver & 0x000F) >> 0);
     sys_strOS = "Mac OS X";
     sys_strOSMisc = "Mac OS";
-    CPrintF(TRANS("  Type: %s\n"), (const char*)sys_strOS);
-    CPrintF(TRANS("  Version: %d.%d.%d\n"),
+    CPrintF(TRANSV("  Type: %s\n"), (const char*)sys_strOS);
+    CPrintF(TRANSV("  Version: %d.%d.%d\n"),
                  (int)sys_iOSMajor, (int)sys_iOSMinor, (int)sys_iOSBuild);
 
 #elif (defined PLATFORM_UNIX)  // !!! FIXME: rcg10082001 what to do with this?
@@ -444,7 +444,7 @@ ENGINE_API void SE_InitEngine(const char *argv0, CTString strGameID)
     sys_iOSBuild = 0;
     sys_strOS = "Unix";
     sys_strOSMisc = "Unix";
-    CPrintF(TRANS("  Type: %s\n"), (const char*)sys_strOS);
+    CPrintF(TRANSV("  Type: %s\n"), (const char*)sys_strOS);
 
 #else
    #error Do something with this for your platform.
@@ -455,7 +455,7 @@ ENGINE_API void SE_InitEngine(const char *argv0, CTString strGameID)
   // (rcg11232001 this is where _pShell was originally created.)
 
   // report CPU
-  CPrintF(TRANS("Detecting CPU...\n"));
+  CPrintF(TRANSV("Detecting CPU...\n"));
   DetectCPUWrapper();
   CPrintF("\n");
 

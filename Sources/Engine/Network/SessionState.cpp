@@ -363,7 +363,7 @@ void CSessionState::Start_AtClient_t(INDEX ctLocalPlayers)     // throw char *
   {CNetworkMessage nmKeepAlive(MSG_KEEPALIVE);
   _pNetwork->SendToServer(nmKeepAlive); }
   // send data request
-  CPrintF(TRANS("Sending statedelta request\n"));
+  CPrintF(TRANSV("Sending statedelta request\n"));
   CNetworkMessage nmRequestDelta(MSG_REQ_STATEDELTA);
   _pNetwork->SendToServerReliable(nmRequestDelta);
 
@@ -389,7 +389,7 @@ void CSessionState::Start_AtClient_t(INDEX ctLocalPlayers)     // throw char *
   {CNetworkMessage nmKeepAlive(MSG_KEEPALIVE);
   _pNetwork->SendToServer(nmKeepAlive); }
 
-  CPrintF(TRANS("Sending CRC request\n"));
+  CPrintF(TRANSV("Sending CRC request\n"));
   // send data request
   CNetworkMessage nmRequestCRC(MSG_REQ_CRCLIST);
   _pNetwork->SendToServerReliable(nmRequestCRC);
@@ -1138,7 +1138,7 @@ void CSessionState::ProcessGameStream(void)
       // if not successful
       } catch(char *strError) {
         // report error
-        CPrintF(TRANS("Error while playing demo: %s"), strError);
+        CPrintF(TRANSV("Error while playing demo: %s"), strError);
         _pfNetworkProfile.StopTimer(CNetworkProfile::PTI_SESSIONSTATE_PROCESSGAMESTREAM);
         return;
       }
@@ -1161,7 +1161,7 @@ void CSessionState::ProcessGameStream(void)
         // if not successful
         } catch(char *strError) {
           // report error
-          CPrintF(TRANS("Error while recording demo: %s"), strError);
+          CPrintF(TRANSV("Error while recording demo: %s"), strError);
           // stop recording
           _pNetwork->StopDemoRec();
         }
@@ -1222,7 +1222,7 @@ void CSessionState::ProcessGameStream(void)
 
         extern INDEX net_bReportMiscErrors;
         if (net_bReportMiscErrors) {
-          CPrintF(TRANS("Session State: Missing sequences %d-%d(%d) timeout %g\n"), 
+          CPrintF(TRANSV("Session State: Missing sequences %d-%d(%d) timeout %g\n"), 
             iSequence, iSequence+ctSequences-1, ctSequences, ses_tmResendTimeout);
         }
 
@@ -1355,7 +1355,7 @@ void CSessionState::ProcessGameStreamBlock(CNetworkMessage &nmMessage)
           FatalError(TRANS("Cannot load Player class:\n%s"), strError);
         }
         if (!_pNetwork->IsPlayerLocal(penNewPlayer)) {
-          CPrintF(TRANS("%s joined\n"), (const char *) penNewPlayer->GetPlayerName());
+          CPrintF(TRANSV("%s joined\n"), (const char *) penNewPlayer->GetPlayerName());
         }
       } else {
         // attach entity to client data
@@ -1364,7 +1364,7 @@ void CSessionState::ProcessGameStreamBlock(CNetworkMessage &nmMessage)
         penNewPlayer->CharacterChanged(pcCharacter);
 
         if (!_pNetwork->IsPlayerLocal(penNewPlayer)) {
-          CPrintF(TRANS("%s rejoined\n"), (const char *) penNewPlayer->GetPlayerName());
+          CPrintF(TRANSV("%s rejoined\n"), (const char *) penNewPlayer->GetPlayerName());
         }
       }
 
@@ -1379,7 +1379,7 @@ void CSessionState::ProcessGameStreamBlock(CNetworkMessage &nmMessage)
       _pNetwork->ga_World.DeletePredictors();
 
       // inform entity of disconnnection
-      CPrintF(TRANS("%s left\n"), (const char *) ses_apltPlayers[iPlayer].plt_penPlayerEntity->GetPlayerName());
+      CPrintF(TRANSV("%s left\n"), (const char *) ses_apltPlayers[iPlayer].plt_penPlayerEntity->GetPlayerName());
       ses_apltPlayers[iPlayer].plt_penPlayerEntity->Disconnect();
       // deactivate the player
       ses_apltPlayers[iPlayer].Deactivate();
@@ -1455,9 +1455,9 @@ void CSessionState::ProcessGameStreamBlock(CNetworkMessage &nmMessage)
       // report who paused
       if (ses_bPause!=bPauseBefore) {
         if (ses_bPause) {
-          CPrintF(TRANS("Paused by '%s'\n"), (const char *) strPauser);
+          CPrintF(TRANSV("Paused by '%s'\n"), (const char *) strPauser);
         } else {
-          CPrintF(TRANS("Unpaused by '%s'\n"), (const char *) strPauser);
+          CPrintF(TRANSV("Unpaused by '%s'\n"), (const char *) strPauser);
         }
       }
     }
@@ -2026,7 +2026,7 @@ void CSessionState::SessionStateLoop(void)
         PrintChatMessage(ulFrom, strFrom, strMessage);
       // otherwise
       } else {
-        CPrintF(TRANS("Session state: Unexpected message during game: %s(%d)\n"),
+        CPrintF(TRANSV("Session state: Unexpected message during game: %s(%d)\n"),
           ErrorDescription(&MessageTypes, nmMessage.GetType()), nmMessage.GetType());
       }
     }
@@ -2044,7 +2044,7 @@ void CSessionState::SessionStateLoop(void)
         CTString strReason;
         nmReliable>>strReason;
         ses_strDisconnected = strReason;
-        CPrintF(TRANS("Disconnected: %s\n"), (const char *) strReason);
+        CPrintF(TRANSV("Disconnected: %s\n"), (const char *) strReason);
         // disconnect
         _cmiComm.Client_Close();
       // if this is recon response
@@ -2055,7 +2055,7 @@ void CSessionState::SessionStateLoop(void)
         CPrintF("%s", (const char *) ("|"+strResponse+"\n"));
       // otherwise
       } else {
-        CPrintF(TRANS("Session state: Unexpected reliable message during game: %s(%d)\n"),
+        CPrintF(TRANSV("Session state: Unexpected reliable message during game: %s(%d)\n"),
           ErrorDescription(&MessageTypes, nmReliable.GetType()), nmReliable.GetType());
       }
     }
@@ -2068,7 +2068,7 @@ void CSessionState::SessionStateLoop(void)
       (_pTimer->GetHighPrecisionTimer()-ses_tvMessageReceived).GetSeconds()>net_tmDisconnectTimeout &&
       ses_strDisconnected=="") {
       ses_strDisconnected = TRANS("Connection timeout");
-      CPrintF(TRANS("Disconnected: %s\n"), (const char*)ses_strDisconnected);
+      CPrintF(TRANSV("Disconnected: %s\n"), (const char*)ses_strDisconnected);
     }
   }
 
