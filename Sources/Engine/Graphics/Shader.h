@@ -64,7 +64,7 @@ public:
   CShader();
   ~CShader();
   
-  HINSTANCE hLibrary;
+  CDynamicLoader *hLibrary;
   void (*ShaderFunc)(void);
   void (*GetShaderDesc)(ShaderDesc &shDesc);
 
@@ -215,21 +215,14 @@ ENGINE_API void shaSetHazeColorArray(GFXColor *paHazeColors);
 // Is overbrightning enabled
 ENGINE_API BOOL shaOverBrightningEnabled(void);
 
-#if (defined _MSC_VER)
- #define DECLSPEC_DLLEXPORT _declspec (dllexport)
+#ifdef PLATFORM_WIN32
+#define SHADER_DECLSPEC _declspec(dllexport)
 #else
- #define DECLSPEC_DLLEXPORT
+#define SHADER_DECLSPEC
 #endif
-
-#define SHADER_MAIN(name) \
-  extern "C" void DECLSPEC_DLLEXPORT Shader_##name (void);\
-  SYMBOLLOCATOR(Shader_##name);\
-  extern "C" void DECLSPEC_DLLEXPORT Shader_##name (void)
-
-#define SHADER_DESC(name,x) \
-  extern "C" void DECLSPEC_DLLEXPORT Shader_Desc_##name (x);\
-  SYMBOLLOCATOR(Shader_Desc_##name);\
-  extern "C" void DECLSPEC_DLLEXPORT Shader_Desc_##name (x)
+#define SHADER_MAIN(name) extern "C" void SHADER_DECLSPEC Shader_##name (void)
+#define SHADER_DESC(name,x) extern "C" void SHADER_DECLSPEC Shader_Desc_##name (x)
 
 #endif  /* include-once check. */
+
 

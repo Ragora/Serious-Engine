@@ -39,8 +39,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // set master volume and resets mixer buffer (wipes it with zeroes and keeps pointers)
 void ResetMixer( const SLONG *pslBuffer, const SLONG slBufferSize);
 // copy mixer buffer to the output buffer(s)
-void CopyMixerBuffer_stereo( const SLONG slSrcOffset, const void *pDstBuffer, const SLONG slBytes);
-void CopyMixerBuffer_mono(   const SLONG slSrcOffset, const void *pDstBuffer, const SLONG slBytes);
+void CopyMixerBuffer_stereo( const SLONG slSrcOffset, void *pDstBuffer, const SLONG slBytes);
+void CopyMixerBuffer_mono(   const SLONG slSrcOffset, void *pDstBuffer, const SLONG slBytes);
 // normalize mixed sounds
 void NormalizeMixerBuffer( const FLOAT snd_fNormalizer, const SLONG slBytes, FLOAT &_fLastNormalizeValue);
 // mix in one sound object to mixer buffer
@@ -73,12 +73,13 @@ public:
 public:
   CTCriticalSection sl_csSound;          // sync. access to sounds
   CSoundTimerHandler sl_thTimerHandler;  // handler for mixing sounds in timer
+  INDEX sl_ctWaveDevices;                // number of devices detected
 
 /* rcg !!! FIXME: This needs to be abstracted. */
-#ifdef PLATFORM_WIN32
-  INDEX sl_ctWaveDevices;                // number of devices detected
   BOOL  sl_bUsingDirectSound;
   BOOL  sl_bUsingEAX;
+#ifdef PLATFORM_WIN32
+  INDEX sl_ctWaveDevices;                // number of devices detected
   HWAVEOUT sl_hwoWaveOut;                   // wave out handle
   CStaticStackArray<HWAVEOUT> sl_ahwoExtra; // preventively taken channels
 
@@ -91,8 +92,10 @@ public:
   LPDIRECTSOUND3DBUFFER   sl_pDSSourceLeft;
   LPDIRECTSOUND3DBUFFER   sl_pDSSourceRight;
 
-  UBYTE *sl_pubBuffersMemory;            // memory allocated for the sound buffer(s) output
   CStaticArray<WAVEHDR> sl_awhWOBuffers; // the waveout buffers
+#endif
+
+  UBYTE *sl_pubBuffersMemory;            // memory allocated for the sound buffer(s) output
 
   SoundFormat  sl_EsfFormat;             // sound format (external)
   WAVEFORMATEX sl_SwfeFormat;            // primary sound buffer format
@@ -103,12 +106,6 @@ public:
 
   CListHead sl_ClhAwareList;	 					         // list of sound mode aware objects
   CListHead sl_lhActiveListeners;                // active listeners for current frame of listening
-
-#else
-
-  SoundFormat  sl_EsfFormat;
-
-#endif
 
   /* Return library state (active <==> format <> NONE */
   inline BOOL IsActive(void) {return sl_EsfFormat != SF_NONE;};

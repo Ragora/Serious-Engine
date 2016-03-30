@@ -102,8 +102,13 @@ CScreenPolygon::~CScreenPolygon(void) {
 static FLOAT fDiff;
 static SLONG slTmp;
 
+
 static inline PIX PIXCoord(FLOAT f) // (f+0.9999f) or (ceil(f))
 {
+ #if (defined USE_PORTABLE_C)
+  return((PIX) (f+0.9999f));
+
+ #elif (defined __MSVC_INLINE__)
   PIX pixRet;
   __asm {
     fld     dword ptr [f]
@@ -117,6 +122,27 @@ static inline PIX PIXCoord(FLOAT f) // (f+0.9999f) or (ceil(f))
     mov     dword ptr [pixRet],eax
   }
   return pixRet;
+
+ #elif (defined __GNU_INLINE__)
+  PIX pixRet;
+  __asm__ __volatile__ (
+    "flds    (%%eax)              \n\t"
+    "fistl   (%%edx)              \n\t"
+    "fisubrl (%%edx)              \n\t"
+    "fstps   (%%ecx)              \n\t"
+    "movl    (%%edx), %%eax       \n\t"
+    "movl    (%%ecx), %%edx       \n\t"
+    "addl    $0x7FFFFFFF, %%edx   \n\t"
+    "adcl    $0, %%eax            \n\t"
+        : "=a" (pixRet)
+        : "a" (&f), "d" (&slTmp), "c" (&fDiff)
+        : "cc", "memory"
+  );
+  return pixRet;
+
+ #else
+  #error Please write inline ASM for your platform.
+ #endif
 }
 
 
@@ -467,6 +493,7 @@ void CRenderer::RenderEntityNames(void)
     PIX pixH=re_pdpDrawPort->GetHeight();
     re_pdpDrawPort->SetFont( _pfdConsoleFont);
     UBYTE ubAlpha=UBYTE(fPower*255.0f);
-    re_pdpDrawPort->PutTextC( strName, vProjected(1), pixH-vProjected(2), C_RED|ubAlpha);
+    re_pdpDrawPort->PutTextC( strName, (PIX) (vProjected(1)), (PIX) (pixH-vProjected(2)), C_RED|ubAlpha);
   }
 }
+

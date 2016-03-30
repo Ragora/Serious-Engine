@@ -98,8 +98,8 @@ functions:
       return FALSE;
     }
     // if should be modelobject
-    if( slPropertyOffset==offsetof(CEffectMarker, m_penModel) ||
-        slPropertyOffset==offsetof(CEffectMarker, m_penModel2) )
+    if( slPropertyOffset==_offsetof(CEffectMarker, m_penModel) ||
+        slPropertyOffset==_offsetof(CEffectMarker, m_penModel2) )
     {
       return IsOfClass(penTarget, "ModelHolder2");
     }

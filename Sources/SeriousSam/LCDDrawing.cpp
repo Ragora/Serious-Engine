@@ -13,9 +13,11 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "Stdh.h"
+#include "SeriousSam/StdH.h"
 #include "LCDDrawing.h"
 
+// !!! FIXME : lose this, just use _pGame->LCD*() directly!
+#ifdef PLATFORM_WIN32
 extern void LCDInit(void)
 {
   _pGame->LCDInit();
@@ -89,3 +91,6 @@ extern void LCDDrawPointer(PIX pixI, PIX pixJ)
 {
   _pGame->LCDDrawPointer(pixI, pixJ);
 }
+#endif
+
+

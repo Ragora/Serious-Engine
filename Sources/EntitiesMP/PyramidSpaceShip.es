@@ -162,8 +162,8 @@ functions:
     {
       return FALSE;
     }
-    if( slPropertyOffset==offsetof(CPyramidSpaceShip, m_penTarget) ||
-        slPropertyOffset==offsetof(CPyramidSpaceShip, m_penFlyAwayTarget))
+    if( slPropertyOffset==_offsetof(CPyramidSpaceShip, m_penTarget) ||
+        slPropertyOffset==_offsetof(CPyramidSpaceShip, m_penFlyAwayTarget))
     {
       return( IsDerivedFromClass(penTarget, "Pyramid Space Ship Marker"));
     }
@@ -189,7 +189,7 @@ functions:
   const CTString &GetDescription(void) const
   {
     if (m_penTarget!=NULL) {
-      ((CTString&)m_strDescription).PrintF("->%s", m_penTarget->GetName());
+      ((CTString&)m_strDescription).PrintF("->%s", (const char *) m_penTarget->GetName());
     } else {
       ((CTString&)m_strDescription).PrintF("-><none>");
     }

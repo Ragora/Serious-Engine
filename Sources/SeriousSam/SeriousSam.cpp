@@ -13,11 +13,23 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include "SeriousSam/StdH.h"
+
+#ifdef PLATFORM_WIN32
 #include <io.h>
+#include <process.h>
+#endif
+
+// !!! FIXME: rcg01082002 Do something with these.
+#ifdef PLATFORM_UNIX
+  #include <Engine/Base/SDL/SDLEvents.h>
+  #if !PLATFORM_MACOSX
+    #include <mntent.h>
+  #endif
+#endif
+
 #include <fcntl.h>
 #include <sys/stat.h>
-#include <process.h>
 #include <Engine/CurrentVersion.h>
 #include <GameMP/Game.h>
 #define DECL_DLL
@@ -25,47 +37,48 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "resource.h"
 #include "SplashScreen.h"
 #include "MainWindow.h"
-#include "GlSettings.h"
+#include "GLSettings.h"
 #include "LevelInfo.h"
 #include "LCDDrawing.h"
 #include "CmdLine.h"
 #include "Credits.h"
 
 
-extern CGame *_pGame = NULL;
+CGame *_pGame = NULL;
 
 // application state variables
-extern BOOL _bRunning = TRUE;
-extern BOOL _bQuitScreen = TRUE;
-extern BOOL bMenuActive = FALSE;
-extern BOOL bMenuRendering = FALSE;
+BOOL _bRunning = TRUE;
+BOOL _bQuitScreen = TRUE;
+BOOL bMenuActive = FALSE;
+BOOL bMenuRendering = FALSE;
 
 extern BOOL _bDefiningKey;
 static BOOL _bReconsiderInput = FALSE;
-extern PIX  _pixDesktopWidth = 0;    // desktop width when started (for some tests)
+
+PIX  _pixDesktopWidth = 0;    // desktop width when started (for some tests)
 
 static INDEX sam_iMaxFPSActive   = 500;
 static INDEX sam_iMaxFPSInactive = 10;
 static INDEX sam_bPauseOnMinimize = TRUE; // auto-pause when window has been minimized
-extern INDEX sam_bWideScreen = FALSE;
-extern FLOAT sam_fPlayerOffset = 0.0f;
+INDEX sam_bWideScreen = FALSE;
+FLOAT sam_fPlayerOffset = 0.0f;
 
 // display mode settings
-extern INDEX sam_bFullScreenActive = FALSE;
-extern INDEX sam_iScreenSizeI = 1024;  // current size of the window
-extern INDEX sam_iScreenSizeJ = 768;  // current size of the window
-extern INDEX sam_iDisplayDepth  = 0;  // 0==default, 1==16bit, 2==32bit
-extern INDEX sam_iDisplayAdapter = 0; 
-extern INDEX sam_iGfxAPI = 0;         // 0==OpenGL
-extern INDEX sam_bFirstStarted = FALSE;
-extern FLOAT sam_tmDisplayModeReport = 5.0f;
-extern INDEX sam_bShowAllLevels = FALSE;
-extern INDEX sam_bMentalActivated = FALSE;
+INDEX sam_bFullScreenActive = TRUE;
+INDEX sam_iScreenSizeI = 640;  // current size of the window
+INDEX sam_iScreenSizeJ = 480;  // current size of the window
+INDEX sam_iDisplayDepth  = 0;  // 0==default, 1==16bit, 2==32bit
+INDEX sam_iDisplayAdapter = 0; 
+INDEX sam_iGfxAPI = 0;         // 0==OpenGL
+INDEX sam_bFirstStarted = TRUE;
+FLOAT sam_tmDisplayModeReport = 5.0f;
+INDEX sam_bShowAllLevels = FALSE;
+INDEX sam_bMentalActivated = FALSE;
 
 // network settings
-extern CTString sam_strNetworkSettings = "";
+CTString sam_strNetworkSettings = "";
 // command line
-extern CTString sam_strCommandLine = "";
+CTString sam_strCommandLine = "";
 
 // 0...app started for the first time
 // 1...all ok
@@ -74,54 +87,54 @@ static INDEX _iDisplayModeChangeFlag = 0;
 static TIME _tmDisplayModeChanged = 100.0f; // when display mode was last changed
 
 // rendering preferences for automatic settings
-extern INDEX sam_iVideoSetup = 1;  // 0==speed, 1==normal, 2==quality, 3==custom
+INDEX sam_iVideoSetup = 1;  // 0==speed, 1==normal, 2==quality, 3==custom
 // automatic adjustment of audio quality
-extern BOOL sam_bAutoAdjustAudio = TRUE;
+BOOL sam_bAutoAdjustAudio = TRUE;
 
-extern INDEX sam_bAutoPlayDemos = TRUE;
+INDEX sam_bAutoPlayDemos = TRUE;
 static INDEX _bInAutoPlayLoop = TRUE;
 
 // menu calling
-extern INDEX sam_bMenuSave     = FALSE;
-extern INDEX sam_bMenuLoad     = FALSE;
-extern INDEX sam_bMenuControls = FALSE;
-extern INDEX sam_bMenuHiScore  = FALSE;
-extern INDEX sam_bToggleConsole = FALSE;
-extern INDEX sam_iStartCredits = FALSE;
+INDEX sam_bMenuSave     = FALSE;
+INDEX sam_bMenuLoad     = FALSE;
+INDEX sam_bMenuControls = FALSE;
+INDEX sam_bMenuHiScore  = FALSE;
+INDEX sam_bToggleConsole = FALSE;
+INDEX sam_iStartCredits = FALSE;
 
 // for mod re-loading
-extern CTFileName _fnmModToLoad = CTString("");
-extern CTString _strModServerJoin = CTString("");
-extern CTString _strURLToVisit = CTString("");
+CTFileName _fnmModToLoad = CTString("");
+CTString _strModServerJoin = CTString("");
+CTString _strURLToVisit = CTString("");
 
 
 // state variables fo addon execution
 // 0 - nothing
 // 1 - start (invoke console)
 // 2 - console invoked, waiting for one redraw
-extern INDEX _iAddonExecState = 0;
-extern CTFileName _fnmAddonToExec = CTString("");
+INDEX _iAddonExecState = 0;
+CTFileName _fnmAddonToExec = CTString("");
 
 // logo textures
 static CTextureObject  _toLogoCT;
 static CTextureObject  _toLogoODI;
 static CTextureObject  _toLogoEAX;
-extern CTextureObject *_ptoLogoCT  = NULL;
-extern CTextureObject *_ptoLogoODI = NULL;
-extern CTextureObject *_ptoLogoEAX = NULL;
+CTextureObject *_ptoLogoCT  = NULL;
+CTextureObject *_ptoLogoODI = NULL;
+CTextureObject *_ptoLogoEAX = NULL;
 
 extern CTString sam_strVersion = "1.10";
 extern CTString sam_strModName = TRANS("-   O P E N   S O U R C E   -");
 #if _SE_DEMO
-  extern CTString sam_strFirstLevel = "Levels\\KarnakDemo.wld";
+  CTString sam_strFirstLevel = "Levels\\KarnakDemo.wld";
 #else
-  extern CTString sam_strFirstLevel = "Levels\\LevelsMP\\1_0_InTheLastEpisode.wld.wld";
+  CTString sam_strFirstLevel = "Levels\\LevelsMP\\1_0_InTheLastEpisode.wld";
 #endif
-extern CTString sam_strIntroLevel = "Levels\\LevelsMP\\Intro.wld";
-extern CTString sam_strGameName = "serioussamse";
+CTString sam_strIntroLevel = "Levels\\LevelsMP\\Intro.wld";
+CTString sam_strGameName = "serioussamse";
 
-extern CTString sam_strTechTestLevel = "Levels\\LevelsMP\\TechTest.wld";
-extern CTString sam_strTrainingLevel = "Levels\\KarnakDemo.wld";
+CTString sam_strTechTestLevel = "Levels\\LevelsMP\\TechTest.wld";
+CTString sam_strTrainingLevel = "Levels\\KarnakDemo.wld";
 
 ENGINE_API extern INDEX snd_iFormat;
 
@@ -148,7 +161,7 @@ static void ApplyRenderingPreferences(void)
   ApplyGLSettings(TRUE);
 }
 
-extern void ApplyVideoMode(void)
+void ApplyVideoMode(void)
 {
   StartNewMode( (GfxAPIType)sam_iGfxAPI, sam_iDisplayAdapter, sam_iScreenSizeI, sam_iScreenSizeJ,
                 (enum DisplayDepth)sam_iDisplayDepth, sam_bFullScreenActive);
@@ -167,38 +180,53 @@ static void QuitGame(void)
 }
 
 // check if another app is already running
-static HANDLE _hLock = NULL;
+// !!! FIXME: rcg01042002 Actually, I've abstracted this code, but it didn't
+// !!! FIXME: rcg01042002  really seem to care if there was another copy
+// !!! FIXME: rcg01042002  running before anyhow. What SHOULD be done is
+// !!! FIXME: rcg01042002  we should see if the lockfile exists, and if not
+// !!! FIXME: rcg01042002  create it and write our process ID in it. Then, if
+// !!! FIXME: rcg01042002  another copy of Serious Sam is run, it sees the
+// !!! FIXME: rcg01042002  file exists, opens it for reading, gets the process
+// !!! FIXME: rcg01042002  ID, and sees if that process is still running. If
+// !!! FIXME: rcg01042002  so, the second copy of the game should abort.
+// !!! FIXME: rcg01042002  If the process ID isn't running, recreate the file
+// !!! FIXME: rcg01042002  and THEN give the warning about not shutting down
+// !!! FIXME: rcg01042002  properly last time. At exit, delete the file.
+// !!! FIXME: rcg01042002  This is all platform independent except for the
+// !!! FIXME: rcg01042002  method of determining the current process ID and
+// !!! FIXME: rcg01042002  determining if a given process ID is still running,
+// !!! FIXME: rcg01042002  and those are easy abstractions.
 static CTFileName _fnmLock;
+static FILE *_hLock = NULL;
+
 static void DirectoryLockOn(void)
 {
   // create lock filename
-  _fnmLock = _fnmApplicationPath+"SeriousSam.loc";
+  _fnmLock = _fnmUserDir + "SeriousSam.loc";
   // try to open lock file
-  _hLock = CreateFileA(
-    _fnmLock, 
-    GENERIC_WRITE,
-    0/*no sharing*/,
-    NULL, // pointer to security attributes
-    CREATE_ALWAYS,
-    FILE_ATTRIBUTE_NORMAL|FILE_FLAG_DELETE_ON_CLOSE,  // file attributes
-    NULL);
-  // if failed
-  if (_hLock==NULL || GetLastError()!=0) {
-    // report warning
-    CPrintF(TRANS("WARNING: SeriousSam didn't shut down properly last time!\n"));
+
+  if (_pFileSystem->Exists(_fnmLock))
+    CPrintF(TRANSV("WARNING: SeriousSam didn't shut down properly last time!\n"));
+
+  _hLock = fopen(_fnmLock, "w");
+  if (_hLock == NULL) {
+    FatalError(TRANS("Failed to create lockfile %s! (%s)"),
+                     (const char *) _fnmLock, strerror(errno));
   }
 }
+
 static void DirectoryLockOff(void)
 {
   // if lock is open
   if (_hLock!=NULL) {
-    // close it
-    CloseHandle(_hLock);
+    fclose(_hLock);
+    _hLock == NULL;
   }
+  unlink(_fnmLock);
 }
 
-void End(void);
 
+void End(void);
 
 // automaticaly manage input enable/disable toggling
 static BOOL _bInputEnabled = FALSE;
@@ -230,7 +258,7 @@ void UpdateInputEnabledState(void)
 
 
 // automaticaly manage pause toggling
-void UpdatePauseState(void)
+static void UpdatePauseState(void)
 {
   BOOL bShouldPause = (_gmRunningGameMode==GM_SINGLE_PLAYER) && (bMenuActive || 
                        _pGame->gm_csConsoleState ==CS_ON || _pGame->gm_csConsoleState ==CS_TURNINGON || _pGame->gm_csConsoleState ==CS_TURNINGOFF ||
@@ -256,7 +284,7 @@ void LimitFrameRate(void)
     iMaxFPS = ClampDn(iMaxFPS, 60L); // never go very slow if dedicated server
   }
   TIME tmWantedDelta = 1.0f / iMaxFPS;
-  if( tmCurrentDelta<tmWantedDelta) Sleep( (tmWantedDelta-tmCurrentDelta)*1000.0f);
+  if( tmCurrentDelta<tmWantedDelta) _pTimer->Sleep( (tmWantedDelta-tmCurrentDelta)*1000.0f);
   
   // remember new time
   tvLast = _pTimer->GetHighPrecisionTimer();
@@ -282,7 +310,7 @@ void StartNextDemo(void)
   _lhAutoDemos.AddTail(pli->li_lnNode);
 
   // if intro
-  if (pli->li_fnLevel==sam_strIntroLevel) {
+  if (pli->li_fnLevel==CTFileName(sam_strIntroLevel)) {
     // start intro
     _gmRunningGameMode = GM_NONE;
     _pGame->gm_aiStartLocalPlayers[0] = 0;
@@ -349,11 +377,18 @@ void TrimString(char *str)
 // run web browser and view an url
 void RunBrowser(const char *strUrl)
 {
+#ifdef PLATFORM_WIN32
   int iResult = (int)ShellExecuteA( _hwndMain, "OPEN", strUrl, NULL, NULL, SW_SHOWMAXIMIZED);
   if (iResult<32) {
     // should report error?
     NOTHING;
   }
+
+#else
+
+    STUBBED("Should spawn browser here");
+
+#endif
 }
 
 void LoadAndForceTexture(CTextureObject &to, CTextureObject *&pto, const CTFileName &fnm)
@@ -371,28 +406,41 @@ void LoadAndForceTexture(CTextureObject &to, CTextureObject *&pto, const CTFileN
   }
 }
 
+#if (!defined PLATFORM_WIN32)
+static char *argv0 = NULL;
+#endif
+
 void InitializeGame(void)
 {
   try {
-    #ifndef NDEBUG 
-      #define GAMEDLL (_fnmApplicationExe.FileDir()+"Game"+_strModExt+"D.dll")
+    #ifdef STATICALLY_LINKED
+      #define fnmExpanded NULL
+      CPrintF(TRANSV("Loading game library '%s'...\n"), "(statically linked)");
     #else
-      #define GAMEDLL (_fnmApplicationExe.FileDir()+"Game"+_strModExt+".dll")
+      CTFileName fnmDLL;
+      #ifndef NDEBUG
+        fnmDLL = "Bin\\Debug\\Game"+_strModExt+"D.dll";
+      #else
+        fnmDLL = "Bin\\Game"+_strModExt+".dll";
+      #endif
+
+      fnmDLL = CDynamicLoader::ConvertLibNameToPlatform(fnmDLL);
+      CTFileName fnmExpanded;
+      ExpandFilePath(EFP_READ | EFP_NOZIPS,fnmDLL,fnmExpanded);
+      CPrintF(TRANSV("Loading game library '%s'...\n"), (const char *)fnmExpanded);
     #endif
-    CTFileName fnmExpanded;
-    ExpandFilePath(EFP_READ, CTString(GAMEDLL), fnmExpanded);
+  
+    const char *err;
+    CDynamicLoader *hGame = CDynamicLoader::GetInstance(fnmExpanded);
+    if ((err = hGame->GetError()) != NULL) {
+      ThrowF_t("%s", err);
+    }
+    CGame* (*GAME_Create)(void) = (CGame* (*)(void))hGame->FindSymbol("GAME_Create");
+    if ((err = hGame->GetError()) != NULL) {
+      ThrowF_t("%s", err);
+    }
 
-    CPrintF(TRANS("Loading game library '%s'...\n"), (const char *)fnmExpanded);
-    HMODULE hGame = LoadLibraryA(fnmExpanded);
-    if (hGame==NULL) {
-      ThrowF_t("%s", GetWindowsError(GetLastError()));
-    }
-    CGame* (*GAME_Create)(void) = (CGame* (*)(void))GetProcAddress(hGame, "GAME_Create");
-    if (GAME_Create==NULL) {
-      ThrowF_t("%s", GetWindowsError(GetLastError()));
-    }
     _pGame = GAME_Create();
-
   } catch (char *strError) {
     FatalError("%s", strError);
   }
@@ -405,8 +453,15 @@ BOOL Init( HINSTANCE hInstance, int nCmdShow, CTString strCmdLine)
   _hInstance = hInstance;
   ShowSplashScreen(hInstance);
 
+// !!! FIXME: This needs to be done before DetermineDesktopWidth(), but I
+// !!! FIXME:  don't really want this here.
+#ifdef PLATFORM_UNIX
+  if (SDL_Init(SDL_INIT_VIDEO) == -1)
+    FatalError("SDL_Init(SDL_INIT_VIDEO) failed. Reason: [%s].", SDL_GetError());
+#endif
+
   // remember desktop width
-  _pixDesktopWidth = ::GetSystemMetrics(SM_CXSCREEN);
+  _pixDesktopWidth = DetermineDesktopWidth();
 
   // prepare main window
   MainWindow_Init();
@@ -415,12 +470,19 @@ BOOL Init( HINSTANCE hInstance, int nCmdShow, CTString strCmdLine)
   // parse command line before initializing engine
   ParseCommandLine(strCmdLine);
 
+#ifdef PLATFORM_WIN32
+  char argv0[MAX_PATH];
+  memset(argv0, '\0', sizeof (argv0));
+  GetModuleFileName(NULL, argv0, sizeof (argv0) - 1);
+#endif
+
   // initialize engine
-  SE_InitEngine(sam_strGameName);
+  SE_InitEngine(argv0, sam_strGameName);
+
 
   SE_LoadDefaultFonts();
   // now print the output of command line parsing
-  CPrintF("%s", cmd_strOutput);
+  CPrintF("%s", (const char *) cmd_strOutput);
 
   // lock the directory
   DirectoryLockOn();
@@ -438,52 +500,49 @@ BOOL Init( HINSTANCE hInstance, int nCmdShow, CTString strCmdLine)
   _pShell->Execute( "con_bNoWarnings=1;");
 
   // declare shell symbols
-  _pShell->DeclareSymbol("user void PlayDemo(CTString);", &PlayDemo);
-  _pShell->DeclareSymbol("persistent INDEX sam_bFullScreen;",   &sam_bFullScreenActive);
-  _pShell->DeclareSymbol("persistent INDEX sam_iScreenSizeI;",  &sam_iScreenSizeI);
-  _pShell->DeclareSymbol("persistent INDEX sam_iScreenSizeJ;",  &sam_iScreenSizeJ);
-  _pShell->DeclareSymbol("persistent INDEX sam_iDisplayDepth;", &sam_iDisplayDepth);
-  _pShell->DeclareSymbol("persistent INDEX sam_iDisplayAdapter;", &sam_iDisplayAdapter);
-  _pShell->DeclareSymbol("persistent INDEX sam_iGfxAPI;",         &sam_iGfxAPI);
-  _pShell->DeclareSymbol("persistent INDEX sam_bFirstStarted;", &sam_bFirstStarted);
-  _pShell->DeclareSymbol("persistent INDEX sam_bAutoAdjustAudio;", &sam_bAutoAdjustAudio);
-  _pShell->DeclareSymbol("persistent user INDEX sam_bWideScreen;", &sam_bWideScreen);
-  _pShell->DeclareSymbol("persistent user FLOAT sam_fPlayerOffset;",  &sam_fPlayerOffset);
-  _pShell->DeclareSymbol("persistent user INDEX sam_bAutoPlayDemos;", &sam_bAutoPlayDemos);
-  _pShell->DeclareSymbol("persistent user INDEX sam_iMaxFPSActive;",    &sam_iMaxFPSActive);
-  _pShell->DeclareSymbol("persistent user INDEX sam_iMaxFPSInactive;",  &sam_iMaxFPSInactive);
-  _pShell->DeclareSymbol("persistent user INDEX sam_bPauseOnMinimize;", &sam_bPauseOnMinimize);
-  _pShell->DeclareSymbol("persistent user FLOAT sam_tmDisplayModeReport;",   &sam_tmDisplayModeReport);
-  _pShell->DeclareSymbol("persistent user CTString sam_strNetworkSettings;", &sam_strNetworkSettings);
-  _pShell->DeclareSymbol("persistent user CTString sam_strIntroLevel;",      &sam_strIntroLevel);
-  _pShell->DeclareSymbol("persistent user CTString sam_strGameName;",      &sam_strGameName);
-  _pShell->DeclareSymbol("user CTString sam_strVersion;",    &sam_strVersion);
-  _pShell->DeclareSymbol("user CTString sam_strFirstLevel;", &sam_strFirstLevel);
-  _pShell->DeclareSymbol("user CTString sam_strModName;", &sam_strModName);
-  _pShell->DeclareSymbol("persistent INDEX sam_bShowAllLevels;", &sam_bShowAllLevels);
-  _pShell->DeclareSymbol("persistent INDEX sam_bMentalActivated;", &sam_bMentalActivated);
+  _pShell->DeclareSymbol("user void PlayDemo(CTString);", (void *) &PlayDemo);
+  _pShell->DeclareSymbol("persistent INDEX sam_bFullScreen;",   (void *) &sam_bFullScreenActive);
+  _pShell->DeclareSymbol("persistent INDEX sam_iScreenSizeI;",  (void *) &sam_iScreenSizeI);
+  _pShell->DeclareSymbol("persistent INDEX sam_iScreenSizeJ;",  (void *) &sam_iScreenSizeJ);
+  _pShell->DeclareSymbol("persistent INDEX sam_iDisplayDepth;", (void *) &sam_iDisplayDepth);
+  _pShell->DeclareSymbol("persistent INDEX sam_iDisplayAdapter;", (void *) &sam_iDisplayAdapter);
+  _pShell->DeclareSymbol("persistent INDEX sam_iGfxAPI;",         (void *) &sam_iGfxAPI);
+  _pShell->DeclareSymbol("persistent INDEX sam_bFirstStarted;", (void *) &sam_bFirstStarted);
+  _pShell->DeclareSymbol("persistent INDEX sam_bAutoAdjustAudio;", (void *) &sam_bAutoAdjustAudio);
+  _pShell->DeclareSymbol("persistent user INDEX sam_bWideScreen;", (void *) &sam_bWideScreen);
+  _pShell->DeclareSymbol("persistent user FLOAT sam_fPlayerOffset;", (void *) &sam_fPlayerOffset);
+  _pShell->DeclareSymbol("persistent user INDEX sam_bAutoPlayDemos;", (void *) &sam_bAutoPlayDemos);
+  _pShell->DeclareSymbol("persistent user INDEX sam_iMaxFPSActive;",   (void *) &sam_iMaxFPSActive);
+  _pShell->DeclareSymbol("persistent user INDEX sam_iMaxFPSInactive;", (void *) &sam_iMaxFPSInactive);
+  _pShell->DeclareSymbol("persistent user INDEX sam_bPauseOnMinimize;", (void *) &sam_bPauseOnMinimize);
+  _pShell->DeclareSymbol("persistent user FLOAT sam_tmDisplayModeReport;",   (void *) &sam_tmDisplayModeReport);
+  _pShell->DeclareSymbol("persistent user CTString sam_strNetworkSettings;", (void *) &sam_strNetworkSettings);
+  _pShell->DeclareSymbol("persistent user CTString sam_strIntroLevel;",      (void *) &sam_strIntroLevel);
+  _pShell->DeclareSymbol("persistent user CTString sam_strGameName;",      (void *) &sam_strGameName);
+  _pShell->DeclareSymbol("user CTString sam_strVersion;",    (void *) &sam_strVersion);
+  _pShell->DeclareSymbol("user CTString sam_strFirstLevel;", (void *) &sam_strFirstLevel);
+  _pShell->DeclareSymbol("user CTString sam_strModName;", (void *) &sam_strModName);
+  _pShell->DeclareSymbol("persistent INDEX sam_bShowAllLevels;", (void *) &sam_bShowAllLevels);
+  _pShell->DeclareSymbol("persistent INDEX sam_bMentalActivated;", (void *) &sam_bMentalActivated);
 
-  _pShell->DeclareSymbol("user CTString sam_strTechTestLevel;", &sam_strTechTestLevel);
-  _pShell->DeclareSymbol("user CTString sam_strTrainingLevel;", &sam_strTrainingLevel);
-  
-  _pShell->DeclareSymbol("user void Quit(void);", &QuitGame);
+  _pShell->DeclareSymbol("user void Quit(void);", (void *) &QuitGame);
 
-  _pShell->DeclareSymbol("persistent user INDEX sam_iVideoSetup;",     &sam_iVideoSetup);
-  _pShell->DeclareSymbol("user void ApplyRenderingPreferences(void);", &ApplyRenderingPreferences);
-  _pShell->DeclareSymbol("user void ApplyVideoMode(void);",            &ApplyVideoMode);
-  _pShell->DeclareSymbol("user void Benchmark(void);", &BenchMark);
+  _pShell->DeclareSymbol("persistent user INDEX sam_iVideoSetup;",     (void *) &sam_iVideoSetup);
+  _pShell->DeclareSymbol("user void ApplyRenderingPreferences(void);", (void *) &ApplyRenderingPreferences);
+  _pShell->DeclareSymbol("user void ApplyVideoMode(void);",            (void *) &ApplyVideoMode);
+  _pShell->DeclareSymbol("user void Benchmark(void);", (void *) &BenchMark);
 
-  _pShell->DeclareSymbol("user INDEX sam_bMenuSave;",     &sam_bMenuSave);
-  _pShell->DeclareSymbol("user INDEX sam_bMenuLoad;",     &sam_bMenuLoad);
-  _pShell->DeclareSymbol("user INDEX sam_bMenuControls;", &sam_bMenuControls);
-  _pShell->DeclareSymbol("user INDEX sam_bMenuHiScore;",  &sam_bMenuHiScore);
-  _pShell->DeclareSymbol("user INDEX sam_bToggleConsole;",&sam_bToggleConsole);
-  _pShell->DeclareSymbol("INDEX sam_iStartCredits;", &sam_iStartCredits);
+  _pShell->DeclareSymbol("user INDEX sam_bMenuSave;",     (void *) &sam_bMenuSave);
+  _pShell->DeclareSymbol("user INDEX sam_bMenuLoad;",     (void *) &sam_bMenuLoad);
+  _pShell->DeclareSymbol("user INDEX sam_bMenuControls;", (void *) &sam_bMenuControls);
+  _pShell->DeclareSymbol("user INDEX sam_bMenuHiScore;",  (void *) &sam_bMenuHiScore);
+  _pShell->DeclareSymbol("user INDEX sam_bToggleConsole;",(void *) &sam_bToggleConsole);
+  _pShell->DeclareSymbol("INDEX sam_iStartCredits;", (void *) &sam_iStartCredits);
 
   InitializeGame();
   _pNetwork->md_strGameID = sam_strGameName;
 
-  LCDInit();
+  _pGame->LCDInit();
 
   if( sam_bFirstStarted) {
     InfoMessage("%s", TRANS(
@@ -502,9 +561,9 @@ BOOL Init( HINSTANCE hInstance, int nCmdShow, CTString strCmdLine)
 
   // execute script given on command line
   if (cmd_strScript!="") {
-    CPrintF("Command line script: '%s'\n", cmd_strScript);
+    CPrintF("Command line script: '%s'\n", (const char *) cmd_strScript);
     CTString strCmd;
-    strCmd.PrintF("include \"%s\"", cmd_strScript);
+    strCmd.PrintF("include \"%s\"", (const char *) cmd_strScript);
     _pShell->Execute(strCmd);
   }
   
@@ -516,8 +575,8 @@ BOOL Init( HINSTANCE hInstance, int nCmdShow, CTString strCmdLine)
   // !! NOTE !! Re-enable these to allow mod support.
   //LoadStringVar(CTString("Data\\Var\\Sam_Version.var"), sam_strVersion);
   //LoadStringVar(CTString("Data\\Var\\ModName.var"), sam_strModName);
-  CPrintF(TRANS("Serious Sam version: %s\n"), sam_strVersion);
-  CPrintF(TRANS("Active mod: %s\n"), sam_strModName);
+  CPrintF(TRANSV("Serious Sam version: %s\n"), (const char *) sam_strVersion);
+  CPrintF(TRANSV("Active mod: %s\n"), (const char *) sam_strModName);
   InitializeMenus();      
   
   // if there is a mod
@@ -560,7 +619,7 @@ BOOL Init( HINSTANCE hInstance, int nCmdShow, CTString strCmdLine)
       _pShell->SetINDEX("net_iPort", cmd_iPort);
       strPort.PrintF(":%d", cmd_iPort);
     }
-    CPrintF(TRANS("Command line connection: '%s%s'\n"), cmd_strServer, strPort);
+    CPrintF(TRANSV("Command line connection: '%s%s'\n"), (const char *) cmd_strServer, (const char *) strPort);
     // go to join menu
     _pGame->gam_strJoinAddress = cmd_strServer;
     if (cmd_bQuickJoin) {
@@ -571,11 +630,11 @@ BOOL Init( HINSTANCE hInstance, int nCmdShow, CTString strCmdLine)
     }
   // if starting world from command line
   } else if (cmd_strWorld!="") {
-    CPrintF(TRANS("Command line world: '%s'\n"), cmd_strWorld);
+    CPrintF(TRANSV("Command line world: '%s'\n"), (const char *) cmd_strWorld);
     // try to start the game with that level
     try {
       if (cmd_iGoToMarker>=0) {
-        CPrintF(TRANS("Command line marker: %d\n"), cmd_iGoToMarker);
+        CPrintF(TRANSV("Command line marker: %d\n"), cmd_iGoToMarker);
         CTString strCommand;
         strCommand.PrintF("cht_iGoToMarker = %d;", cmd_iGoToMarker);
         _pShell->Execute(strCommand);
@@ -589,7 +648,7 @@ BOOL Init( HINSTANCE hInstance, int nCmdShow, CTString strCmdLine)
         StartSinglePlayerGame();
       }
     } catch (char *strError) {
-      CPrintF(TRANS("Cannot start '%s': '%s'\n"), cmd_strWorld, strError);
+      CPrintF(TRANSV("Cannot start '%s': '%s'\n"), (const char *) cmd_strWorld, strError);
     }
   // if no relevant starting at command line
   } else {
@@ -616,7 +675,7 @@ void End(void)
   MainWindow_End();
   DestroyMenus();
   _pGame->End();
-  LCDEnd();
+  _pGame->LCDEnd();
   // unlock the directory
   DirectoryLockOff();
   SE_EndEngine();
@@ -643,16 +702,16 @@ void PrintDisplayModeInfo(void)
   // get resolution
   CTString strRes;
   extern CTString _strPreferencesDescription;
-  strRes.PrintF( "%dx%dx%s", slDPWidth, slDPHeight, _pGfx->gl_dmCurrentDisplayMode.DepthString());
+  strRes.PrintF( "%dx%dx%s", slDPWidth, slDPHeight, (const char *) _pGfx->gl_dmCurrentDisplayMode.DepthString());
   if( dm.IsDualHead())   strRes += TRANS(" DualMonitor");
   if( dm.IsWideScreen()) strRes += TRANS(" WideScreen");
        if( _pGfx->gl_eCurrentAPI==GAT_OGL) strRes += " (OpenGL)";
-#ifdef SE1_D3D
+#ifdef PLATFORM_WIN32
   else if( _pGfx->gl_eCurrentAPI==GAT_D3D) strRes += " (Direct3D)";
-#endif // SE1_D3D
+#endif
 
   CTString strDescr;
-  strDescr.PrintF("\n%s (%s)\n", _strPreferencesDescription, RenderingPreferencesDescription(sam_iVideoSetup));
+  strDescr.PrintF("\n%s (%s)\n", (const char *) _strPreferencesDescription, (const char *) RenderingPreferencesDescription(sam_iVideoSetup));
   strRes+=strDescr;
   // tell if application is started for the first time, or failed to set mode
   if( _iDisplayModeChangeFlag==0) {
@@ -665,12 +724,16 @@ void PrintDisplayModeInfo(void)
   pdp->SetFont( _pfdDisplayFont);
   pdp->SetTextScaling( fTextScale);
   pdp->SetTextAspect( 1.0f);
-  pdp->PutText( strRes, slDPWidth*0.05f, slDPHeight*0.85f, LCDGetColor(C_GREEN|255, "display mode"));
+  pdp->PutText( strRes, slDPWidth*0.05f, slDPHeight*0.85f, _pGame->LCDGetColor(C_GREEN|255, "display mode"));
 }
 
 // do the main game loop and render screen
 void DoGame(void)
 {
+  #ifdef SINGLE_THREADED
+    _pTimer->HandleTimerHandlers();
+  #endif
+
   // set flag if not in game
   if( !_pGame->gm_bGameOn) _gmRunningGameMode = GM_NONE;
 
@@ -727,7 +790,7 @@ void DoGame(void)
       dpScroller.Unlock();
       pdp->Lock();
     } else {
-      pdp->Fill( LCDGetColor(C_dGREEN|CT_OPAQUE, "bcg fill"));
+      pdp->Fill( _pGame->LCDGetColor(C_dGREEN|CT_OPAQUE, "bcg fill"));
     }
 
     // do menu
@@ -840,7 +903,12 @@ void QuitScreenLoop(void)
         return;
       }
     }
-    //Sleep(5);
+
+    //_pTimer->Sleep(5);
+
+    #ifdef SINGLE_THREADED
+      _pTimer->HandleTimerHandlers();
+    #endif
   }
 }
 
@@ -876,6 +944,7 @@ int SubMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int 
       }
 
       // system commands (also send by the application itself)
+#ifdef PLATFORM_WIN32
       if( msg.message==WM_SYSCOMMAND)
       {
         switch( msg.wParam & ~0x0F) {
@@ -929,11 +998,18 @@ int SubMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int 
           break;
         }
       }
+#endif
 
       // toggle full-screen on alt-enter
       if( msg.message==WM_SYSKEYDOWN && msg.wParam==VK_RETURN && !IsIconic(_hwndMain)) {
+// !!! FIXME: This can be more efficient under Linux with
+// !!! FIXME:  SDL_WM_ToggleFullScreen(), since the GL context is just
+// !!! FIXME:  reused there...  --ryan.
         StartNewMode( (GfxAPIType)sam_iGfxAPI, sam_iDisplayAdapter, sam_iScreenSizeI, sam_iScreenSizeJ,
                       (enum DisplayDepth)sam_iDisplayDepth, !sam_bFullScreenActive);
+
+        if (_pInput != NULL) // rcg02042003 hack for SDL vs. Win32.
+          _pInput->ClearRelativeMouseMotion();
       }
 
       // if application should stop
@@ -943,6 +1019,7 @@ int SubMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int 
         _bQuitScreen = FALSE;
       }
 
+#ifdef PLATFORM_WIN32
       // if application is deactivated or minimized
       if( (msg.message==WM_ACTIVATE && (LOWORD(msg.wParam)==WA_INACTIVE || HIWORD(msg.wParam)))
        ||  msg.message==WM_CANCELMODE
@@ -963,6 +1040,7 @@ int SubMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int 
         // enable input back again if needed
         _bReconsiderInput = TRUE;
       }
+#endif
 
       if (msg.message==WM_KEYDOWN && msg.wParam==VK_ESCAPE && 
         (_gmRunningGameMode==GM_DEMO || _gmRunningGameMode==GM_INTRO)) {
@@ -971,6 +1049,8 @@ int SubMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int 
       }
 
       if (_pGame->gm_csConsoleState==CS_TALK && msg.message==WM_KEYDOWN && msg.wParam==VK_ESCAPE) {
+        if (_pInput != NULL) // rcg02042003 hack for SDL vs. Win32.
+          _pInput->ClearRelativeMouseMotion();
         _pGame->gm_csConsoleState = CS_OFF;
         msg.message=WM_NULL;
       }
@@ -1034,7 +1114,12 @@ int SubMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int 
           }
         } else if (msg.message==WM_KEYUP) {
           // special handler for talk (not to invoke return key bind)
-          if( msg.wParam==VK_RETURN && _pGame->gm_csConsoleState==CS_TALK) _pGame->gm_csConsoleState = CS_OFF;
+          if( msg.wParam==VK_RETURN && _pGame->gm_csConsoleState==CS_TALK)
+          {
+            if (_pInput != NULL) // rcg02042003 hack for SDL vs. Win32.
+              _pInput->ClearRelativeMouseMotion();
+            _pGame->gm_csConsoleState = CS_OFF;
+          }
         } else if (msg.message==WM_CHAR) {
           _pGame->ConsoleChar(msg);
         }
@@ -1077,7 +1162,12 @@ int SubMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int 
 
       // if toggling console
       BOOL bConsoleKey = sam_bToggleConsole || msg.message==WM_KEYDOWN && 
+            // !!! FIXME: rcg11162001 This sucks.
+        #ifdef PLATFORM_UNIX
+        (msg.wParam == SDLK_BACKQUOTE
+        #else
         (MapVirtualKey(msg.wParam, 0)==41 // scan code for '~'
+        #endif
         || msg.wParam==VK_F1 || (msg.wParam==VK_ESCAPE && _iAddonExecState==3));
       if(bConsoleKey && !_bDefiningKey)
       {
@@ -1110,6 +1200,7 @@ int SubMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int 
         _pNetwork->TogglePause();
       }
 
+#ifdef PLATFORM_WIN32
       // if command sent from external application
       if (msg.message==WM_COMMAND) {
         // if teleport player
@@ -1120,6 +1211,7 @@ int SubMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int 
     	    PostMessage(NULL, WM_SYSCOMMAND, SC_RESTORE, 0);
         }
       }
+#endif
 
       // if demo is playing
       if (_gmRunningGameMode==GM_DEMO ||
@@ -1128,8 +1220,14 @@ int SubMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int 
         BOOL bEscape = (msg.message==WM_KEYDOWN && msg.wParam==VK_ESCAPE);
         // check if console-invoke key is pressed
         BOOL bTilde = (msg.message==WM_KEYDOWN && 
-          (msg.wParam==VK_F1 || MapVirtualKey(msg.wParam, 0)==41));// scan code for '~'
-
+          (msg.wParam==VK_F1 ||
+            // !!! FIXME: ugly.
+            #ifdef PLATFORM_UNIX
+              msg.wParam == SDLK_BACKQUOTE
+            #else
+              MapVirtualKey(msg.wParam, 0)==41 // scan code for '~'
+            #endif
+          ));
         // check if any key is pressed
         BOOL bAnyKey = (
           (msg.message==WM_KEYDOWN && (msg.wParam==VK_SPACE || msg.wParam==VK_RETURN))|| 
@@ -1169,7 +1267,7 @@ int SubMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int 
     // if addon is to be executed
     if (_iAddonExecState==1) {
       // print header and start console
-      CPrintF(TRANS("---- Executing addon: '%s'\n"), (const char*)_fnmAddonToExec);
+      CPrintF(TRANSV("---- Executing addon: '%s'\n"), (const char*)_fnmAddonToExec);
       sam_bToggleConsole = TRUE;
       _iAddonExecState = 2;
     // if addon is ready for execution
@@ -1178,7 +1276,7 @@ int SubMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int 
       CTString strCmd;
       strCmd.PrintF("include \"%s\"", (const char*)_fnmAddonToExec);
       _pShell->Execute(strCmd);
-      CPrintF(TRANS("Addon done, press Escape to close console\n"));
+      CPrintF(TRANSV("Addon done, press Escape to close console\n"));
       _iAddonExecState = 3;
     }
 
@@ -1210,8 +1308,14 @@ int SubMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int 
 
 void CheckModReload(void)
 {
+#ifdef PLATFORM_WIN32
   if (_fnmModToLoad!="") {
-    CTString strCommand = _fnmApplicationExe.FileDir()+"SeriousSam.exe";
+#ifndef NDEBUG
+    CTString strDebug = "Debug\\";
+#else
+    CTString strDebug = "";
+#endif
+    CTString strCommand = _fnmApplicationPath+"Bin\\"+strDebug+"SeriousSam.exe";
     //+mod "+_fnmModToLoad.FileName()+"\"";
     CTString strMod = _fnmModToLoad.FileName();
     const char *argv[7];
@@ -1227,15 +1331,22 @@ void CheckModReload(void)
     }
     _execv(strCommand, argv);
   }
+#else
+    STUBBED("reload ourself?");
+#endif
 }
 
 void CheckTeaser(void)
 {
-  CTFileName fnmTeaser = _fnmApplicationExe.FileDir()+CTString("AfterSam.exe");
+#ifdef PLATFORM_WIN32
+  CTFileName fnmTeaser = _fnmApplicationPath+CTString("Bin\\AfterSam.exe");
   if (fopen(fnmTeaser, "r")!=NULL) {
     Sleep(500);
     _execl(fnmTeaser, "\""+fnmTeaser+"\"", NULL);
   }
+#else
+    STUBBED("load teaser");
+#endif
 }
 
 void CheckBrowser(void)
@@ -1246,8 +1357,7 @@ void CheckBrowser(void)
 }
 
 
-
-int PASCAL WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance,
+int CommonMainline( HINSTANCE hInstance, HINSTANCE hPrevInstance,
 			LPSTR lpCmdLine, int nCmdShow)
 {
   int iResult;
@@ -1265,6 +1375,111 @@ int PASCAL WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance,
 }
 
 
+
+#ifdef PLATFORM_WIN32
+
+int PASCAL WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance,
+			LPSTR lpCmdLine, int nCmdShow)
+{
+  return(CommonMainline(hInstance, hPrevInstance, lpCmdLine, nCmdShow));
+}
+
+#else
+
+
+// !!! FIXME: rcg01052002 This should really get dumped to the game's
+// !!! FIXME: rcg01052002  console so it's in the log file, too.
+#ifdef BETAEXPIRE
+static inline void check_beta(void)
+{
+  bool bail = false;
+
+  setbuf(stderr, NULL);
+  fprintf(stderr, "\n\n\n");
+  fprintf(stderr, "*********************************************************\n");
+  fprintf(stderr, "*********************************************************\n");
+  fprintf(stderr, "*********************************************************\n");
+  fprintf(stderr, "*********************************************************\n");
+  fprintf(stderr, "*********************************************************\n");
+
+  if ( time(NULL) > (BETAEXPIRE + 30 * 24 * 60 * 60) ) {
+    fprintf(stderr,
+            "Sorry, but this beta of the game has expired, and will no\n"
+            " longer run. This is to prevent tech support on out-of-date\n"
+            " and prerelease versions of the game. Please go to\n"
+            " http://www.croteam.com/ for information on getting a release\n"
+            " version that does not expire.\n");
+    bail = true;
+  } else {
+    fprintf(stderr, "     Warning: This is a beta version of SERIOUS SAM.\n");
+  }
+
+  fprintf(stderr, "*********************************************************\n");
+  fprintf(stderr, "*********************************************************\n");
+  fprintf(stderr, "*********************************************************\n");
+  fprintf(stderr, "*********************************************************\n");
+  fprintf(stderr, "*********************************************************\n");
+  fprintf(stderr, "\n\n\n");
+
+  if (bail) {
+    _exit(0);
+  }
+} // check_beta
+#endif
+
+
+// !!! FIXME: rcg01102002 This should really get dumped to the game's
+// !!! FIXME: rcg01102002  console so it's in the log file, too.
+#ifdef PROFILING_ENABLED
+static inline void warn_profiling(void)
+{
+  setbuf(stderr, NULL);
+  fprintf(stderr, "\n\n\n");
+  fprintf(stderr, "*********************************************************\n");
+  fprintf(stderr, "*********************************************************\n");
+  fprintf(stderr, "*********************************************************\n");
+  fprintf(stderr, "*********************************************************\n");
+  fprintf(stderr, "*********************************************************\n");
+  fprintf(stderr, "      Warning: Profiling is enabled in this binary!\n");
+  fprintf(stderr, "         DO NOT SHIP A BINARY WITH THIS ENABLED!\n");
+  fprintf(stderr, "*********************************************************\n");
+  fprintf(stderr, "*********************************************************\n");
+  fprintf(stderr, "*********************************************************\n");
+  fprintf(stderr, "*********************************************************\n");
+  fprintf(stderr, "*********************************************************\n");
+  fprintf(stderr, "\n\n\n");
+} // check_beta
+#endif
+
+
+
+int main(int argc, char **argv)
+{
+  #ifdef BETAEXPIRE
+    // !!! FIXME: This is Unix-centric (at least, non-win32) if put in main().
+    check_beta();
+  #endif
+
+  #ifdef PROFILING_ENABLED
+    // !!! FIXME: This is Unix-centric (at least, non-win32) if put in main().
+    warn_profiling();
+  #endif
+
+  argv0 = argv[0];
+
+  CTString cmdLine;
+  for (int i = 1; i < argc; i++) {
+    cmdLine += " \"";
+    cmdLine += argv[i];
+    cmdLine += "\"";
+  }
+
+  return(CommonMainline(NULL, NULL, (char *) ((const char *) cmdLine), 0));
+}
+
+#endif
+
+
 // try to start a new display mode
 BOOL TryToSetDisplayMode( enum GfxAPIType eGfxAPI, INDEX iAdapter, PIX pixSizeI, PIX pixSizeJ,
                           enum DisplayDepth eColorDepth, BOOL bFullScreenMode)
@@ -1272,7 +1487,7 @@ BOOL TryToSetDisplayMode( enum GfxAPIType eGfxAPI, INDEX iAdapter, PIX pixSizeI,
   CDisplayMode dmTmp;
   dmTmp.dm_ddDepth = eColorDepth;
   CPrintF( TRANS("  Starting display mode: %dx%dx%s (%s)\n"),
-           pixSizeI, pixSizeJ, dmTmp.DepthString(),
+           pixSizeI, pixSizeJ, (const char *) dmTmp.DepthString(),
            bFullScreenMode ? TRANS("fullscreen") : TRANS("window"));
 
   // mark to start ignoring window size/position messages until settled down
@@ -1338,7 +1553,7 @@ BOOL TryToSetDisplayMode( enum GfxAPIType eGfxAPI, INDEX iAdapter, PIX pixSizeI,
     // initial screen fill and swap, just to get context running
     BOOL bSuccess = FALSE;
     if( pdp!=NULL && pdp->Lock()) {
-      pdp->Fill( LCDGetColor( C_dGREEN|CT_OPAQUE, "bcg fill"));
+      pdp->Fill(_pGame->LCDGetColor(C_dGREEN|CT_OPAQUE, "bcg fill"));
       pdp->Unlock();
       pvpViewPort->SwapBuffers();
       bSuccess = TRUE;
@@ -1421,7 +1636,7 @@ void StartNewMode( enum GfxAPIType eGfxAPI, INDEX iAdapter, PIX pixSizeI, PIX pi
       eColorDepth = (DisplayDepth)aDefaultModes[iMode][0];
       eGfxAPI     = (GfxAPIType)  aDefaultModes[iMode][1];
       iAdapter    =               aDefaultModes[iMode][2];
-      CPrintF(TRANS("\nTrying recovery mode %d...\n"), iMode);
+      CPrintF(TRANSV("\nTrying recovery mode %d...\n"), iMode);
       bSuccess = TryToSetDisplayMode( eGfxAPI, iAdapter, pixSizeI, pixSizeJ, eColorDepth, bFullScreenMode);
       if( bSuccess) break;
     }

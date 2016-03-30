@@ -13,7 +13,7 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include "Engine/StdH.h"
 
 #include <Engine/Base/CTString.h>
 #include <Engine/Base/Console.h>
@@ -26,7 +26,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <Engine/Network/ClientInterface.h>
 #include <Engine/Network/CPacket.h>
 
-#include <Engine/Base/Listiterator.inl>
+#include <Engine/Base/ListIterator.inl>
 
 // how many acknowledges can fit into one UDP packet
 #define MAX_ACKS_PER_PACKET (MAX_UDP_BLOCK_SIZE/sizeof(ULONG))
@@ -388,6 +388,7 @@ void CClientInterface::ExchangeBuffers(void)
 
 };
 
+#define SLASHSLASH  0x2F2F   // looks like "//" in ASCII.
 
 // update interface's input buffer (transfer from input buffer to the reliable buffer...),
 // for incoming acknowledge packets, remove acknowledged packets from the output buffers,
@@ -443,11 +444,11 @@ BOOL CClientInterface::UpdateInputBuffers(void)
 				
 				// generate packet acknowledge
 				// if the packet is from the broadcast address, send the acknowledge for that packet only
-				if (ppaPacket->pa_adrAddress.adr_uwID == '//' || ppaPacket->pa_adrAddress.adr_uwID == 0) {
+				if (ppaPacket->pa_adrAddress.adr_uwID == SLASHSLASH || ppaPacket->pa_adrAddress.adr_uwID == 0) {
 					CPacket *ppaAckPacket = new CPacket;
 					ppaAckPacket->pa_adrAddress.adr_ulAddress = ppaPacket->pa_adrAddress.adr_ulAddress;
 					ppaAckPacket->pa_adrAddress.adr_uwPort = ppaPacket->pa_adrAddress.adr_uwPort;
-					ppaAckPacket->WriteToPacket(&(ppaPacket->pa_ulSequence),sizeof(ULONG),UDP_PACKET_ACKNOWLEDGE,++ci_ulSequence,'//',sizeof(ULONG));
+					ppaAckPacket->WriteToPacket(&(ppaPacket->pa_ulSequence),sizeof(ULONG),UDP_PACKET_ACKNOWLEDGE,++ci_ulSequence,SLASHSLASH,sizeof(ULONG));
 					ci_pbOutputBuffer.AppendPacket(*ppaAckPacket,TRUE);
 					if (net_bReportPackets == TRUE) {
 						CPrintF("Acknowledging broadcast packet sequence %d\n",ppaPacket->pa_ulSequence);
@@ -484,7 +485,7 @@ BOOL CClientInterface::UpdateInputBuffers(void)
         }
 				// a packet can be accepted from the broadcast ID only if it is an acknowledge packet or 
 				// if it is a connection confirmation response packet and the client isn't already connected
-				if (ppaPacket->pa_adrAddress.adr_uwID == '//' || ppaPacket->pa_adrAddress.adr_uwID == 0) {
+				if (ppaPacket->pa_adrAddress.adr_uwID == SLASHSLASH || ppaPacket->pa_adrAddress.adr_uwID == 0) {
 					if  (((!ci_bUsed) && (ppaPacket->pa_ubReliable & UDP_PACKET_CONNECT_RESPONSE)) ||
 						 (ppaPacket->pa_ubReliable & UDP_PACKET_ACKNOWLEDGE) || ci_bClientLocal) {
 

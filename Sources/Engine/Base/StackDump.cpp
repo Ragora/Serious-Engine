@@ -13,11 +13,15 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include "Engine/StdH.h"
 
 #include <Engine/Base/Console_Internal.h>
 
 #include <Engine/Build.h>
+
+#if (!defined PLATFORM_WIN32)
+#error You probably should not try to compile this.
+#endif
 
 extern ULONG _ulEngineBuildMajor;
 extern ULONG _ulEngineBuildMinor;

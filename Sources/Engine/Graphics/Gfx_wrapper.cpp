@@ -38,38 +38,38 @@ extern INDEX gap_iDithering;
                 
             
 // cached states
-extern BOOL GFX_bDepthTest  = FALSE;
-extern BOOL GFX_bDepthWrite = FALSE;
-extern BOOL GFX_bAlphaTest  = FALSE;
-extern BOOL GFX_bDithering  = TRUE;
-extern BOOL GFX_bBlending   = TRUE;
-extern BOOL GFX_bClipping   = TRUE;
-extern BOOL GFX_bClipPlane  = FALSE;
-extern BOOL GFX_bColorArray = FALSE;
-extern BOOL GFX_bTruform    = FALSE;
-extern BOOL GFX_bFrontFace  = TRUE;
-extern BOOL GFX_bViewMatrix = TRUE;
-extern INDEX GFX_iActiveTexUnit = 0;
-extern FLOAT GFX_fMinDepthRange = 0.0f;
-extern FLOAT GFX_fMaxDepthRange = 0.0f;
+BOOL GFX_bDepthTest  = FALSE;
+BOOL GFX_bDepthWrite = FALSE;
+BOOL GFX_bAlphaTest  = FALSE;
+BOOL GFX_bDithering  = TRUE;
+BOOL GFX_bBlending   = TRUE;
+BOOL GFX_bClipping   = TRUE;
+BOOL GFX_bClipPlane  = FALSE;
+BOOL GFX_bColorArray = FALSE;
+BOOL GFX_bTruform    = FALSE;
+BOOL GFX_bFrontFace  = TRUE;
+BOOL GFX_bViewMatrix = TRUE;
+INDEX GFX_iActiveTexUnit = 0;
+FLOAT GFX_fMinDepthRange = 0.0f;
+FLOAT GFX_fMaxDepthRange = 0.0f;
 
-extern GfxBlend GFX_eBlendSrc  = GFX_ONE;
-extern GfxBlend GFX_eBlendDst  = GFX_ZERO;
-extern GfxComp  GFX_eDepthFunc = GFX_LESS_EQUAL;
-extern GfxFace  GFX_eCullFace  = GFX_NONE;
-extern BOOL       GFX_abTexture[GFX_MAXTEXUNITS] = { FALSE, FALSE, FALSE, FALSE };
-extern INDEX GFX_iTexModulation[GFX_MAXTEXUNITS] = { 0, 0, 0, 0 };
+GfxBlend GFX_eBlendSrc  = GFX_ONE;
+GfxBlend GFX_eBlendDst  = GFX_ZERO;
+GfxComp  GFX_eDepthFunc = GFX_LESS_EQUAL;
+GfxFace  GFX_eCullFace  = GFX_NONE;
+BOOL       GFX_abTexture[GFX_MAXTEXUNITS] = { FALSE, FALSE, FALSE, FALSE };
+INDEX GFX_iTexModulation[GFX_MAXTEXUNITS] = { 0, 0, 0, 0 };
 
 // last ortho/frustum values (frustum has negative sign, because of orgho-frustum switching!)
-extern FLOAT GFX_fLastL = 0;
-extern FLOAT GFX_fLastR = 0;
-extern FLOAT GFX_fLastT = 0;
-extern FLOAT GFX_fLastB = 0;
-extern FLOAT GFX_fLastN = 0;
-extern FLOAT GFX_fLastF = 0;
+FLOAT GFX_fLastL = 0;
+FLOAT GFX_fLastR = 0;
+FLOAT GFX_fLastT = 0;
+FLOAT GFX_fLastB = 0;
+FLOAT GFX_fLastN = 0;
+FLOAT GFX_fLastF = 0;
 
 // number of vertices currently in buffer
-extern INDEX GFX_ctVertices = 0;
+INDEX GFX_ctVertices = 0;
 
 // for D3D: mark need for clipping (when wants to be disable but cannot be because of user clip plane)
 static BOOL _bWantsClipping = TRUE;
@@ -79,62 +79,62 @@ static ULONG _ulCurrentColorMask = (CT_RMASK|CT_GMASK|CT_BMASK|CT_AMASK);
 static BOOL _bCVAReallyLocked = FALSE;
 
 // clip plane and last view matrix for D3D
-extern FLOAT D3D_afClipPlane[4]    = {0,0,0,0};
-extern FLOAT D3D_afViewMatrix[16]  = {0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0};
+FLOAT D3D_afClipPlane[4]    = {0,0,0,0};
+FLOAT D3D_afViewMatrix[16]  = {0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0};
 static FLOAT _afActiveClipPlane[4] = {0,0,0,0};
 
 // Truform/N-Patches
-extern INDEX truform_iLevel  = -1;
-extern BOOL  truform_bLinear = FALSE;
+INDEX truform_iLevel  = -1;
+BOOL  truform_bLinear = FALSE;
 
 
 // functions' pointers
-extern void (*gfxEnableDepthWrite)(void) = NULL;
-extern void (*gfxEnableDepthBias)(void) = NULL;
-extern void (*gfxEnableDepthTest)(void) = NULL;
-extern void (*gfxEnableAlphaTest)(void) = NULL;
-extern void (*gfxEnableBlend)(void) = NULL;
-extern void (*gfxEnableDither)(void) = NULL;
-extern void (*gfxEnableTexture)(void) = NULL;
-extern void (*gfxEnableClipping)(void) = NULL;
-extern void (*gfxEnableClipPlane)(void) = NULL;
-extern void (*gfxDisableDepthWrite)(void) = NULL;
-extern void (*gfxDisableDepthBias)(void) = NULL;
-extern void (*gfxDisableDepthTest)(void) = NULL;
-extern void (*gfxDisableAlphaTest)(void) = NULL;
-extern void (*gfxDisableBlend)(void) = NULL;
-extern void (*gfxDisableDither)(void) = NULL;
-extern void (*gfxDisableTexture)(void) = NULL;
-extern void (*gfxDisableClipping)(void) = NULL;
-extern void (*gfxDisableClipPlane)(void) = NULL;
-extern void (*gfxBlendFunc)( GfxBlend eSrc, GfxBlend eDst) = NULL;
-extern void (*gfxDepthFunc)( GfxComp eFunc) = NULL;
-extern void (*gfxDepthRange)( FLOAT fMin, FLOAT fMax) = NULL;
-extern void (*gfxCullFace)(  GfxFace eFace) = NULL;
-extern void (*gfxFrontFace)( GfxFace eFace) = NULL;
-extern void (*gfxClipPlane)( const DOUBLE *pdPlane) = NULL;
-extern void (*gfxSetOrtho)( const FLOAT fLeft, const FLOAT fRight, const FLOAT fTop,  const FLOAT fBottom, const FLOAT fNear, const FLOAT fFar, const BOOL bSubPixelAdjust) = NULL;
-extern void (*gfxSetFrustum)( const FLOAT fLeft, const FLOAT fRight, const FLOAT fTop,  const FLOAT fBottom, const FLOAT fNear, const FLOAT fFar) = NULL;
-extern void (*gfxSetTextureMatrix)( const FLOAT *pfMatrix) = NULL;
-extern void (*gfxSetViewMatrix)( const FLOAT *pfMatrix) = NULL;
-extern void (*gfxPolygonMode)( GfxPolyMode ePolyMode) = NULL;
-extern void (*gfxSetTextureWrapping)( enum GfxWrap eWrapU, enum GfxWrap eWrapV) = NULL;
-extern void (*gfxSetTextureModulation)( INDEX iScale) = NULL;
-extern void (*gfxGenerateTexture)( ULONG &ulTexObject) = NULL;
-extern void (*gfxDeleteTexture)( ULONG &ulTexObject) = NULL;
-extern void (*gfxSetVertexArray)( GFXVertex4 *pvtx, INDEX ctVtx) = NULL;
-extern void (*gfxSetNormalArray)( GFXNormal *pnor) = NULL;
-extern void (*gfxSetTexCoordArray)( GFXTexCoord *ptex, BOOL b4) = NULL;
-extern void (*gfxSetColorArray)( GFXColor *pcol) = NULL;
-extern void (*gfxDrawElements)( INDEX ctElem, INDEX *pidx) = NULL;
-extern void (*gfxSetConstantColor)(COLOR col) = NULL;
-extern void (*gfxEnableColorArray)(void) = NULL;
-extern void (*gfxDisableColorArray)(void) = NULL;
-extern void (*gfxFinish)(void) = NULL;
-extern void (*gfxLockArrays)(void) = NULL;
-extern void (*gfxEnableTruform)( void) = NULL;
-extern void (*gfxDisableTruform)(void) = NULL;
-extern void (*gfxSetColorMask)( ULONG ulColorMask) = NULL; 
+void (*gfxEnableDepthWrite)(void) = NULL;
+void (*gfxEnableDepthBias)(void) = NULL;
+void (*gfxEnableDepthTest)(void) = NULL;
+void (*gfxEnableAlphaTest)(void) = NULL;
+void (*gfxEnableBlend)(void) = NULL;
+void (*gfxEnableDither)(void) = NULL;
+void (*gfxEnableTexture)(void) = NULL;
+void (*gfxEnableClipping)(void) = NULL;
+void (*gfxEnableClipPlane)(void) = NULL;
+void (*gfxDisableDepthWrite)(void) = NULL;
+void (*gfxDisableDepthBias)(void) = NULL;
+void (*gfxDisableDepthTest)(void) = NULL;
+void (*gfxDisableAlphaTest)(void) = NULL;
+void (*gfxDisableBlend)(void) = NULL;
+void (*gfxDisableDither)(void) = NULL;
+void (*gfxDisableTexture)(void) = NULL;
+void (*gfxDisableClipping)(void) = NULL;
+void (*gfxDisableClipPlane)(void) = NULL;
+void (*gfxBlendFunc)( GfxBlend eSrc, GfxBlend eDst) = NULL;
+void (*gfxDepthFunc)( GfxComp eFunc) = NULL;
+void (*gfxDepthRange)( FLOAT fMin, FLOAT fMax) = NULL;
+void (*gfxCullFace)(  GfxFace eFace) = NULL;
+void (*gfxFrontFace)( GfxFace eFace) = NULL;
+void (*gfxClipPlane)( const DOUBLE *pdPlane) = NULL;
+void (*gfxSetOrtho)( const FLOAT fLeft, const FLOAT fRight, const FLOAT fTop,  const FLOAT fBottom, const FLOAT fNear, const FLOAT fFar, const BOOL bSubPixelAdjust) = NULL;
+void (*gfxSetFrustum)( const FLOAT fLeft, const FLOAT fRight, const FLOAT fTop,  const FLOAT fBottom, const FLOAT fNear, const FLOAT fFar) = NULL;
+void (*gfxSetTextureMatrix)( const FLOAT *pfMatrix) = NULL;
+void (*gfxSetViewMatrix)( const FLOAT *pfMatrix) = NULL;
+void (*gfxPolygonMode)( GfxPolyMode ePolyMode) = NULL;
+void (*gfxSetTextureWrapping)( enum GfxWrap eWrapU, enum GfxWrap eWrapV) = NULL;
+void (*gfxSetTextureModulation)( INDEX iScale) = NULL;
+void (*gfxGenerateTexture)( ULONG &ulTexObject) = NULL;
+void (*gfxDeleteTexture)( ULONG &ulTexObject) = NULL;
+void (*gfxSetVertexArray)( GFXVertex4 *pvtx, INDEX ctVtx) = NULL;
+void (*gfxSetNormalArray)( GFXNormal *pnor) = NULL;
+void (*gfxSetTexCoordArray)( GFXTexCoord *ptex, BOOL b4) = NULL;
+void (*gfxSetColorArray)( GFXColor *pcol) = NULL;
+void (*gfxDrawElements)( INDEX ctElem, INDEX *pidx) = NULL;
+void (*gfxSetConstantColor)(COLOR col) = NULL;
+void (*gfxEnableColorArray)(void) = NULL;
+void (*gfxDisableColorArray)(void) = NULL;
+void (*gfxFinish)(void) = NULL;
+void (*gfxLockArrays)(void) = NULL;
+void (*gfxEnableTruform)( void) = NULL;
+void (*gfxDisableTruform)(void) = NULL;
+void (*gfxSetColorMask)( ULONG ulColorMask) = NULL; 
 
 
 
@@ -147,7 +147,7 @@ static void none_void(void)
 
 // error checkers (this is for debug version only)
 
-extern void OGL_CheckError(void)
+void OGL_CheckError(void)
 {
 #ifndef NDEBUG
   const GfxAPIType eAPI = _pGfx->gl_eCurrentAPI;
@@ -157,7 +157,7 @@ extern void OGL_CheckError(void)
 }
 
 #ifdef SE1_D3D
-extern void D3D_CheckError(HRESULT hr)
+void D3D_CheckError(HRESULT hr)
 {
 #ifndef NDEBUG
   const GfxAPIType eAPI = _pGfx->gl_eCurrentAPI;
@@ -173,10 +173,10 @@ extern void D3D_CheckError(HRESULT hr)
 static LPDIRECT3DTEXTURE8 *_ppd3dCurrentTexture;
 #endif // SE1_D3D
 
-extern INDEX GetTexturePixRatio_OGL( GLuint uiBindNo);
-extern INDEX GetFormatPixRatio_OGL( GLenum eFormat);
-extern void  MimicTexParams_OGL( CTexParams &tpLocal);
-extern void  UploadTexture_OGL( ULONG *pulTexture, PIX pixSizeU, PIX pixSizeV,
+INDEX GetTexturePixRatio_OGL( GLuint uiBindNo);
+INDEX GetFormatPixRatio_OGL( GLenum eFormat);
+void  MimicTexParams_OGL( CTexParams &tpLocal);
+void  UploadTexture_OGL( ULONG *pulTexture, PIX pixSizeU, PIX pixSizeV,
                                 GLenum eInternalFormat, BOOL bUseSubImage);
 
 #ifdef SE1_D3D
@@ -188,16 +188,12 @@ extern void  UploadTexture_D3D( LPDIRECT3DTEXTURE8 *ppd3dTexture, ULONG *pulText
 #endif // SE1_D3D
 
 // update texture LOD bias
-extern FLOAT _fCurrentLODBias = 0;  // LOD bias adjuster
-extern void UpdateLODBias( const FLOAT fLODBias)
+FLOAT _fCurrentLODBias = 0;  // LOD bias adjuster
+void UpdateLODBias( const FLOAT fLODBias)
 { 
   // check API
   const GfxAPIType eAPI = _pGfx->gl_eCurrentAPI;
-#ifdef SE1_D3D
-  ASSERT( eAPI==GAT_OGL || eAPI==GAT_D3D || eAPI==GAT_NONE);
-#else // SE1_D3D
-  ASSERT( eAPI==GAT_OGL || eAPI==GAT_NONE);
-#endif // SE1_D3D
+  ASSERT( GfxValidApi(eAPI) );
   // only if supported and needed
   if( _fCurrentLODBias==fLODBias && _pGfx->gl_fMaxTextureLODBias==0) return;
   _fCurrentLODBias = fLODBias;
@@ -232,14 +228,15 @@ extern void UpdateLODBias( const FLOAT fLODBias)
       D3D_CHECKERROR(hr);
     }
   }
-#endif // SE1_D3D
+#endif
+
   _sfStats.StopTimer(CStatForm::STI_GFXAPI);
 }
 
 
 
 // get current texture filtering mode
-extern void gfxGetTextureFiltering( INDEX &iFilterType, INDEX &iAnisotropyDegree)
+void gfxGetTextureFiltering( INDEX &iFilterType, INDEX &iAnisotropyDegree)
 {
   iFilterType = _tpGlobal[0].tp_iFilter;
   iAnisotropyDegree = _tpGlobal[0].tp_iAnisotropy;
@@ -247,7 +244,7 @@ extern void gfxGetTextureFiltering( INDEX &iFilterType, INDEX &iAnisotropyDegree
 
 
 // set texture filtering mode
-extern void gfxSetTextureFiltering( INDEX &iFilterType, INDEX &iAnisotropyDegree)
+void gfxSetTextureFiltering( INDEX &iFilterType, INDEX &iAnisotropyDegree)
 {              
   // clamp vars
   INDEX iMagTex = iFilterType /100;     iMagTex = Clamp( iMagTex, 0L, 2L);  // 0=same as iMinTex, 1=nearest, 2=linear
@@ -287,12 +284,12 @@ extern void gfxSetTextureFiltering( INDEX &iFilterType, INDEX &iAnisotropyDegree
   }
   // done
   _sfStats.StopTimer(CStatForm::STI_GFXAPI);
-#endif // SE1_D3D
+#endif
 }
 
 
 // set new texture LOD biasing
-extern void gfxSetTextureBiasing( FLOAT &fLODBias)
+void gfxSetTextureBiasing( FLOAT &fLODBias)
 {
   // adjust LOD biasing if needed
   fLODBias = Clamp( fLODBias, -_pGfx->gl_fMaxTextureLODBias, +_pGfx->gl_fMaxTextureLODBias); 
@@ -305,15 +302,11 @@ extern void gfxSetTextureBiasing( FLOAT &fLODBias)
 
 
 // set texture unit as active
-extern void gfxSetTextureUnit( INDEX iUnit)
+void gfxSetTextureUnit( INDEX iUnit)
 {
   // check API
   const GfxAPIType eAPI = _pGfx->gl_eCurrentAPI;
-#ifdef SE1_D3D
-  ASSERT( eAPI==GAT_OGL || eAPI==GAT_D3D || eAPI==GAT_NONE);
-#else // SE1_D3D
-  ASSERT( eAPI==GAT_OGL || eAPI==GAT_NONE);
-#endif // SE1_D3D
+  ASSERT( GfxValidApi(eAPI) );
   ASSERT( iUnit>=0 && iUnit<4); // supports 4 layers (for now)
 
   // check consistency
@@ -342,7 +335,7 @@ extern void gfxSetTextureUnit( INDEX iUnit)
 
 
 // set texture as current
-extern void gfxSetTexture( ULONG &ulTexObject, CTexParams &tpLocal)
+void gfxSetTexture( ULONG &ulTexObject, CTexParams &tpLocal)
 {
   // clamp texture filtering if needed
   static INDEX _iLastTextureFiltering = 0;
@@ -356,11 +349,7 @@ extern void gfxSetTexture( ULONG &ulTexObject, CTexParams &tpLocal)
 
   // determine API and enable texturing
   const GfxAPIType eAPI = _pGfx->gl_eCurrentAPI;
-#ifdef SE1_D3D
-  ASSERT(eAPI == GAT_OGL || eAPI == GAT_D3D || eAPI == GAT_NONE);
-#else // SE1_D3D
-  ASSERT(eAPI == GAT_OGL || eAPI == GAT_NONE);
-#endif // SE1_D3D
+  ASSERT(GfxValidApi(eAPI));
   gfxEnableTexture();
 
   _sfStats.StartTimer(CStatForm::STI_BINDTEXTURE);
@@ -389,15 +378,11 @@ extern void gfxSetTexture( ULONG &ulTexObject, CTexParams &tpLocal)
 
 
 // upload texture
-extern void gfxUploadTexture( ULONG *pulTexture, PIX pixWidth, PIX pixHeight, ULONG ulFormat, BOOL bNoDiscard)
+void gfxUploadTexture( ULONG *pulTexture, PIX pixWidth, PIX pixHeight, ULONG ulFormat, BOOL bNoDiscard)
 {
   // determine API
   const GfxAPIType eAPI = _pGfx->gl_eCurrentAPI;
-#ifdef SE1_D3D
-  ASSERT(eAPI == GAT_OGL || eAPI == GAT_D3D || eAPI == GAT_NONE);
-#else // SE1_D3D
-  ASSERT(eAPI == GAT_OGL || eAPI == GAT_NONE);
-#endif // SE1_D3D
+  ASSERT( GfxValidApi(eAPI) );
 
   _sfStats.StartTimer(CStatForm::STI_GFXAPI);
 
@@ -422,18 +407,14 @@ extern void gfxUploadTexture( ULONG *pulTexture, PIX pixWidth, PIX pixHeight, UL
 
 
 // returns size of uploaded texture
-extern SLONG gfxGetTextureSize( ULONG ulTexObject, BOOL bHasMipmaps/*=TRUE*/)
+SLONG gfxGetTextureSize( ULONG ulTexObject, BOOL bHasMipmaps/*=TRUE*/)
 {
   // nothing used if nothing uploaded
-  if( ulTexObject==NULL) return 0;
+  if( ulTexObject==0) return 0;
 
   // determine API
   const GfxAPIType eAPI = _pGfx->gl_eCurrentAPI;
-#ifdef SE1_D3D
-  ASSERT(eAPI == GAT_OGL || eAPI == GAT_D3D || eAPI == GAT_NONE);
-#else // SE1_D3D
-  ASSERT(eAPI == GAT_OGL || eAPI == GAT_NONE);
-#endif // SE1_D3D
+  ASSERT( GfxValidApi(eAPI) );
   SLONG slMipSize;
 
   _sfStats.StartTimer(CStatForm::STI_GFXAPI);
@@ -485,18 +466,12 @@ extern SLONG gfxGetTextureSize( ULONG ulTexObject, BOOL bHasMipmaps/*=TRUE*/)
 
 
 // returns bytes/pixels ratio for uploaded texture
-extern INDEX gfxGetTexturePixRatio( ULONG ulTextureObject)
+INDEX gfxGetTexturePixRatio( ULONG ulTextureObject)
 {
   // determine API
   const GfxAPIType eAPI = _pGfx->gl_eCurrentAPI;
-#ifdef SE1_D3D
-  ASSERT(eAPI == GAT_OGL || eAPI == GAT_D3D || eAPI == GAT_NONE);
-#else // SE1_D3D
-  ASSERT(eAPI == GAT_OGL || eAPI == GAT_NONE);
-#endif // SE1_D3D
-  if( eAPI==GAT_OGL) {
-    return GetTexturePixRatio_OGL( (GLuint)ulTextureObject);
-  } 
+  ASSERT( GfxValidApi(eAPI) );
+       if( eAPI==GAT_OGL) return GetTexturePixRatio_OGL( (GLuint)ulTextureObject);
 #ifdef SE1_D3D
   else if( eAPI==GAT_D3D) return GetTexturePixRatio_D3D( (LPDIRECT3DTEXTURE8)ulTextureObject);
 #endif // SE1_D3D
@@ -505,18 +480,12 @@ extern INDEX gfxGetTexturePixRatio( ULONG ulTextureObject)
 
 
 // returns bytes/pixels ratio for uploaded texture
-extern INDEX gfxGetFormatPixRatio( ULONG ulTextureFormat)
+INDEX gfxGetFormatPixRatio( ULONG ulTextureFormat)
 {
   // determine API
   const GfxAPIType eAPI = _pGfx->gl_eCurrentAPI;
-#ifdef SE1_D3D
-  ASSERT(eAPI == GAT_OGL || eAPI == GAT_D3D || eAPI == GAT_NONE);
-#else // SE1_D3D
-  ASSERT(eAPI == GAT_OGL || eAPI == GAT_NONE);
-#endif // SE1_D3D
-  if( eAPI==GAT_OGL) {
-    return GetFormatPixRatio_OGL( (GLenum)ulTextureFormat);
-  } 
+  ASSERT( GfxValidApi(eAPI) );
+       if( eAPI==GAT_OGL) return GetFormatPixRatio_OGL( (GLenum)ulTextureFormat);
 #ifdef SE1_D3D
   else if( eAPI==GAT_D3D) return GetFormatPixRatio_D3D( (D3DFORMAT)ulTextureFormat);
 #endif // SE1_D3D
@@ -528,11 +497,11 @@ extern INDEX gfxGetFormatPixRatio( ULONG ulTextureFormat)
 // PATTERN TEXTURE FOR LINES
 
 CTexParams _tpPattern;
-extern ULONG _ulPatternTexture = NONE;
-extern ULONG _ulLastUploadedPattern = 0;
+ULONG _ulPatternTexture = NONE;
+ULONG _ulLastUploadedPattern = 0;
 
 // upload pattern to accelerator memory
-extern void gfxSetPattern( ULONG ulPattern)
+void gfxSetPattern( ULONG ulPattern)
 {
   // set pattern to be current texture
   _tpPattern.tp_bSingleMipmap = TRUE;
@@ -559,7 +528,7 @@ extern void gfxSetPattern( ULONG ulPattern)
 
 
 // for D3D - (type 0=vtx, 1=nor, 2=col, 3=tex)
-extern void SetVertexArray_D3D( INDEX iType, ULONG *pulVtx);
+void SetVertexArray_D3D( INDEX iType, ULONG *pulVtx);
 
 
 extern void gfxUnlockArrays(void)
@@ -582,8 +551,8 @@ extern void gfxUnlockArrays(void)
 // OpenGL workarounds
 
 
-// initialization of commond quad elements array
-extern void AddQuadElements( const INDEX ctQuads)
+// initialization of common quad elements array
+void AddQuadElements( const INDEX ctQuads)
 {
   const INDEX iStart = _aiCommonQuads.Count() /6*4;
   INDEX *piQuads = _aiCommonQuads.Push(ctQuads*6); 
@@ -616,7 +585,7 @@ static void FlushArrays( INDEX *piElements, INDEX ctElements)
 
 
 // render quad elements to screen buffer
-extern void gfxFlushQuads(void)
+void gfxFlushQuads(void)
 {
   // if there is something to draw
   const INDEX ctElements = _avtxCommon.Count()*6/4;
@@ -634,7 +603,7 @@ extern void gfxFlushQuads(void)
  
 
 // render elements to screen buffer
-extern void gfxFlushElements(void)
+void gfxFlushElements(void)
 {
   const INDEX ctElements = _aiCommonElements.Count();
   if( ctElements>0) FlushArrays( &_aiCommonElements[0], ctElements);
@@ -644,7 +613,7 @@ extern void gfxFlushElements(void)
 
 
 // set truform parameters
-extern void gfxSetTruform( INDEX iLevel, BOOL bLinearNormals)
+void gfxSetTruform( INDEX iLevel, BOOL bLinearNormals)
 {
   // skip if Truform isn't supported
   if( _pGfx->gl_iMaxTessellationLevel<1) {
@@ -658,11 +627,7 @@ extern void gfxSetTruform( INDEX iLevel, BOOL bLinearNormals)
 
   // determine API
   const GfxAPIType eAPI = _pGfx->gl_eCurrentAPI;
-#ifdef SE1_D3D
-  ASSERT(eAPI == GAT_OGL || eAPI == GAT_D3D || eAPI == GAT_NONE);
-#else // SE1_D3D
-  ASSERT(eAPI == GAT_OGL || eAPI == GAT_NONE);
-#endif // SE1_D3D
+  ASSERT( GfxValidApi(eAPI) );
 
   _sfStats.StartTimer(CStatForm::STI_GFXAPI);
 
@@ -728,7 +693,7 @@ static void none_SetColorMask( ULONG ulColorMask) { NOTHING; };
 
 
 // functions initialization for OGL, D3D or NONE (dummy)
-extern void GFX_SetFunctionPointers( INDEX iAPI)
+void GFX_SetFunctionPointers( INDEX iAPI)
 {
   // OpenGL?
   if( iAPI==(INDEX)GAT_OGL)

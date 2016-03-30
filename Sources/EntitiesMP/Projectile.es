@@ -23,7 +23,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "Models/Enemies/ElementalLava/Projectile/LavaStone.h"
 #include "Models/Enemies/ElementalLava/Projectile/LavaBomb.h"
 #include "Models/Enemies/Headman/Projectile/Blade.h"
-#include "Models/Enemies/Huanman/Projectile/Projectile.h"
+#include "Models/Enemies/HuanMan/Projectile/Projectile.h"
 #include "Models/Enemies/Cyborg/Projectile/LaserProjectile.h"
   
 #include "ModelsMP/Enemies/Grunt/Projectile/GruntProjectile.h"
@@ -641,7 +641,7 @@ functions:
     if (m_penLauncher!=NULL) {
       strm.FPrintF_t("id:%05d '%s'(%s) (%g, %g, %g)\n", 
         m_penLauncher->en_ulID,
-        m_penLauncher->GetName(), m_penLauncher->GetClass()->ec_pdecDLLClass->dec_strName,
+        (const char *) m_penLauncher->GetName(), (const char *) m_penLauncher->GetClass()->ec_pdecDLLClass->dec_strName,
         m_penLauncher->GetPlacement().pl_PositionVector(1),
         m_penLauncher->GetPlacement().pl_PositionVector(2),
         m_penLauncher->GetPlacement().pl_PositionVector(3));

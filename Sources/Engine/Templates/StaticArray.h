@@ -29,9 +29,22 @@ public:
   Type *sa_Array;      // objects
 public:
   /* Default constructor. */
-  inline CStaticArray(void);
+  inline CStaticArray(void)
+  {
+    sa_Count=0;
+    sa_Array=NULL;
+  }
+
   /* Destructor. */
-  inline ~CStaticArray(void);
+  inline ~CStaticArray(void)
+  {
+    // if some objects were allocated
+    if (sa_Count!=0) {
+      // destroy them
+      Delete();
+    }
+  }
+
   void operator=(const CStaticArray<Type> &arOriginal);
 
   /* Create a given number of objects. */
@@ -39,13 +52,32 @@ public:
   /* Expand stack size but keep old objects. */
   inline void Expand(INDEX iNewCount);
   /* Destroy all objects. */
-  inline void Delete(void);
+  inline void Delete(void)
+  {
+    ASSERT(this!=NULL);
+    ASSERT(sa_Count!=0 && sa_Array!=NULL);
+    delete[] sa_Array;
+    sa_Count = 0;
+    sa_Array = NULL;
+  }
   /* Destroy all objects, and reset the array to initial (empty) state. */
   inline void Clear(void);
 
   /* Random access operator. */
-  inline Type &operator[](INDEX iObject);
-  inline const Type &operator[](INDEX iObject) const;
+  inline Type &operator[](INDEX iObject)
+  {
+    ASSERT(this!=NULL);
+    ASSERT(iObject>=0 && iObject<sa_Count);     // check bounds
+    return sa_Array[iObject];
+  }
+
+  inline const Type &operator[](INDEX iObject) const
+  {
+    ASSERT(this!=NULL);
+    ASSERT(iObject>=0 && iObject<sa_Count);     // check bounds
+    return sa_Array[iObject];
+  }
+
   /* Get number of objects in array. */
   INDEX Count(void) const;
   /* Get index of a object from it's pointer. */

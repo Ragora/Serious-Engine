@@ -13,59 +13,65 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
+#ifdef PLATFORM_UNIX  /* rcg10072001 */
+#include <signal.h>
+#endif
+
 #include "StdAfx.h"
 #include <GameMP/Game.h>
 #define DECL_DLL
 
-#if 0  /* rcg10042001 Doesn't seem to exist. */
-#include <Entities/Global.h>
-#endif
-
 // application state variables
-extern BOOL _bRunning = TRUE;
+BOOL _bRunning = TRUE;
 static BOOL _bForceRestart = FALSE;
 static BOOL _bForceNextMap = FALSE;
 
-extern CTString _strSamVersion = "no version information";
-extern INDEX ded_iMaxFPS = 100;
-extern CTString ded_strConfig = "";
-extern CTString ded_strLevel = "";
-extern INDEX ded_bRestartWhenEmpty = TRUE;
-extern FLOAT ded_tmTimeout = -1;
-extern CGame *_pGame = NULL;
-extern CTString sam_strFirstLevel = "Levels\\KarnakDemo.wld";
-extern CTString sam_strIntroLevel = "Levels\\Intro.wld";
-extern CTString sam_strGameName = "serioussam";
+CTString _strSamVersion = "no version information";
+INDEX ded_iMaxFPS = 100;
+CTString ded_strConfig = "";
+CTString ded_strLevel = "";
+INDEX ded_bRestartWhenEmpty = TRUE;
+FLOAT ded_tmTimeout = -1;
+CGame *_pGame = NULL;
+CTString sam_strFirstLevel = "Levels\\KarnakDemo.wld";
+CTString sam_strIntroLevel = "Levels\\Intro.wld";
+CTString sam_strGameName = "serioussam";
 
-CTimerValue _tvLastLevelEnd(-1i64);
+CTimerValue _tvLastLevelEnd((__int64) -1);
 
 void InitializeGame(void)
 {
-  try {
-    #ifndef NDEBUG 
-      #define GAMEDLL _fnmApplicationExe.FileDir()+"Game"+_strModExt+"D.dll"
+  #ifdef STATICALLY_LINKED
+    #define fnmExpanded NULL
+    CPrintF(TRANSV("Loading game library '%s'...\n"), "(statically linked)");
+  #else
+    CTFileName fnmDLL;
+    #ifndef NDEBUG
+      fnmDLL = "Bin\\Debug\\Game"+_strModExt+"D.dll";
     #else
-      #define GAMEDLL _fnmApplicationExe.FileDir()+"Game"+_strModExt+".dll"
+      fnmDLL = "Bin\\Game"+_strModExt+".dll";
     #endif
+
+    fnmDLL = CDynamicLoader::ConvertLibNameToPlatform(fnmDLL);
     CTFileName fnmExpanded;
-    ExpandFilePath(EFP_READ, CTString(GAMEDLL), fnmExpanded);
+    ExpandFilePath(EFP_READ | EFP_NOZIPS,fnmDLL,fnmExpanded);
+    CPrintF(TRANSV("Loading game library '%s'...\n"), (const char *)fnmExpanded);
+  #endif
 
-    CPrintF(TRANS("Loading game library '%s'...\n"), (const char *)fnmExpanded);
-    HMODULE hGame = LoadLibraryA(fnmExpanded);
-    if (hGame==NULL) {
-      ThrowF_t("%s", GetWindowsError(GetLastError()));
-    }
-    CGame* (*GAME_Create)(void) = (CGame* (*)(void))GetProcAddress(hGame, "GAME_Create");
-    if (GAME_Create==NULL) {
-      ThrowF_t("%s", GetWindowsError(GetLastError()));
-    }
-    _pGame = GAME_Create();
+  CDynamicLoader *loader = CDynamicLoader::GetInstance(fnmExpanded);
+  CGame *(*GAME_Create)(void) = NULL;
 
-  } catch (char *strError) {
-    FatalError("%s", strError);
+  if (loader->GetError() == NULL) {
+    GAME_Create = (CGame* (*)(void)) loader->FindSymbol("GAME_Create");
   }
-  // init game - this will load persistent symbols
-  _pGame->Initialize(CTString("Data\\DedicatedServer.gms"));
+
+  if (GAME_Create == NULL) {
+    FatalError("%s", loader->GetError());
+  } else {
+    _pGame = GAME_Create();
+    // init game - this will load persistent symbols
+    _pGame->Initialize(CTString("Data\\DedicatedServer.gms"));
+  }
 }
 
 static void QuitGame(void)
@@ -97,12 +103,16 @@ void LimitFrameRate(void)
   // limit maximum frame rate
   ded_iMaxFPS = ClampDn( ded_iMaxFPS,   1L);
   TIME tmWantedDelta  = 1.0f / ded_iMaxFPS;
-  if( tmCurrentDelta<tmWantedDelta) Sleep( (tmWantedDelta-tmCurrentDelta)*1000.0f);
+  if( tmCurrentDelta<tmWantedDelta)
+    _pTimer->Sleep( (DWORD) ((tmWantedDelta-tmCurrentDelta)*1000.0f) );
   
   // remember new time
   tvLast = _pTimer->GetHighPrecisionTimer();
 }
 
+
+/* rcg10072001 win32ism. */
+#ifdef PLATFORM_WIN32
 // break/close handler
 BOOL WINAPI HandlerRoutine(
   DWORD dwCtrlType   //  control signal type
@@ -117,13 +127,22 @@ BOOL WINAPI HandlerRoutine(
   }
   return TRUE;
 }
+#endif
+
+#ifdef PLATFORM_UNIX
+void unix_signal_catcher(int signum)
+{
+    _bRunning = FALSE;
+}
+#endif
+
 
 #define REFRESHTIME (0.1f)
 
 static void LoadingHook_t(CProgressHookInfo *pphi)
 {
   // measure time since last call
-  static CTimerValue tvLast(0I64);
+  static CTimerValue tvLast((__int64) 0);
   CTimerValue tvNow = _pTimer->GetHighPrecisionTimer();
 
   if (!_bRunning) {
@@ -139,8 +158,13 @@ static void LoadingHook_t(CProgressHookInfo *pphi)
 
   // print status text
   CTString strRes;
+#ifdef PLATFORM_WIN32
   printf("\r                                                                      ");
-  printf("\r%s : %3.0f%%\r", pphi->phi_strDescription, pphi->phi_fCompleted*100);
+  printf("\r%s : %3.0f%%\r", (const char *) pphi->phi_strDescription, pphi->phi_fCompleted*100);
+#else
+    // !!! FIXME: This isn't right, either...
+  printf("%s : %3.0f%%\n", (const char *) pphi->phi_strDescription, pphi->phi_fCompleted*100);
+#endif
 }
 
 // loading hook functions
@@ -171,13 +195,20 @@ BOOL StartGame(CTString &strLevel)
   return _pGame->NewGame( _pGame->gam_strSessionName, strLevel, sp);
 }
  
-void ExecScript(const CTString &str)
+void ExecScript(const CTFileName &fnmScript)
 {
-  CPrintF("Executing: '%s'\n", str);
+  CPrintF("Executing: '%s'\n", (const char *) fnmScript);
   CTString strCmd;
-  strCmd.PrintF("include \"%s\"", str);
+  strCmd.PrintF("include \"%s\"", (const char *) fnmScript);
   _pShell->Execute(strCmd);
 }
+
+
+#ifdef PLATFORM_WIN32
+    #define DelayBeforeExit() fgetc(stdin);
+#else
+    #define DelayBeforeExit()
+#endif
 
 BOOL Init(int argc, char* argv[])
 {
@@ -187,11 +218,14 @@ BOOL Init(int argc, char* argv[])
     // NOTE: this cannot be translated - translations are not loaded yet
     printf("Usage: DedicatedServer <configname> [<modname>]\n"
       "This starts a server reading configs from directory 'Scripts\\Dedicated\\<configname>\\'\n");
-    getch();
+
+    DelayBeforeExit();
     exit(0);
   }
 
-  SetConsoleTitleA(argv[1]);
+  #ifdef PLATFORM_WIN32
+    SetConsoleTitle(argv[1]);
+  #endif
 
   ded_strConfig = CTString("Scripts\\Dedicated\\")+argv[1]+"\\";
 
@@ -203,7 +237,7 @@ BOOL Init(int argc, char* argv[])
   _strLogFile = CTString("Dedicated_")+argv[1];
 
   // initialize engine
-  SE_InitEngine(sam_strGameName);
+  SE_InitEngine(argv[0], sam_strGameName);
 
 //  ParseCommandLine(strCmdLine);
 
@@ -224,32 +258,40 @@ BOOL Init(int argc, char* argv[])
 
     FinishTranslationTable();
   } catch (char *strError) {
-    FatalError("%s %s", CTString(fnmTransTable), strError);
+    CTString str(fnmTransTable);
+    FatalError("%s %s", (const char *) str, strError);
   }
 
   // always disable all warnings when in serious sam
   _pShell->Execute( "con_bNoWarnings=1;");
 
   // declare shell symbols
-  _pShell->DeclareSymbol("persistent user INDEX ded_iMaxFPS;", &ded_iMaxFPS);
-  _pShell->DeclareSymbol("user void Quit(void);", &QuitGame);
-  _pShell->DeclareSymbol("user CTString ded_strLevel;", &ded_strLevel);
-  _pShell->DeclareSymbol("user FLOAT ded_tmTimeout;", &ded_tmTimeout);
-  _pShell->DeclareSymbol("user INDEX ded_bRestartWhenEmpty;", &ded_bRestartWhenEmpty);
-  _pShell->DeclareSymbol("user void Restart(void);", &RestartGame);
-  _pShell->DeclareSymbol("user void NextMap(void);", &NextMap);
-  _pShell->DeclareSymbol("persistent user CTString sam_strIntroLevel;",      &sam_strIntroLevel);
-  _pShell->DeclareSymbol("persistent user CTString sam_strGameName;",      &sam_strGameName);
-  _pShell->DeclareSymbol("user CTString sam_strFirstLevel;", &sam_strFirstLevel);
+  _pShell->DeclareSymbol("persistent user INDEX ded_iMaxFPS;", (void *) &ded_iMaxFPS);
+  _pShell->DeclareSymbol("user void Quit(void);", (void *) &QuitGame);
+  _pShell->DeclareSymbol("user CTString ded_strLevel;", (void *) &ded_strLevel);
+  _pShell->DeclareSymbol("user FLOAT ded_tmTimeout;", (void *) &ded_tmTimeout);
+  _pShell->DeclareSymbol("user INDEX ded_bRestartWhenEmpty;", (void *) &ded_bRestartWhenEmpty);
+  _pShell->DeclareSymbol("user void Restart(void);", (void *) &RestartGame);
+  _pShell->DeclareSymbol("user void NextMap(void);", (void *) &NextMap);
+  _pShell->DeclareSymbol("persistent user CTString sam_strIntroLevel;",      (void *) &sam_strIntroLevel);
+  _pShell->DeclareSymbol("persistent user CTString sam_strGameName;",      (void *) &sam_strGameName);
+  _pShell->DeclareSymbol("user CTString sam_strFirstLevel;", (void *) &sam_strFirstLevel);
 
   // init game - this will load persistent symbols
   InitializeGame();
   _pNetwork->md_strGameID = sam_strGameName;
 
   LoadStringVar(CTString("Data\\Var\\Sam_Version.var"), _strSamVersion);
-  CPrintF(TRANS("Serious Sam version: %s\n"), _strSamVersion);
+  CPrintF(TRANSV("Serious Sam version: %s\n"), (const char *) _strSamVersion);
 
-  SetConsoleCtrlHandler(HandlerRoutine, TRUE);
+  #if (defined PLATFORM_WIN32)
+    SetConsoleCtrlHandler(HandlerRoutine, TRUE);
+  #elif (defined PLATFORM_UNIX)
+    signal(SIGINT, unix_signal_catcher);
+    signal(SIGHUP, unix_signal_catcher);
+    signal(SIGQUIT, unix_signal_catcher);
+    signal(SIGTERM, unix_signal_catcher);
+  #endif
 
   // if there is a mod
   if (_fnmMod!="") {
@@ -282,8 +324,8 @@ void RoundBegin(void)
 {
   // repeat generate script names
   FOREVER {
-    strBegScript.PrintF("%s%d_begin.ini", ded_strConfig, iRound);
-    strEndScript.PrintF("%s%d_end.ini",   ded_strConfig, iRound);
+    strBegScript.PrintF("%s%d_begin.ini", (const char *) ded_strConfig, iRound);
+    strEndScript.PrintF("%s%d_end.ini",   (const char *) ded_strConfig, iRound);
     // if start script exists
     if (FileExists(strBegScript)) {
       // stop searching
@@ -294,7 +336,7 @@ void RoundBegin(void)
       // if this is first round
       if (iRound==1) {
         // error
-        CPrintF(TRANS("No scripts present!\n"));
+        CPrintF(TRANSV("No scripts present!\n"));
         _bRunning = FALSE;
         return;
       }
@@ -308,7 +350,7 @@ void RoundBegin(void)
 
   // start the level specified there
   if (ded_strLevel=="") {
-    CPrintF(TRANS("ERROR: No next level specified!\n"));
+    CPrintF(TRANSV("ERROR: No next level specified!\n"));
     _bRunning = FALSE;
   } else {
     EnableLoadingHook();
@@ -316,10 +358,10 @@ void RoundBegin(void)
     _bHadPlayers = 0;
     _bRestart = 0;
     DisableLoadingHook();
-    _tvLastLevelEnd = CTimerValue(-1i64);
-    CPrintF(TRANS("\nALL OK: Dedicated server is now running!\n"));
-    CPrintF(TRANS("Use Ctrl+C to shutdown the server.\n"));
-    CPrintF(TRANS("DO NOT use the 'Close' button, it might leave the port hanging!\n\n"));
+    _tvLastLevelEnd = CTimerValue((__int64) -1);
+    CPrintF(TRANSV("\nALL OK: Dedicated server is now running!\n"));
+    CPrintF(TRANSV("Use Ctrl+C to shutdown the server.\n"));
+    CPrintF(TRANSV("DO NOT use the 'Close' button, it might leave the port hanging!\n\n"));
   }
 }
 
@@ -330,7 +372,7 @@ void ForceNextMap(void)
   _bHadPlayers = 0;
   _bRestart = 0;
   DisableLoadingHook();
-  _tvLastLevelEnd = CTimerValue(-1i64);
+  _tvLastLevelEnd = CTimerValue((__int64) -1);
 }
 
 void RoundEnd(void)
@@ -344,6 +386,10 @@ void RoundEnd(void)
 // do the main game loop and render screen
 void DoGame(void)
 {
+  #ifdef SINGLE_THREADED
+    _pTimer->HandleTimerHandlers();
+  #endif
+
   // do the main game loop
   if( _pGame->gm_bGameOn) {
     _pGame->GameMainLoop();
@@ -431,7 +477,7 @@ int SubMain(int argc, char* argv[])
         _bForceRestart = FALSE;
         _bRestart = FALSE;
         RoundEnd();
-        CPrintF(TRANS("\nNOTE: Restarting server!\n\n"));
+        CPrintF(TRANSV("\nNOTE: Restarting server!\n\n"));
         RoundBegin();
       } else {
         _bRestart = FALSE;

@@ -13,7 +13,7 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include "Engine/StdH.h"
 
 #include <Engine/Base/Stream.h>
 #include <Engine/Entities/EntityClass.h>
@@ -278,12 +278,35 @@ void CEntityClass::Read_t( CTStream *istr) // throw char *
   CTString strClassName;
   strClassName.ReadFromText_t(*istr, "Class: ");
 
-  // create name of dll
-  #ifndef NDEBUG
-    fnmDLL = _fnmApplicationExe.FileDir()+fnmDLL.FileName()+_strModExt+"D"+fnmDLL.FileExt();
+  const char *dllName = NULL;
+
+    // load the DLL
+  #ifdef STATICALLY_LINKED
+    ec_hiClassDLL = CDynamicLoader::GetInstance(NULL);
+    dllName = "(statically linked)";
   #else
-    fnmDLL = _fnmApplicationExe.FileDir()+fnmDLL.FileName()+_strModExt+fnmDLL.FileExt();
+    // create name of dll
+    #ifndef NDEBUG
+    fnmDLL = fnmDLL.FileDir()+"Debug\\"+fnmDLL.FileName()+_strModExt+"D"+fnmDLL.FileExt();
+    #else
+    fnmDLL = fnmDLL.FileDir()+fnmDLL.FileName()+_strModExt+fnmDLL.FileExt();
+    #endif
+    fnmDLL = CDynamicLoader::ConvertLibNameToPlatform(fnmDLL);
+    CTFileName fnmExpanded;
+    ExpandFilePath(EFP_READ, fnmDLL, fnmExpanded);
+    dllName = fnmExpanded;
+    ec_hiClassDLL = CDynamicLoader::GetInstance(fnmExpanded);
   #endif
+
+  if (ec_hiClassDLL->GetError() != NULL)
+  {
+    CTString err(ec_hiClassDLL->GetError());
+    delete ec_hiClassDLL;
+    ec_hiClassDLL = NULL;
+    ThrowF_t(TRANS("Cannot load DLL file '%s':\n%s"),
+              (const char *) dllName, (const char *) err);
+  }
+  
 
   // load the DLL
   CTFileName fnmExpanded;
@@ -293,16 +316,16 @@ void CEntityClass::Read_t( CTStream *istr) // throw char *
   ec_fnmClassDLL = fnmDLL;
 
   // get the pointer to the DLL class structure
-  ec_pdecDLLClass = (CDLLEntityClass *) GetProcAddress(ec_hiClassDLL, strClassName+"_DLLClass");
+  ec_pdecDLLClass = (CDLLEntityClass *) ec_hiClassDLL->FindSymbol(strClassName+"_DLLClass");
+
   // if class structure is not found
   if (ec_pdecDLLClass == NULL) {
     // free the library
-    BOOL bSuccess = FreeLibrary(ec_hiClassDLL);
-    ASSERT(bSuccess);
+    delete ec_hiClassDLL;
     ec_hiClassDLL = NULL;
     ec_fnmClassDLL.Clear();
     // report error
-    ThrowF_t(TRANS("Class '%s' not found in entity class package file '%s'"), strClassName, fnmDLL);
+    ThrowF_t(TRANS("Class '%s' not found in entity class package file '%s'"), (const char *) strClassName, dllName);
   }
 
   // obtain all components needed by the DLL
@@ -369,7 +392,7 @@ CEntity::pEventHandler CEntityClass::HandlerForStateAndEvent(SLONG slState, SLON
 
 /* Get pointer to component from its identifier. */
 class CEntityComponent *CEntityClass::ComponentForTypeAndID(
-  EntityComponentType ectType, SLONG slID) {
+  enum EntityComponentType ectType, SLONG slID) {
   return ec_pdecDLLClass->ComponentForTypeAndID(ectType, slID);
 }
 /* Get pointer to component from the component. */

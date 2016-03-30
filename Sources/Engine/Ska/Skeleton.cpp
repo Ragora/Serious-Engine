@@ -13,7 +13,7 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include <Engine/StdH.h>
 #include "Skeleton.h"
 
 #include <Engine/Graphics/DrawPort.h>
@@ -26,7 +26,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define SKELETON_VERSION  6
 #define SKELETON_ID       "SKEL"
 
-CStaticArray<struct SkeletonBone> _aSortArray;
+static CStaticArray<struct SkeletonBone> _aSortArray;
 INDEX ctSortBones;
 
 CSkeleton::CSkeleton()
@@ -247,9 +247,10 @@ void CSkeleton::Read_t(CTStream *istrFile)
       sb.sb_iID = ska_GetIDFromStringTable(strNameID);
       sb.sb_iParentID = ska_GetIDFromStringTable(strParentID);
       // read AbsPlacement matrix
-      istrFile->Read_t(&sb.sb_mAbsPlacement,sizeof(FLOAT)*12);
+      for (int i = 0; i < 12; i++)
+        (*istrFile)>>sb.sb_mAbsPlacement[i];
       // read RelPlacement Qvect stuct
-      istrFile->Read_t(&sb.sb_qvRelPlacement,sizeof(QVect));
+      (*istrFile)>>sb.sb_qvRelPlacement;
       // read offset len
       (*istrFile)>>sb.sb_fOffSetLen;
       // read bone length

@@ -89,6 +89,18 @@ public:
   inline void StretchByFactor(Type tSizing);
   // stretch the bounding box by a given sizing vector
   inline void StretchByVector(Vector<Type, iDimensions> vSizing);
+
+  friend __forceinline CTStream &operator>>(CTStream &strm, AABBox<Type, iDimensions> &b) {
+    strm>>b.minvect;
+    strm>>b.maxvect;
+    return strm;
+  }
+  friend __forceinline CTStream &operator<<(CTStream &strm, const AABBox<Type, iDimensions> &b) {
+    strm<<b.minvect;
+    strm<<b.maxvect;
+    return strm;
+  }
+
 };
 
 /*

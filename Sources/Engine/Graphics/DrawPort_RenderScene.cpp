@@ -13,11 +13,11 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include <Engine/StdH.h>
 
 #include <Engine/Graphics/DrawPort.h>
 
-#include <Engine/Base/Statistics_internal.h>
+#include <Engine/Base/Statistics_Internal.h>
 #include <Engine/Base/Console.h>
 #include <Engine/Math/Projection.h>
 #include <Engine/Graphics/RenderScene.h>
@@ -38,7 +38,15 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define W  word ptr
 #define B  byte ptr
 
+#if (defined USE_PORTABLE_C)
+#define ASMOPT 0
+#elif (defined __MSVC_INLINE__)
 #define ASMOPT 1
+#elif (defined __GNU_INLINE__)
+#define ASMOPT 1
+#else
+#define ASMOPT 0
+#endif
 
 #define MAXTEXUNITS   4
 #define SHADOWTEXTURE 3
@@ -136,11 +144,17 @@ static void FlushElements(void)
 
 
 // batch elements of one polygon
-static __forceinline void AddElements( ScenePolygon *pspo) 
+static
+#if (!defined __GNUC__)
+__forceinline
+#endif
+void AddElements( ScenePolygon *pspo)
 {
   const INDEX ctElems = pspo->spo_ctElements;
   INDEX *piDst = _aiElements.Push(ctElems);
-#if ASMOPT == 1
+
+#if (ASMOPT == 1)
+ #if (defined __MSVC_INLINE__)
   __asm {
     mov     eax,D [pspo]
     mov     ecx,D [ctElems]
@@ -170,6 +184,45 @@ elemRest:
     mov     D [edi],eax
 elemDone:
   }
+ #elif (defined __GNU_INLINE__)
+  __asm__ __volatile__ (
+    "pushl   %%ebx                  \n\t" // Save GCC's register.
+    "movl    %%eax, %%ebx           \n\t"
+
+    "movd    %%ebx, %%mm1           \n\t"
+    "movq    %%mm1, %%mm0           \n\t"
+    "psllq   $32, %%mm1             \n\t"
+    "por     %%mm0, %%mm1           \n\t"
+    "shrl    $1, %%ecx              \n\t"
+    "jz      1f                     \n\t" // elemRest
+    "0:                             \n\t" // elemLoop
+    "movq    (%%esi), %%mm0         \n\t"
+    "paddd   %%mm1, %%mm0           \n\t"
+    "movq    %%mm0, (%%edi)         \n\t"
+    "addl    $8, %%esi              \n\t"
+    "addl    $8, %%edi              \n\t"
+    "decl    %%ecx                  \n\t"
+    "jnz     0b                     \n\t" // elemLoop
+    "1:                             \n\t" // elemRest
+    "emms                           \n\t"
+    "testl   $1, %%edx              \n\t"
+    "jz      2f                     \n\t" // elemDone
+    "movl    (%%esi), %%eax         \n\t"
+    "addl    %%ebx, %%eax           \n\t"
+    "movl    %%eax, (%%edi)         \n\t"
+    "2:                             \n\t" // elemDone
+    "popl    %%ebx                  \n\t"  // restore GCC's register.
+        : // no outputs.
+        : "c" (ctElems), "d" (ctElems), "D" (piDst),
+          "S" (pspo->spo_piElements), "a" (pspo->spo_iVtx0Pass)
+        : "cc", "memory"
+  );
+
+ #else
+   #error Please write inline ASM for your platform.
+
+ #endif
+
 #else
   const INDEX iVtx0Pass = pspo->spo_iVtx0Pass;
   const INDEX *piSrc = pspo->spo_piElements;
@@ -440,12 +493,48 @@ static void RSBinToGroups( ScenePolygon *pspoFirst)
 
   // determine maximum used groups
   ASSERT( _ctGroupsCount);
+
+#if ASMOPT == 1
+
+ #if (defined __MSVC_INLINE__)
   __asm {
     mov     eax,2
     bsr     ecx,D [_ctGroupsCount]
     shl     eax,cl
     mov     D [_ctGroupsCount],eax
   }
+
+ #elif (defined __GNU_INLINE__)
+  __asm__ __volatile__ (
+    "bsrl     (%%esi), %%ecx     \n\t"
+    "shll     %%cl, %%eax        \n\t"
+    "movl     %%eax, (%%esi)     \n\t"
+        : // no outputs.
+        : "a" (2), "S" (&_ctGroupsCount)
+        : "ecx", "cc", "memory"
+  );
+
+ #else
+   #error Please write inline ASM for your platform.
+
+ #endif
+
+#else
+  // emulate x86's bsr opcode...not fast.  :/
+  register INDEX val = _ctGroupsCount;
+  register INDEX bsr = 0;
+  if (val != 0)
+  {
+      while (bsr < 32)
+      {
+        if (val & (1 << bsr))
+            break;
+        bsr++;
+      }
+  }
+
+  _ctGroupsCount = 2 << bsr;
+#endif
 
   // done with bining
   _pfGfxProfile.StopTimer( CGfxProfile::PTI_RS_BINTOGROUPS);
@@ -670,7 +759,7 @@ static void RSSetPolygonColors( ScenePolygon *pspoGroup, UBYTE ubAlpha)
   for( ScenePolygon *pspo = pspoGroup; pspo != NULL; pspo = pspo->spo_pspoSucc) {
     col  = ByteSwap( AdjustColor( pspo->spo_cColor|ubAlpha, _slTexHueShift, _slTexSaturation));
     pcol = &_acolPass[pspo->spo_iVtx0Pass];
-    for( INDEX i=0; i<pspo->spo_ctVtx; i++) pcol[i].abgr = col;
+    for( INDEX i=0; i<pspo->spo_ctVtx; i++) pcol[i].ul.abgr = col;
   }
   gfxSetColorArray( &_acolPass[0]);
   _pfGfxProfile.StopTimer( CGfxProfile::PTI_RS_SETCOLORS);
@@ -682,7 +771,7 @@ static void RSSetConstantColors( COLOR col)
   _pfGfxProfile.StartTimer( CGfxProfile::PTI_RS_SETCOLORS);
   col = ByteSwap( AdjustColor( col, _slTexHueShift, _slTexSaturation));
   GFXColor *pcol = &_acolPass[0];
-  for( INDEX i=0; i<_acolPass.Count(); i++) pcol[i].abgr = col;
+  for( INDEX i=0; i<_acolPass.Count(); i++) pcol[i].ul.abgr = col;
   gfxSetColorArray( &_acolPass[0]);
   _pfGfxProfile.StopTimer( CGfxProfile::PTI_RS_SETCOLORS);
 }
@@ -716,7 +805,7 @@ static void RSSetTextureColors( ScenePolygon *pspoGroup, ULONG ulLayerMask)
     // store
     colTotal = ByteSwap(colTotal);
     GFXColor *pcol= &_acolPass[pspo->spo_iVtx0Pass];
-    for( INDEX i=0; i<pspo->spo_ctVtx; i++) pcol[i].abgr = colTotal;
+    for( INDEX i=0; i<pspo->spo_ctVtx; i++) pcol[i].ul.abgr = colTotal;
   }
   // set color array
   gfxSetColorArray( &_acolPass[0]);
@@ -760,23 +849,33 @@ static void RSSetTextureCoords( ScenePolygon *pspoGroup, INDEX iLayer, INDEX iUn
         const FLOAT fRVz = fVz - 2*vN(3)*fNV;
         const FLOAT fRVxT = fRVx*mViewer(1,1) + fRVy*mViewer(2,1) + fRVz*mViewer(3,1);
         const FLOAT fRVzT = fRVx*mViewer(1,3) + fRVy*mViewer(2,3) + fRVz*mViewer(3,3);
-        ptex[i].s = fRVxT*0.5f +0.5f;
-        ptex[i].t = fRVzT*0.5f +0.5f;
+        ptex[i].st.s = fRVxT*0.5f +0.5f;
+        ptex[i].st.t = fRVzT*0.5f +0.5f;
       }
       // advance to next polygon
       continue;
     }
 
-    // diffuse mapping
-    const FLOAT3D &vO = pspo->spo_amvMapping[iLayer].mv_vO;
-
-#if ASMOPT == 1
+// !!! FIXME: rcg11232001 This inline conversion is broken. Use the
+// !!! FIXME: rcg11232001  C version for now with GCC.
+#if ((ASMOPT == 1) && (!defined __GNU_INLINE__) && (!defined __INTEL_COMPILER))
+  #if (defined __MSVC_INLINE__)
     __asm {
       mov     esi,D [pspo]
       mov     edi,D [iMappingOffset]
+
+// (This doesn't work with the Intel C++ compiler. :(  --ryan.)
+#ifdef _MSC_VER
       lea     eax,[esi].spo_amvMapping[edi].mv_vO
       lea     ebx,[esi].spo_amvMapping[edi].mv_vU
       lea     ecx,[esi].spo_amvMapping[edi].mv_vV
+#else
+      lea     ebx,[esi].spo_amvMapping[edi]
+      lea     eax,[ebx].mv_vO
+      lea     ecx,[ebx].mv_vV
+      lea     ebx,[ebx].mv_vU
+#endif
+
       mov     edx,D [esi].spo_ctVtx
       mov     esi,D [pvtx]
       mov     edi,D [ptex]
@@ -803,14 +902,66 @@ vtxLoop:
       faddp   st(1),st(0) // vU(1)*fDX+vU(2)*fDY+vU(3)*fDZ,  vV(1)*fDX+vV(2)*fDY, vV(3)*fDZ
       fxch    st(1)
       faddp   st(2),st(0) // vU(1)*fDX+vU(2)*fDY+vU(3)*fDZ,  vV(1)*fDX+vV(2)*fDY+vV(3)*fDZ
-      fstp    D [edi]GFXTexCoord.s
-      fstp    D [edi]GFXTexCoord.t
+      fstp    D [edi]GFXTexCoord.st.s
+      fstp    D [edi]GFXTexCoord.st.t
       add     esi,4*4
       add     edi,2*4
       dec     edx
       jnz     vtxLoop
     }
+
+/*
+    // !!! FIXME: rcg11232001 This inline conversion is broken. Use the
+    // !!! FIXME: rcg11232001  C version for now on Linux.
+ #elif (defined __GNU_INLINE__)
+    STUBBED("debug this");
+    __asm__ __volatile__ (
+      "0:                                  \n\t" // vtxLoop
+      "flds    (%%ebx)                     \n\t"
+      "flds    (%%esi)                     \n\t"
+      "fsubs   (%%eax)                     \n\t"
+      "fmul    %%st(0), %%st(1)            \n\t"
+      "fmuls   (%%ecx)                     \n\t" // vV(1)*fDX, vU(1)*fDX
+      "flds    4(%%ebx)                    \n\t"
+      "flds    4(%%esi)                    \n\t" // GFXVertex.y
+      "fsubs   4(%%eax)                    \n\t"
+      "fmul    %%st(0), %%st(1)            \n\t"
+      "fmuls   4(%%ecx)                    \n\t" // vV(2)*fDY, vU(2)*fDY, vV(1)*fDX, vU(1)*fDX
+      "flds    8(%%ebx)                    \n\t"
+      "flds    8(%%esi)                    \n\t" // GFXVertex.z
+      "fsubs   8(%%eax)                    \n\t"
+      "fmul    %%st(0), %%st(1)            \n\t"
+      "fmuls   8(%%ecx)                    \n\t" // vV(3)*fDZ, vU(3)*fDZ, vV(2)*fDY, vU(2)*fDY, vV(1)*fDX, vU(1)*fDX
+      "fxch    %%st(5)                     \n\t"
+      "faddp   %%st(0), %%st(3)            \n\t" // vU(3)*fDZ, vV(2)*fDY, vU(1)*fDX+vU(2)*fDY, vV(1)*fDX, vV(3)*fDZ
+      "fxch    %%st(1)                     \n\t"
+      "faddp   %%st(0), %%st(3)            \n\t" // vU(3)*fD Z, vU(1)*fDX+vU(2)*fDY, vV(1)*fDX+vV(2)*fDY, vV(3)*fDZ
+      "faddp   %%st(0), %%st(1)            \n\t" // vU(1)*fDX+vU(2)*fDY+vU(3)*fDZ,  vV(1)*fDX+vV(2)*fDY, vV(3)*fDZ
+      "fxch    %%st(1)                     \n\t"
+      "faddp   %%st(0), %%st(2)            \n\t" // vU(1)*fDX+vU(2)*fDY+vU(3)*fDZ,  vV(1)*fDX+vV(2)*fDY+vV(3)*fDZ
+      "fstps   0(%%edi)                    \n\t" // GFXTexCoord.st.s
+      "fstps   4(%%edi)                    \n\t" // GFXTexCoord.st.t
+      "addl    $16, %%esi                  \n\t"
+      "addl    $8, %%edi                   \n\t"
+      "decl    %%edx                       \n\t"
+      "jnz     0b                          \n\t" // vtxLoop
+        : // no outputs.
+        : "a" (&pspo->spo_amvMapping[iMappingOffset].mv_vO.vector),
+          "b" (&pspo->spo_amvMapping[iMappingOffset].mv_vU.vector),
+          "c" (&pspo->spo_amvMapping[iMappingOffset].mv_vV.vector),
+          "d" (pspo->spo_ctVtx), "S" (pvtx), "D" (ptex)
+        : "cc", "memory"
+    );
+*/
+
+ #else
+   #error Please write inline ASM for your platform.
+
+ #endif
+
 #else
+
+    // diffuse mapping
     const FLOAT3D &vO = pspo->spo_amvMapping[iLayer].mv_vO;
     const FLOAT3D &vU = pspo->spo_amvMapping[iLayer].mv_vU;
     const FLOAT3D &vV = pspo->spo_amvMapping[iLayer].mv_vV;
@@ -818,10 +969,11 @@ vtxLoop:
       const FLOAT fDX = pvtx[i].x -vO(1);
       const FLOAT fDY = pvtx[i].y -vO(2);
       const FLOAT fDZ = pvtx[i].z -vO(3);
-      ptex[i].s = vU(1)*fDX + vU(2)*fDY + vU(3)*fDZ;
-      ptex[i].t = vV(1)*fDX + vV(2)*fDY + vV(3)*fDZ;
+      ptex[i].st.s = vU(1)*fDX + vU(2)*fDY + vU(3)*fDZ;
+      ptex[i].st.t = vV(1)*fDX + vV(2)*fDY + vV(3)*fDZ;
     }
 #endif
+
   }
 
   // init array
@@ -840,8 +992,8 @@ static void RSSetFogCoordinates( ScenePolygon *pspoGroup)
     const GFXVertex   *pvtx = &_avtxPass[pspo->spo_iVtx0Pass];
           GFXTexCoord *ptex = &_atexPass[0][pspo->spo_iVtx0Pass];
     for( INDEX i=0; i<pspo->spo_ctVtx; i++) {
-      ptex[i].s = pvtx[i].z *_fFogMul;
-      ptex[i].t = (_fog_vHDirView(1)*pvtx[i].x + _fog_vHDirView(2)*pvtx[i].y
+      ptex[i].st.s = pvtx[i].z *_fFogMul;
+      ptex[i].st.t = (_fog_vHDirView(1)*pvtx[i].x + _fog_vHDirView(2)*pvtx[i].y
                 +  _fog_vHDirView(3)*pvtx[i].z + _fog_fAddH) * _fog_fMulH;
     }
   }
@@ -859,8 +1011,8 @@ static void RSSetHazeCoordinates( ScenePolygon *pspoGroup)
     const GFXVertex   *pvtx = &_avtxPass[pspo->spo_iVtx0Pass];
           GFXTexCoord *ptex = &_atexPass[0][pspo->spo_iVtx0Pass];
     for( INDEX i=0; i<pspo->spo_ctVtx; i++) {
-      ptex[i].s = (pvtx[i].z + _fHazeAdd) *_fHazeMul;
-      ptex[i].t = 0;
+      ptex[i].st.s = (pvtx[i].z + _fHazeAdd) *_fHazeMul;
+      ptex[i].st.t = 0;
     }
   }
   gfxSetTexCoordArray( &_atexPass[0][0], FALSE);
@@ -1192,7 +1344,7 @@ __forceinline void RSRenderFog( ScenePolygon *pspoFirst)
     const GFXTexCoord *ptex = &_atexPass[0][pspo->spo_iVtx0Pass];
     for( INDEX i=0; i<pspo->spo_ctVtx; i++) {
       // polygon is in fog, stop searching
-      if( InFog(ptex[i].t)) goto hasFog;
+      if( InFog(ptex[i].st.t)) goto hasFog;
     }
     // hasn't got any fog, so skip it
     continue;
@@ -1216,7 +1368,7 @@ __forceinline void RSRenderHaze( ScenePolygon *pspoFirst)
     const GFXTexCoord *ptex = &_atexPass[0][pspo->spo_iVtx0Pass];
     for( INDEX i=0; i<pspo->spo_ctVtx; i++) {
       // polygon is in haze, stop searching
-      if( InHaze(ptex[i].s)) goto hasHaze;
+      if( InHaze(ptex[i].st.s)) goto hasHaze;
     }
     // hasn't got any haze, so skip it
     continue;
@@ -1707,16 +1859,13 @@ void RenderScene( CDrawPort *pDP, ScenePolygon *pspoFirst, CAnyProjection3D &prP
 {
   // check API
   eAPI = _pGfx->gl_eCurrentAPI;
+  ASSERT( GfxValidApi(eAPI) );
+
 #ifdef SE1_D3D
-  ASSERT( eAPI==GAT_OGL || eAPI==GAT_D3D || eAPI==GAT_NONE);
-#else // SE1_D3D
-  ASSERT( eAPI==GAT_OGL || eAPI==GAT_NONE);
-#endif // SE1_D3D
-  if( eAPI!=GAT_OGL 
-#ifdef SE1_D3D
-    && eAPI!=GAT_D3D
-#endif // SE1_D3D
-    ) return;
+  if( eAPI!=GAT_OGL && eAPI!=GAT_D3D) return;
+#else
+  if( eAPI!=GAT_OGL) return;
+#endif
 
   // some cvars cannot be altered in multiplayer mode!
   if( _bMultiPlayer) {

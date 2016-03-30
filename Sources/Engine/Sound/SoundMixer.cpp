@@ -13,7 +13,7 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include <Engine/StdH.h>
 
 #include <Engine/Sound/SoundProfile.h>
 #include <Engine/Sound/SoundDecoder.h>
@@ -55,13 +55,27 @@ static __int64 fixLeftOfs, fixRightOfs; // fixed integers 32:32
 static __int64 mmSurroundFactor, mmLeftStep, mmRightStep, mmVolumeGain;
 static BOOL bNotLoop, bEndOfSound;
 
-static const FLOAT f65536 = 65536.0f;
-static const FLOAT f4G    = 4294967296.0f;
+// nasm on MacOS X is getting wrong addresses of external globals, so I have
+//  to define them in the .asm file...lame.
+#ifdef __GNU_INLINE__
+#define INASM extern
+#else
+#define INASM static
 static __int64 mmInvFactor   = 0x00007FFF00007FFF;
-static __int64 mmMaskLD      = 0x00000000FFFFFFFF;
-static __int64 mmUnsign2Sign = 0x8000800080008000;
+static FLOAT f65536 = 65536.0f;
+static FLOAT f4G    = 4294967296.0f;
+#endif
 
-
+INASM SLONG slMixerBufferSize;        // size in samples per channel of the destination buffers
+INASM void *pvMixerBuffer;            // pointer to the start of the destination buffers
+INASM SWORD *pswSrcBuffer;
+INASM SLONG slLeftVolume,  slRightVolume, slLeftFilter, slRightFilter;
+INASM SLONG slLastLeftSample, slLastRightSample, slSoundBufferSize;
+INASM FLOAT fSoundSampleRate, fPhase;
+INASM FLOAT fOfsDelta, fStep, fLeftStep, fRightStep, fLeftOfs, fRightOfs;
+INASM __int64 fixLeftOfs, fixRightOfs; // fixed integers 32:32
+INASM __int64 mmSurroundFactor, mmLeftStep, mmRightStep, mmVolumeGain;
+INASM BOOL bNotLoop, bEndOfSound;
 
 // reset mixer buffer (wipes it with zeroes and remembers pointers in static mixer variables)
 void ResetMixer( const SLONG *pslBuffer, const SLONG slBufferSize)
@@ -77,6 +91,11 @@ void ResetMixer( const SLONG *pslBuffer, const SLONG slBufferSize)
   slMixerBufferSampleRate = _pSound->sl_SwfeFormat.nSamplesPerSec;
 
   // wipe destination mixer buffer
+  // (Mac OS X uses this path because Apple's memset() is customized for each CPU they support and way faster than this inline asm. --ryan.)
+  #if ((defined USE_PORTABLE_C) || (PLATFORM_MACOSX))
+  memset(pvMixerBuffer, '\0', slMixerBufferSize * 8);
+
+  #elif (defined __MSVC_INLINE__)
   __asm {
     cld
     xor     eax,eax
@@ -85,15 +104,33 @@ void ResetMixer( const SLONG *pslBuffer, const SLONG slBufferSize)
     shl     ecx,1 // *2 because of 32-bit src format
     rep     stosd
   }
+  #elif (defined __GNU_INLINE__)
+  // !!! FIXME : rcg12172001 Is this REALLY any faster than memset()?
+  __asm__ __volatile__ (
+    "cld                  \n\t"
+    "rep                  \n\t"
+    "stosl                \n\t"
+        : // no outputs.
+        : "a" (0), "D" (pvMixerBuffer), "c" (slMixerBufferSize*2)
+        : "cc", "memory"
+  );
+  #else
+    #error please write inline asm for your platform.
+  #endif
 }
 
 
 // copy mixer buffer to the output buffer(s)
-void CopyMixerBuffer_stereo( const SLONG slSrcOffset, const void *pDstBuffer, const SLONG slBytes)
+void CopyMixerBuffer_stereo( const SLONG slSrcOffset, void *pDstBuffer, const SLONG slBytes)
 {
   ASSERT( pDstBuffer!=NULL);
   ASSERT( slBytes%4==0);
   if( slBytes<4) return;
+
+  #if ((defined USE_PORTABLE_C) || (PLATFORM_MACOSX))
+  // (Mac OS X uses this path because Apple's memset() is customized for each CPU they support and way faster than this inline asm. --ryan.)
+  memcpy(pDstBuffer, ((const char *)pvMixerBuffer) + slSrcOffset, slBytes);
+  #elif (defined __MSVC_INLINE__)
   __asm {
     cld
     mov     esi,D [slSrcOffset]
@@ -103,15 +140,43 @@ void CopyMixerBuffer_stereo( const SLONG slSrcOffset, const void *pDstBuffer, co
     shr     ecx,2   // bytes to samples per channel
     rep     movsd
   }
+  #elif (defined __GNU_INLINE__)
+  // !!! FIXME : rcg12172001 Is this REALLY any faster than memcpy()?
+  __asm__ __volatile__ (
+    "cld                 \n\t"
+    "rep                 \n\t"
+    "movsl               \n\t"
+      : // no outputs.
+      : "S" (((char *)pvMixerBuffer) + slSrcOffset),
+        "D" (pDstBuffer),
+        "c" (slBytes >> 2)
+      : "cc", "memory"
+  );
+  #else
+  #error please write inline asm for your platform.
+  #endif
 }
 
 
 // copy one channel from mixer buffer to the output buffer(s)
-void CopyMixerBuffer_mono( const SLONG slSrcOffset, const void *pDstBuffer, const SLONG slBytes)
+void CopyMixerBuffer_mono( const SLONG slSrcOffset, void *pDstBuffer, const SLONG slBytes)
 {
   ASSERT( pDstBuffer!=NULL);
   ASSERT( slBytes%2==0);
   if( slBytes<4) return;
+
+  #if (defined USE_PORTABLE_C)
+  // (This is untested, currently. --ryan.)
+  WORD *dest = (WORD *) pDstBuffer;
+  DWORD *src = (DWORD *) ( ((char *) pvMixerBuffer) + slSrcOffset );
+  SLONG max = slBytes / 4;
+  for (SLONG i = 0; i < max; i++) {
+      *dest = *((WORD *) src);
+      dest++;    // move 16 bits.
+      src++;     // move 32 bits.
+  }
+
+  #elif (defined __MSVC_INLINE__)
   __asm {
     mov     esi,D [slSrcOffset]
     add     esi,D [pvMixerBuffer]
@@ -126,6 +191,26 @@ copyLoop:
     dec     ecx
     jnz     copyLoop
   }
+
+  #elif (defined __GNU_INLINE__)
+  __asm__ __volatile__ (
+    "0:                                       \n\t" // copyLoop
+    "movzwl   (%%esi), %%eax                  \n\t"
+    "movw     %%ax, (%%edi)                   \n\t"
+    "addl     $4, %%esi                       \n\t"
+    "addl     $2, %%edi                       \n\t"
+    "decl     %%ecx                           \n\t"
+    "jnz      0b                              \n\t" // copyLoop
+      : // no outputs.
+      : "S" (((char *)pvMixerBuffer) + slSrcOffset),
+        "D" (pDstBuffer),
+        "c" (slBytes >> 2)
+      : "cc", "memory", "eax"
+  );
+
+  #else
+  #error please write inline asm for your platform.
+  #endif
 }
 
 
@@ -134,6 +219,11 @@ static void ConvertMixerBuffer( const SLONG slBytes)
 {
   ASSERT( slBytes%4==0);
   if( slBytes<4) return;
+
+  #if (defined USE_PORTABLE_C)
+  STUBBED("ConvertMixerBuffer");
+
+  #elif (defined __MSVC_INLINE__)
   __asm {
     cld
     mov     esi,D [pvMixerBuffer]
@@ -150,6 +240,27 @@ copyLoop:
     jnz     copyLoop
     emms
   }
+
+  #elif (defined __GNU_INLINE__)
+  __asm__ __volatile__ (
+    "cld                                   \n\t"
+    "0:                                    \n\t" // copyLoop
+    "movq     (%%esi), %%mm0               \n\t"
+    "packssdw %%mm0, %%mm0                 \n\t"
+    "movd     %%mm0, (%%edi)               \n\t"
+    "addl     $8, %%esi                    \n\t"
+    "addl     $4, %%edi                    \n\t"
+    "decl     %%ecx                        \n\t"
+    "jnz      0b                           \n\t" // copyLoop
+    "emms                                  \n\t"
+      : // no outputs.
+      : "S" (pvMixerBuffer), "D" (pvMixerBuffer), "c" (slBytes >> 2)
+      : "cc", "memory"
+  );
+
+  #else
+  #error please write inline asm for your platform.
+  #endif
 }
 
 
@@ -200,14 +311,95 @@ void NormalizeMixerBuffer( const FLOAT fNormStrength, const SLONG slBytes, FLOAT
 }
  
 
+#ifdef __GNU_INLINE__
+// These are implemented in an external NASM file.
+extern "C" {
+    void MixStereo_asm(CSoundObject *pso);
+    void MixMono_asm(CSoundObject *pso);
+}
+#endif
+
 
 // mixes one mono 16-bit signed sound to destination buffer
 inline void MixMono( CSoundObject *pso)
 {
   _pfSoundProfile.StartTimer(CSoundProfile::PTI_RAWMIXER);
 
-#if ASMOPT == 1
+ #if (defined USE_PORTABLE_C)
+  // initialize some local vars
+  SLONG slLeftSample, slRightSample, slNextSample;
+  SLONG *pslDstBuffer = (SLONG*)pvMixerBuffer;
+  fixLeftOfs   = (__int64)(fLeftOfs   * 65536.0);
+  fixRightOfs  = (__int64)(fRightOfs  * 65536.0);
+  __int64 fixLeftStep  = (__int64)(fLeftStep  * 65536.0);
+  __int64 fixRightStep = (__int64)(fRightStep * 65536.0);
+  __int64 fixSoundBufferSize = ((__int64)slSoundBufferSize)<<16;
+  mmSurroundFactor = (__int64)(SWORD)mmSurroundFactor;
 
+  // loop thru source buffer
+  INDEX iCt = slMixerBufferSize;
+  FOREVER
+  {
+    // if left channel source sample came to end of sample buffer
+    if( fixLeftOfs >= fixSoundBufferSize) {
+      fixLeftOfs -= fixSoundBufferSize;
+      // if has no loop, end it
+      bEndOfSound = bNotLoop;
+    }
+    // if right channel source sample came to end of sample buffer
+    if( fixRightOfs >= fixSoundBufferSize) {
+      fixRightOfs -= fixSoundBufferSize;
+      // if has no loop, end it
+      bEndOfSound = bNotLoop;
+    }
+    // end of buffer?
+    if( iCt<=0 || bEndOfSound) break;
+
+    // fetch one lineary interpolated sample on left channel
+    slLeftSample = pswSrcBuffer[(fixLeftOfs>>16)+0];
+    slNextSample = pswSrcBuffer[(fixLeftOfs>>16)+1];
+    slLeftSample = (slLeftSample*(65535-(fixLeftOfs&65535)) + slNextSample*(fixLeftOfs&65535)) >>16;
+    // fetch one lineary interpolated sample on right channel
+    slRightSample = pswSrcBuffer[(fixRightOfs>>16)+0];
+    slNextSample  = pswSrcBuffer[(fixRightOfs>>16)+1];
+    slRightSample = (slRightSample*(65535-(fixRightOfs&65535)) + slNextSample*(fixRightOfs&65535)) >>16;
+
+    // filter samples
+    slLastLeftSample  += ((slLeftSample -slLastLeftSample) *slLeftFilter) >>15;
+    slLastRightSample += ((slRightSample-slLastRightSample)*slRightFilter)>>15;
+
+    // apply stereo volume to current sample
+    slLeftSample  = (slLastLeftSample  * slLeftVolume) >>15;
+    slRightSample = (slLastRightSample * slRightVolume)>>15;
+
+    slRightSample = slRightSample ^ mmSurroundFactor;
+
+    // mix in current sample
+    slLeftSample  += pslDstBuffer[0];
+    slRightSample += pslDstBuffer[1];
+    // upper clamp
+    if( slLeftSample  > MAX_SWORD) slLeftSample  = MAX_SWORD;
+    if( slRightSample > MAX_SWORD) slRightSample = MAX_SWORD;
+    // lower clamp
+    if( slLeftSample  < MIN_SWORD) slLeftSample  = MIN_SWORD;
+    if( slRightSample < MIN_SWORD) slRightSample = MIN_SWORD;
+
+    // store samples (both channels)
+    pslDstBuffer[0] = slLeftSample;
+    pslDstBuffer[1] = slRightSample;
+
+    // modify volume  `
+    slLeftVolume  += (SWORD)((mmVolumeGain>> 0)&0xFFFF);
+    slRightVolume += (SWORD)((mmVolumeGain>>16)&0xFFFF);
+
+    // advance to next sample
+    fixLeftOfs   += fixLeftStep;
+    fixRightOfs  += fixRightStep;
+    pslDstBuffer += 4;
+    iCt--;
+  }
+
+ #elif (defined __MSVC_INLINE__)
   __asm {
     // convert from floats to fixints 32:16
     fld     D [fLeftOfs]
@@ -340,82 +532,13 @@ loopEnd:
     emms
   }
 
-#else
+ #elif (defined __GNU_INLINE__)
+   // This is implemented in an external NASM file.
+   MixMono_asm(pso);
 
-  // initialize some local vars
-  SLONG slLeftSample, slRightSample, slNextSample;
-  SLONG *pslDstBuffer = (SLONG*)pvMixerBuffer;
-  fixLeftOfs   = (__int64)(fLeftOfs   * 65536.0);
-  fixRightOfs  = (__int64)(fRightOfs  * 65536.0);
-  __int64 fixLeftStep  = (__int64)(fLeftStep  * 65536.0);
-  __int64 fixRightStep = (__int64)(fRightStep * 65536.0);
-  __int64 fixSoundBufferSize = ((__int64)slSoundBufferSize)<<16;
-  mmSurroundFactor = (__int64)(SWORD)mmSurroundFactor;
-
-  // loop thru source buffer
-  INDEX iCt = slMixerBufferSize;
-  FOREVER
-  {
-    // if left channel source sample came to end of sample buffer
-    if( fixLeftOfs >= fixSoundBufferSize) {
-      fixLeftOfs -= fixSoundBufferSize;
-      // if has no loop, end it
-      bEndOfSound = bNotLoop;
-    }
-    // if right channel source sample came to end of sample buffer
-    if( fixRightOfs >= fixSoundBufferSize) {
-      fixRightOfs -= fixSoundBufferSize;
-      // if has no loop, end it
-      bEndOfSound = bNotLoop;
-    }
-    // end of buffer?
-    if( iCt<=0 || bEndOfSound) break;
-
-    // fetch one lineary interpolated sample on left channel
-    slLeftSample = pswSrcBuffer[(fixLeftOfs>>16)+0];
-    slNextSample = pswSrcBuffer[(fixLeftOfs>>16)+1];
-    slLeftSample = (slLeftSample*(65535-(fixLeftOfs&65535)) + slNextSample*(fixLeftOfs&65535)) >>16;
-    // fetch one lineary interpolated sample on right channel
-    slRightSample = pswSrcBuffer[(fixRightOfs>>16)+0];
-    slNextSample  = pswSrcBuffer[(fixRightOfs>>16)+1];
-    slRightSample = (slRightSample*(65535-(fixRightOfs&65535)) + slNextSample*(fixRightOfs&65535)) >>16;
-
-    // filter samples
-    slLastLeftSample  += ((slLeftSample -slLastLeftSample) *slLeftFilter) >>15;
-    slLastRightSample += ((slRightSample-slLastRightSample)*slRightFilter)>>15;
-
-    // apply stereo volume to current sample
-    slLeftSample  = (slLastLeftSample  * slLeftVolume) >>15;
-    slRightSample = (slLastRightSample * slRightVolume)>>15;
-
-    slRightSample = slRightSample ^ mmSurroundFactor;
-
-    // mix in current sample
-    slLeftSample  += pslDstBuffer[0];
-    slRightSample += pslDstBuffer[1];
-    // upper clamp
-    if( slLeftSample  > MAX_SWORD) slLeftSample  = MAX_SWORD;
-    if( slRightSample > MAX_SWORD) slRightSample = MAX_SWORD;
-    // lower clamp
-    if( slLeftSample  < MIN_SWORD) slLeftSample  = MIN_SWORD;
-    if( slRightSample < MIN_SWORD) slRightSample = MIN_SWORD;
-
-    // store samples (both channels)
-    pslDstBuffer[0] = slLeftSample;
-    pslDstBuffer[1] = slRightSample;
-
-    // modify volume  `
-    slLeftVolume  += (SWORD)((mmVolumeGain>> 0)&0xFFFF);
-    slRightVolume += (SWORD)((mmVolumeGain>>16)&0xFFFF);
-
-    // advance to next sample
-    fixLeftOfs   += fixLeftStep;
-    fixRightOfs  += fixRightStep;
-    pslDstBuffer += 4;
-    iCt--;
-  }
-                    
-#endif
+ #else
+   #error please write inline asm for your platform.
+ #endif
 
   _pfSoundProfile.StopTimer(CSoundProfile::PTI_RAWMIXER);
 }
@@ -426,8 +549,10 @@ inline void MixStereo( CSoundObject *pso)
 {
   _pfSoundProfile.StartTimer(CSoundProfile::PTI_RAWMIXER);
 
-#if ASMOPT == 1
+ #if (defined USE_PORTABLE_C)
+   STUBBED("MixStereo");
 
+ #elif (defined __MSVC_INLINE__)
   __asm {
     // convert from floats to fixints 32:16
     fld     D [fLeftOfs]
@@ -562,7 +687,13 @@ loopEnd:
     emms
   }
 
-#endif
+ #elif (defined __GNU_INLINE__)
+   // This is implemented in an external NASM file.
+   MixStereo_asm(pso);
+
+ #else
+   #error please write inline asm for your platform.
+ #endif
 
   _pfSoundProfile.StopTimer(CSoundProfile::PTI_RAWMIXER);
 }
@@ -632,7 +763,7 @@ void MixSound( CSoundObject *pso)
       pso->so_fRightOffset += fOfsDelta;
       const FLOAT fMinOfs = Min( pso->so_fLeftOffset, pso->so_fRightOffset);
       ASSERT( fMinOfs>=0);
-      if( fMinOfs<0) CPrintF( "BUG: negative offset (%.2g) encountered in sound: '%s' !\n", fMinOfs, (CTString&)psd->GetName());
+      if( fMinOfs<0) CPrintF( "BUG: negative offset (%.2g) encountered in sound: '%s' !\n", fMinOfs, (const char *) (CTString&)psd->GetName());
       // if looping
       if (pso->so_slFlags & SOF_LOOP) {
         // adjust offset ptrs inside sound
@@ -758,7 +889,7 @@ void MixSound( CSoundObject *pso)
     // safety check (needed because of bad-bug!)
     FLOAT fMinOfs = Min( fLeftOfs, fRightOfs);
     ASSERT( fMinOfs>=0);
-    if( fMinOfs<0) CPrintF( "BUG: negative offset (%.2g) encountered in sound: '%s' !\n", fMinOfs, (CTString&)psd->GetName());
+    if( fMinOfs<0) CPrintF( "BUG: negative offset (%.2g) encountered in sound: '%s' !\n", fMinOfs, (const char *) (CTString&)psd->GetName());
     // adjust offset ptrs inside sound to match those of phase shift
     while( fLeftOfs  < 0) fLeftOfs  += slSoundBufferSize;
     while( fRightOfs < 0) fRightOfs += slSoundBufferSize;

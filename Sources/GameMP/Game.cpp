@@ -16,23 +16,27 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // Game.cpp : Defines the initialization routines for the DLL.
 //
 
-#include "stdafx.h"
-#include "Game.h"
-#include <direct.h> // for _mkdir()
+#include "StdAfx.h"
+#include "GameMP/Game.h"
 #include <sys/timeb.h>
 #include <time.h>
 #include <locale.h>
+
+#ifdef PLATFORM_WIN32
+#include <direct.h> // for _mkdir()
 #include <io.h>
+#endif
+
 #include <Engine/Base/Profiling.h>
 #include <Engine/Base/Statistics.h>
 #include <Engine/CurrentVersion.h>
 #include "Camera.h"
 #include "LCDDrawing.h"
 
-extern FLOAT con_fHeightFactor = 0.5f;
-extern FLOAT con_tmLastLines   = 5.0f;
-extern INDEX con_bTalk = 0;
-CTimerValue _tvMenuQuickSave(0I64);
+FLOAT con_fHeightFactor = 0.5f;
+FLOAT con_tmLastLines   = 5.0f;
+INDEX con_bTalk = 0;
+CTimerValue _tvMenuQuickSave((__int64) 0);
 
 // used filenames
 CTFileName fnmPersistentSymbols = CTString("Scripts\\PersistentSymbols.ini");
@@ -57,14 +61,31 @@ static CStaticStackArray<INDEX> _actTriangles;  // world, model, particle, total
 
 
 // one and only Game object
-extern CGame *_pGame = NULL;
+// rcg11162001 This will resolve to the main binary under Linux, so it's
+//  okay. It's just another copy of the same otherwise.
+#ifdef PLATFORM_UNIX
+extern CGame *_pGame;
+#else
+CGame *_pGame = NULL;
+#endif
 
-extern "C" __declspec (dllexport) CGame *GAME_Create(void)
+extern "C" 
+{
+
+#ifdef PLATFORM_WIN32
+#define EXPORTABLE __declspec (dllexport) 
+#else
+#define EXPORTABLE
+#endif
+
+EXPORTABLE CGame *GAME_Create(void)
 {
   _pGame = new CGame;
 
   return _pGame;
 }
+
+}  // extern "C"
 
 // recorded profiling stats
 static CTimerValue _tvDemoStarted;
@@ -76,51 +97,50 @@ static BOOL  _bProfiling = FALSE;
 static INDEX _ctProfileRecording = 0;
 static FLOAT gam_iRecordHighScore = -1.0f;
 
+FLOAT gam_afAmmoQuantity[5]        = {2.0f,  2.0f,  1.0f, 1.0f , 2.0f };
+FLOAT gam_afDamageStrength[5]      = {0.25f, 0.5f,  1.0f, 1.5f , 2.0f };
+FLOAT gam_afEnemyAttackSpeed[5]    = {0.75f, 0.75f, 1.0f, 2.0f , 2.0f };
+FLOAT gam_afEnemyMovementSpeed[5]  = {1.0f , 1.0f , 1.0f, 1.25f, 1.25f};
+FLOAT gam_fManaTransferFactor = 0.5f;
+FLOAT gam_fExtraEnemyStrength          = 0;
+FLOAT gam_fExtraEnemyStrengthPerPlayer = 0;
+INDEX gam_iCredits = -1;   // number of credits for respawning
+FLOAT gam_tmSpawnInvulnerability = 3;
+INDEX gam_iScoreLimit = 100000;
+INDEX gam_iFragLimit = 20;
+INDEX gam_iTimeLimit = 0;
+INDEX gam_bWeaponsStay = TRUE;
+INDEX gam_bAmmoStays = TRUE;
+INDEX gam_bHealthArmorStays = TRUE;
+INDEX gam_bAllowHealth = TRUE;
+INDEX gam_bAllowArmor = TRUE;
+INDEX gam_bInfiniteAmmo = FALSE;
+INDEX gam_bRespawnInPlace = TRUE;
+INDEX gam_bPlayEntireGame = TRUE;
+INDEX gam_bFriendlyFire = FALSE;
+INDEX gam_ctMaxPlayers = 8;
+INDEX gam_bWaitAllPlayers = FALSE;
+INDEX gam_iInitialMana = 100;
+INDEX gam_bQuickLoad = FALSE;
+INDEX gam_bQuickSave = FALSE;
+INDEX gam_iQuickSaveSlots = 8;
 
-extern FLOAT gam_afAmmoQuantity[5]        = {2.0f,  2.0f,  1.0f, 1.0f , 2.0f };
-extern FLOAT gam_afDamageStrength[5]      = {0.25f, 0.5f,  1.0f, 1.5f , 2.0f };
-extern FLOAT gam_afEnemyAttackSpeed[5]    = {0.75f, 0.75f, 1.0f, 2.0f , 2.0f };
-extern FLOAT gam_afEnemyMovementSpeed[5]  = {1.0f , 1.0f , 1.0f, 1.25f, 1.25f};
-extern FLOAT gam_fManaTransferFactor = 0.5f;
-extern FLOAT gam_fExtraEnemyStrength          = 0;
-extern FLOAT gam_fExtraEnemyStrengthPerPlayer = 0;
-extern INDEX gam_iCredits = -1;   // number of credits for respawning
-extern FLOAT gam_tmSpawnInvulnerability = 3;
-extern INDEX gam_iScoreLimit = 100000;
-extern INDEX gam_iFragLimit = 20;
-extern INDEX gam_iTimeLimit = 0;
-extern INDEX gam_bWeaponsStay = TRUE;
-extern INDEX gam_bAmmoStays = TRUE;
-extern INDEX gam_bHealthArmorStays = TRUE;
-extern INDEX gam_bAllowHealth = TRUE;
-extern INDEX gam_bAllowArmor = TRUE;
-extern INDEX gam_bInfiniteAmmo = FALSE;
-extern INDEX gam_bRespawnInPlace = TRUE;
-extern INDEX gam_bPlayEntireGame = TRUE;
-extern INDEX gam_bFriendlyFire = FALSE;
-extern INDEX gam_ctMaxPlayers = 8;
-extern INDEX gam_bWaitAllPlayers = FALSE;
-extern INDEX gam_iInitialMana = 100;
-extern INDEX gam_bQuickLoad = FALSE;
-extern INDEX gam_bQuickSave = FALSE;
-extern INDEX gam_iQuickSaveSlots = 8;
+INDEX gam_iQuickStartDifficulty = 1;
+INDEX gam_iQuickStartMode = 0;
+INDEX gam_bQuickStartMP = 0;
 
-extern INDEX gam_iQuickStartDifficulty = 1;
-extern INDEX gam_iQuickStartMode = 0;
-extern INDEX gam_bQuickStartMP = 0;
+INDEX gam_bEnableAdvancedObserving = 0;
+INDEX gam_iObserverConfig = 0;
+INDEX gam_iObserverOffset = 0;
 
-extern INDEX gam_bEnableAdvancedObserving = 0;
-extern INDEX gam_iObserverConfig = 0;
-extern INDEX gam_iObserverOffset = 0;
+INDEX gam_iStartDifficulty = 1;
+INDEX gam_iStartMode = 0;
+CTString gam_strGameSpyExtras = "";
 
-extern INDEX gam_iStartDifficulty = 1;
-extern INDEX gam_iStartMode = 0;
-extern CTString gam_strGameAgentExtras = "";
+INDEX gam_iBlood = 2;     // 0=none, 1=green, 2=red, 3=hippie
+INDEX gam_bGibs  = TRUE;   
 
-extern INDEX gam_iBlood = 2;     // 0=none, 1=green, 2=red, 3=hippie
-extern INDEX gam_bGibs  = TRUE;   
-
-extern INDEX gam_bUseExtraEnemies = TRUE;
+INDEX gam_bUseExtraEnemies = TRUE;
 
 static INDEX hud_iEnableStats = 1;
 static FLOAT hud_fEnableFPS   = 1;
@@ -140,8 +160,8 @@ static INDEX ctl_iCurrentPlayerLocal = -1;
 static INDEX ctl_iCurrentPlayer = -1;
 static FLOAT gam_fChatSoundVolume = 0.25f;
 
-extern BOOL _bUserBreakEnabled = FALSE;
 extern BOOL map_bIsFirstEncounter = FALSE;
+BOOL _bUserBreakEnabled = FALSE;
 
 // make sure that console doesn't show last lines if not playing in network
 void MaybeDiscardLastLines(void)
@@ -186,7 +206,7 @@ static void DumpDemoProfile(void)
     strm.FPrintF_t( strFragment);
     strm.FPrintF_t( strAnalyzed);
     // done!
-    CPrintF( TRANS("Demo profile data dumped to '%s'.\n"), strFileName);
+    CPrintF( TRANS("Demo profile data dumped to '%s'.\n"), (const char *) strFileName);
   } 
   catch (char *strError) {
     // something went wrong :(
@@ -914,77 +934,77 @@ void CGame::InitInternal( void)
   // add game timer handler
   _pTimer->AddHandler(&m_gthGameTimerHandler);
   // add shell variables
-  _pShell->DeclareSymbol("user void RecordProfile(void);",        &RecordProfile);
-  _pShell->DeclareSymbol("user void SaveScreenShot(void);",       &SaveScreenShot);
-  _pShell->DeclareSymbol("user void DumpProfileToConsole(void);", &DumpProfileToConsole);
-  _pShell->DeclareSymbol("user void DumpProfileToFile(void);",    &DumpProfileToFile);
-  _pShell->DeclareSymbol("user INDEX hud_iStats;", &hud_iStats);
-  _pShell->DeclareSymbol("user INDEX hud_bShowResolution;", &hud_bShowResolution);
-  _pShell->DeclareSymbol("persistent user INDEX hud_bShowTime;",  &hud_bShowTime);
-  _pShell->DeclareSymbol("persistent user INDEX hud_bShowClock;", &hud_bShowClock);
-  _pShell->DeclareSymbol("user INDEX dem_bOnScreenDisplay;", &dem_bOSD);
-  _pShell->DeclareSymbol("user INDEX dem_bPlay;",            &dem_bPlay);
-  _pShell->DeclareSymbol("user INDEX dem_bPlayByName;",      &dem_bPlayByName);
-  _pShell->DeclareSymbol("user INDEX dem_bProfile;",         &dem_bProfile);
-  _pShell->DeclareSymbol("user INDEX dem_iAnimFrame;",       &dem_iAnimFrame);
-  _pShell->DeclareSymbol("user CTString dem_strPostExec;",   &dem_strPostExec);
-  _pShell->DeclareSymbol("persistent user INDEX dem_iProfileRate;",  &dem_iProfileRate);
-  _pShell->DeclareSymbol("persistent user INDEX hud_bShowNetGraph;", &hud_bShowNetGraph);
-  _pShell->DeclareSymbol("FLOAT gam_afEnemyMovementSpeed[5];", &gam_afEnemyMovementSpeed);
-  _pShell->DeclareSymbol("FLOAT gam_afEnemyAttackSpeed[5];",   &gam_afEnemyAttackSpeed);
-  _pShell->DeclareSymbol("FLOAT gam_afDamageStrength[5];",     &gam_afDamageStrength);
-  _pShell->DeclareSymbol("FLOAT gam_afAmmoQuantity[5];",       &gam_afAmmoQuantity);
-  _pShell->DeclareSymbol("persistent user FLOAT gam_fManaTransferFactor;", &gam_fManaTransferFactor);
-  _pShell->DeclareSymbol("persistent user FLOAT gam_fExtraEnemyStrength         ;", &gam_fExtraEnemyStrength          );
-  _pShell->DeclareSymbol("persistent user FLOAT gam_fExtraEnemyStrengthPerPlayer;", &gam_fExtraEnemyStrengthPerPlayer );
-  _pShell->DeclareSymbol("persistent user INDEX gam_iInitialMana;",        &gam_iInitialMana);
-  _pShell->DeclareSymbol("persistent user INDEX gam_iScoreLimit;",  &gam_iScoreLimit);
-  _pShell->DeclareSymbol("persistent user INDEX gam_iFragLimit;",   &gam_iFragLimit);
-  _pShell->DeclareSymbol("persistent user INDEX gam_iTimeLimit;",   &gam_iTimeLimit);
-  _pShell->DeclareSymbol("persistent user INDEX gam_ctMaxPlayers;", &gam_ctMaxPlayers);
-  _pShell->DeclareSymbol("persistent user INDEX gam_bWaitAllPlayers;", &gam_bWaitAllPlayers);
-  _pShell->DeclareSymbol("persistent user INDEX gam_bFriendlyFire;",   &gam_bFriendlyFire);
-  _pShell->DeclareSymbol("persistent user INDEX gam_bPlayEntireGame;", &gam_bPlayEntireGame);
-  _pShell->DeclareSymbol("persistent user INDEX gam_bWeaponsStay;",    &gam_bWeaponsStay);
+  _pShell->DeclareSymbol("user void RecordProfile(void);",        (void *)&RecordProfile);
+  _pShell->DeclareSymbol("user void SaveScreenShot(void);",       (void *)&SaveScreenShot);
+  _pShell->DeclareSymbol("user void DumpProfileToConsole(void);", (void *)&DumpProfileToConsole);
+  _pShell->DeclareSymbol("user void DumpProfileToFile(void);",    (void *)&DumpProfileToFile);
+  _pShell->DeclareSymbol("user INDEX hud_iStats;", (void *)&hud_iStats);
+  _pShell->DeclareSymbol("user INDEX hud_bShowResolution;", (void *)&hud_bShowResolution);
+  _pShell->DeclareSymbol("persistent user INDEX hud_bShowTime;",  (void *)&hud_bShowTime);
+  _pShell->DeclareSymbol("persistent user INDEX hud_bShowClock;", (void *)&hud_bShowClock);
+  _pShell->DeclareSymbol("user INDEX dem_bOnScreenDisplay;", (void *)&dem_bOSD);
+  _pShell->DeclareSymbol("user INDEX dem_bPlay;",            (void *)&dem_bPlay);
+  _pShell->DeclareSymbol("user INDEX dem_bPlayByName;",      (void *)&dem_bPlayByName);
+  _pShell->DeclareSymbol("user INDEX dem_bProfile;",         (void *)&dem_bProfile);
+  _pShell->DeclareSymbol("user INDEX dem_iAnimFrame;",       (void *)&dem_iAnimFrame);
+  _pShell->DeclareSymbol("user CTString dem_strPostExec;",   (void *)&dem_strPostExec);
+  _pShell->DeclareSymbol("persistent user INDEX dem_iProfileRate;",  (void *)&dem_iProfileRate);
+  _pShell->DeclareSymbol("persistent user INDEX hud_bShowNetGraph;", (void *)&hud_bShowNetGraph);
+  _pShell->DeclareSymbol("FLOAT gam_afEnemyMovementSpeed[5];", (void *)&gam_afEnemyMovementSpeed);
+  _pShell->DeclareSymbol("FLOAT gam_afEnemyAttackSpeed[5];",   (void *)&gam_afEnemyAttackSpeed);
+  _pShell->DeclareSymbol("FLOAT gam_afDamageStrength[5];",     (void *)&gam_afDamageStrength);
+  _pShell->DeclareSymbol("FLOAT gam_afAmmoQuantity[5];",       (void *)&gam_afAmmoQuantity);
+  _pShell->DeclareSymbol("persistent user FLOAT gam_fManaTransferFactor;", (void *)&gam_fManaTransferFactor);
+  _pShell->DeclareSymbol("persistent user FLOAT gam_fExtraEnemyStrength         ;", (void *)&gam_fExtraEnemyStrength          );
+  _pShell->DeclareSymbol("persistent user FLOAT gam_fExtraEnemyStrengthPerPlayer;", (void *)&gam_fExtraEnemyStrengthPerPlayer );
+  _pShell->DeclareSymbol("persistent user INDEX gam_iInitialMana;",        (void *)&gam_iInitialMana);
+  _pShell->DeclareSymbol("persistent user INDEX gam_iScoreLimit;",  (void *)&gam_iScoreLimit);
+  _pShell->DeclareSymbol("persistent user INDEX gam_iFragLimit;",   (void *)&gam_iFragLimit);
+  _pShell->DeclareSymbol("persistent user INDEX gam_iTimeLimit;",   (void *)&gam_iTimeLimit);
+  _pShell->DeclareSymbol("persistent user INDEX gam_ctMaxPlayers;", (void *)&gam_ctMaxPlayers);
+  _pShell->DeclareSymbol("persistent user INDEX gam_bWaitAllPlayers;", (void *)&gam_bWaitAllPlayers);
+  _pShell->DeclareSymbol("persistent user INDEX gam_bFriendlyFire;",   (void *)&gam_bFriendlyFire);
+  _pShell->DeclareSymbol("persistent user INDEX gam_bPlayEntireGame;", (void *)&gam_bPlayEntireGame);
+  _pShell->DeclareSymbol("persistent user INDEX gam_bWeaponsStay;",    (void *)&gam_bWeaponsStay);
 
-  _pShell->DeclareSymbol("persistent user INDEX gam_bAmmoStays       ;", &gam_bAmmoStays       );
-  _pShell->DeclareSymbol("persistent user INDEX gam_bHealthArmorStays;", &gam_bHealthArmorStays);
-  _pShell->DeclareSymbol("persistent user INDEX gam_bAllowHealth     ;", &gam_bAllowHealth     );
-  _pShell->DeclareSymbol("persistent user INDEX gam_bAllowArmor      ;", &gam_bAllowArmor      );
-  _pShell->DeclareSymbol("persistent user INDEX gam_bInfiniteAmmo    ;", &gam_bInfiniteAmmo    );
-  _pShell->DeclareSymbol("persistent user INDEX gam_bRespawnInPlace  ;", &gam_bRespawnInPlace  );
+  _pShell->DeclareSymbol("persistent user INDEX gam_bAmmoStays       ;", (void *)&gam_bAmmoStays       );
+  _pShell->DeclareSymbol("persistent user INDEX gam_bHealthArmorStays;", (void *)&gam_bHealthArmorStays);
+  _pShell->DeclareSymbol("persistent user INDEX gam_bAllowHealth     ;", (void *)&gam_bAllowHealth     );
+  _pShell->DeclareSymbol("persistent user INDEX gam_bAllowArmor      ;", (void *)&gam_bAllowArmor      );
+  _pShell->DeclareSymbol("persistent user INDEX gam_bInfiniteAmmo    ;", (void *)&gam_bInfiniteAmmo    );
+  _pShell->DeclareSymbol("persistent user INDEX gam_bRespawnInPlace  ;", (void *)&gam_bRespawnInPlace  );
 
-  _pShell->DeclareSymbol("persistent user INDEX gam_iCredits;", &gam_iCredits);
-  _pShell->DeclareSymbol("persistent user FLOAT gam_tmSpawnInvulnerability;", &gam_tmSpawnInvulnerability);
+  _pShell->DeclareSymbol("persistent user INDEX gam_iCredits;", (void *)&gam_iCredits);
+  _pShell->DeclareSymbol("persistent user FLOAT gam_tmSpawnInvulnerability;", (void *)&gam_tmSpawnInvulnerability);
 
-  _pShell->DeclareSymbol("persistent user INDEX gam_iBlood;", &gam_iBlood);
-  _pShell->DeclareSymbol("persistent user INDEX gam_bGibs;",  &gam_bGibs);
+  _pShell->DeclareSymbol("persistent user INDEX gam_iBlood;", (void *)&gam_iBlood);
+  _pShell->DeclareSymbol("persistent user INDEX gam_bGibs;",  (void *)&gam_bGibs);
 
-  _pShell->DeclareSymbol("persistent user INDEX gam_bUseExtraEnemies;",  &gam_bUseExtraEnemies);
+  _pShell->DeclareSymbol("persistent user INDEX gam_bUseExtraEnemies;",  (void *)&gam_bUseExtraEnemies);
 
-  _pShell->DeclareSymbol("user INDEX gam_bQuickLoad;", &gam_bQuickLoad);
-  _pShell->DeclareSymbol("user INDEX gam_bQuickSave;", &gam_bQuickSave);
-  _pShell->DeclareSymbol("user INDEX gam_iQuickSaveSlots;", &gam_iQuickSaveSlots);
-  _pShell->DeclareSymbol("user INDEX gam_iQuickStartDifficulty;", &gam_iQuickStartDifficulty);
-  _pShell->DeclareSymbol("user INDEX gam_iQuickStartMode;",       &gam_iQuickStartMode);
-  _pShell->DeclareSymbol("user INDEX gam_bQuickStartMP;",       &gam_bQuickStartMP);
-  _pShell->DeclareSymbol("persistent user INDEX gam_iStartDifficulty;", &gam_iStartDifficulty);
-  _pShell->DeclareSymbol("persistent user INDEX gam_iStartMode;",       &gam_iStartMode);
-  _pShell->DeclareSymbol("persistent user CTString gam_strGameAgentExtras;", &gam_strGameAgentExtras);
-  _pShell->DeclareSymbol("persistent user CTString gam_strCustomLevel;", &gam_strCustomLevel);
-  _pShell->DeclareSymbol("persistent user CTString gam_strSessionName;", &gam_strSessionName);
-  _pShell->DeclareSymbol("persistent user CTString gam_strJoinAddress;", &gam_strJoinAddress);
-  _pShell->DeclareSymbol("persistent user INDEX gam_bEnableAdvancedObserving;", &gam_bEnableAdvancedObserving);
-  _pShell->DeclareSymbol("user INDEX gam_iObserverConfig;", &gam_iObserverConfig);
-  _pShell->DeclareSymbol("user INDEX gam_iObserverOffset;", &gam_iObserverOffset);
+  _pShell->DeclareSymbol("user INDEX gam_bQuickLoad;", (void *)&gam_bQuickLoad);
+  _pShell->DeclareSymbol("user INDEX gam_bQuickSave;", (void *)&gam_bQuickSave);
+  _pShell->DeclareSymbol("user INDEX gam_iQuickSaveSlots;", (void *)&gam_iQuickSaveSlots);
+  _pShell->DeclareSymbol("user INDEX gam_iQuickStartDifficulty;", (void *)&gam_iQuickStartDifficulty);
+  _pShell->DeclareSymbol("user INDEX gam_iQuickStartMode;",       (void *)&gam_iQuickStartMode);
+  _pShell->DeclareSymbol("user INDEX gam_bQuickStartMP;",       (void *)&gam_bQuickStartMP);
+  _pShell->DeclareSymbol("persistent user INDEX gam_iStartDifficulty;", (void *)&gam_iStartDifficulty);
+  _pShell->DeclareSymbol("persistent user INDEX gam_iStartMode;",       (void *)&gam_iStartMode);
+  _pShell->DeclareSymbol("persistent user CTString gam_strGameAgentExtras;", (void *)&gam_strGameAgentExtras);
+  _pShell->DeclareSymbol("persistent user CTString gam_strCustomLevel;", (void *)&gam_strCustomLevel);
+  _pShell->DeclareSymbol("persistent user CTString gam_strSessionName;", (void *)&gam_strSessionName);
+  _pShell->DeclareSymbol("persistent user CTString gam_strJoinAddress;", (void *)&gam_strJoinAddress);
+  _pShell->DeclareSymbol("persistent user INDEX gam_bEnableAdvancedObserving;", (void *)&gam_bEnableAdvancedObserving);
+  _pShell->DeclareSymbol("user INDEX gam_iObserverConfig;", (void *)&gam_iObserverConfig);
+  _pShell->DeclareSymbol("user INDEX gam_iObserverOffset;", (void *)&gam_iObserverOffset);
 
-  _pShell->DeclareSymbol("INDEX gam_iRecordHighScore;", &gam_iRecordHighScore);
+  _pShell->DeclareSymbol("INDEX gam_iRecordHighScore;", (void *)&gam_iRecordHighScore);
 
-  _pShell->DeclareSymbol("persistent user FLOAT con_fHeightFactor;", &con_fHeightFactor);
-  _pShell->DeclareSymbol("persistent user FLOAT con_tmLastLines;",   &con_tmLastLines);
-  _pShell->DeclareSymbol("user INDEX con_bTalk;", &con_bTalk);
-  _pShell->DeclareSymbol("user void ReportDemoProfile(void);", &ReportDemoProfile);
-  _pShell->DeclareSymbol("user void DumpDemoProfile(void);",   &DumpDemoProfile);
+  _pShell->DeclareSymbol("persistent user FLOAT con_fHeightFactor;", (void *)&con_fHeightFactor);
+  _pShell->DeclareSymbol("persistent user FLOAT con_tmLastLines;",   (void *)&con_tmLastLines);
+  _pShell->DeclareSymbol("user INDEX con_bTalk;", (void *)&con_bTalk);
+  _pShell->DeclareSymbol("user void ReportDemoProfile(void);", (void *)&ReportDemoProfile);
+  _pShell->DeclareSymbol("user void DumpDemoProfile(void);",   (void *)&DumpDemoProfile);
   extern CTString GetGameAgentRulesInfo(void);
   extern CTString GetGameTypeName(INDEX);
   extern CTString GetGameTypeNameCfunc(void* pArgs);
@@ -993,26 +1013,26 @@ void CGame::InitInternal( void)
   extern ULONG GetSpawnFlagsForGameTypeCfunc(void* pArgs);
   extern BOOL IsMenuEnabled(const CTString &);
   extern BOOL IsMenuEnabledCfunc(void* pArgs);
-  _pShell->DeclareSymbol("user CTString GetGameAgentRulesInfo(void);",   &GetGameAgentRulesInfo);
-  _pShell->DeclareSymbol("user CTString GetGameTypeName(INDEX);",        &GetGameTypeNameCfunc);
-  _pShell->DeclareSymbol("user CTString GetCurrentGameTypeName(void);",  &GetCurrentGameTypeName);
-  _pShell->DeclareSymbol("user INDEX GetSpawnFlagsForGameType(INDEX);",  &GetSpawnFlagsForGameTypeCfunc);
-  _pShell->DeclareSymbol("user INDEX IsMenuEnabled(CTString);",          &IsMenuEnabledCfunc);
-  _pShell->DeclareSymbol("user void Say(CTString);",                     &Say);
-  _pShell->DeclareSymbol("user void SayFromTo(INDEX, INDEX, CTString);", &SayFromTo);
+  _pShell->DeclareSymbol("user CTString GetGameAgentRulesInfo(void);",   (void *)&GetGameAgentRulesInfo);
+  _pShell->DeclareSymbol("user CTString GetGameTypeName(INDEX);",        (void *)&GetGameTypeNameCfunc);
+  _pShell->DeclareSymbol("user CTString GetCurrentGameTypeName(void);",  (void *)&GetCurrentGameTypeName);
+  _pShell->DeclareSymbol("user INDEX GetSpawnFlagsForGameType(INDEX);",  (void *)&GetSpawnFlagsForGameTypeCfunc);
+  _pShell->DeclareSymbol("user INDEX IsMenuEnabled(CTString);",          (void *)&IsMenuEnabledCfunc);
+  _pShell->DeclareSymbol("user void Say(CTString);",                     (void *)&Say);
+  _pShell->DeclareSymbol("user void SayFromTo(INDEX, INDEX, CTString);", (void *)&SayFromTo);
 
-  _pShell->DeclareSymbol("CTString GetGameTypeNameSS(INDEX);",           &GetGameTypeName);
-  _pShell->DeclareSymbol("INDEX GetSpawnFlagsForGameTypeSS(INDEX);",     &GetSpawnFlagsForGameType);
-  _pShell->DeclareSymbol("INDEX IsMenuEnabledSS(CTString);",             &IsMenuEnabled);
+  _pShell->DeclareSymbol("CTString GetGameTypeNameSS(INDEX);",           (void *)&GetGameTypeName);
+  _pShell->DeclareSymbol("INDEX GetSpawnFlagsForGameTypeSS(INDEX);",     (void *)&GetSpawnFlagsForGameType);
+  _pShell->DeclareSymbol("INDEX IsMenuEnabledSS(CTString);",             (void *)&IsMenuEnabled);
 
-  _pShell->DeclareSymbol("user const INDEX ctl_iCurrentPlayerLocal;", &ctl_iCurrentPlayerLocal);
-  _pShell->DeclareSymbol("user const INDEX ctl_iCurrentPlayer;",      &ctl_iCurrentPlayer);
+  _pShell->DeclareSymbol("user const INDEX ctl_iCurrentPlayerLocal;", (void *)&ctl_iCurrentPlayerLocal);
+  _pShell->DeclareSymbol("user const INDEX ctl_iCurrentPlayer;",      (void *)&ctl_iCurrentPlayer);
 
-  _pShell->DeclareSymbol("user FLOAT gam_fChatSoundVolume;",      &gam_fChatSoundVolume);
+  _pShell->DeclareSymbol("user FLOAT gam_fChatSoundVolume;",      (void *)&gam_fChatSoundVolume);
 
-  _pShell->DeclareSymbol("user void PlaySound(INDEX, CTString, FLOAT, FLOAT, INDEX);", &PlayScriptSound);
-  _pShell->DeclareSymbol("user void StopSound(INDEX);", &StopScriptSound);
-  _pShell->DeclareSymbol("user INDEX IsSoundPlaying(INDEX);", &IsScriptSoundPlaying);
+  _pShell->DeclareSymbol("user void PlaySound(INDEX, CTString, FLOAT, FLOAT, INDEX);", (void *)&PlayScriptSound);
+  _pShell->DeclareSymbol("user void StopSound(INDEX);", (void *)&StopScriptSound);
+  _pShell->DeclareSymbol("user INDEX IsSoundPlaying(INDEX);", (void *)&IsScriptSoundPlaying);
 
   CAM_Init();
 
@@ -1053,7 +1073,7 @@ void CGame::InitInternal( void)
   try {
     Load_t();
   } catch (char *strError) {
-    CPrintF(TRANS("Cannot load game settings:\n%s\n  Using defaults\n"), strError);
+    CPrintF(TRANSV("Cannot load game settings:\n%s\n  Using defaults\n"), strError);
   }
 
   CON_DiscardLastLineTimes();
@@ -1147,7 +1167,7 @@ BOOL CGame::NewGame(const CTString &strSessionName, const CTFileName &fnWorld,
     // stop network provider
     _pNetwork->StopProvider();
     // and display error
-    CPrintF(TRANS("Cannot start game:\n%s\n"), strError);
+    CPrintF(TRANSV("Cannot start game:\n%s\n"), strError);
     return FALSE;
   }
 
@@ -1170,7 +1190,7 @@ BOOL CGame::NewGame(const CTString &strSessionName, const CTFileName &fnWorld,
   return TRUE;
 }
 
-BOOL CGame::JoinGame(CNetworkSession &session)
+BOOL CGame::JoinGame(const CNetworkSession &session)
 {
   CEnableUserBreak eub;
   gam_iObserverConfig = 0;
@@ -1193,7 +1213,7 @@ BOOL CGame::JoinGame(CNetworkSession &session)
     // stop network provider
     _pNetwork->StopProvider();
     // and display error
-    CPrintF(TRANS("Cannot join game:\n%s\n"), strError);
+    CPrintF(TRANSV("Cannot join game:\n%s\n"), strError);
     return FALSE;
   }
 
@@ -1225,12 +1245,12 @@ BOOL CGame::LoadGame(const CTFileName &fnGame)
   // start the new session
   try {
     _pNetwork->Load_t( fnGame);
-    CPrintF(TRANS("Loaded game: %s\n"), fnGame);
+    CPrintF(TRANSV("Loaded game: %s\n"), (const char *) fnGame);
   } catch (char *strError) {
     // stop network provider
     _pNetwork->StopProvider();
     // and display error
-    CPrintF(TRANS("Cannot load game: %s\n"), strError);
+    CPrintF(TRANSV("Cannot load game: %s\n"), strError);
     return FALSE;
   }
 
@@ -1275,12 +1295,12 @@ BOOL CGame::StartDemoPlay(const CTFileName &fnDemo)
   // start the new session
   try {
     _pNetwork->StartDemoPlay_t( fnDemo);
-    CPrintF(TRANS("Started playing demo: %s\n"), fnDemo);
+    CPrintF(TRANSV("Started playing demo: %s\n"), (const char *) fnDemo);
   } catch (char *strError) {
     // stop network provider
     _pNetwork->StopProvider();
     // and display error
-    CPrintF(TRANS("Cannot play demo: %s\n"), strError);
+    CPrintF(TRANSV("Cannot play demo: %s\n"), strError);
     gm_bFirstLoading = FALSE;
     return FALSE;
   }
@@ -1319,13 +1339,13 @@ BOOL CGame::StartDemoRec(const CTFileName &fnDemo)
   // save demo recording
   try {
     _pNetwork->StartDemoRec_t( fnDemo);
-    CPrintF(TRANS("Started recording demo: %s\n"), fnDemo);
+    CPrintF(TRANSV("Started recording demo: %s\n"), (const char *) fnDemo);
     // save a thumbnail
     SaveThumbnail(fnDemo.NoExt()+"Tbn.tex");
     return TRUE;
   } catch (char *strError) {
     // and display error
-    CPrintF(TRANS("Cannot start recording: %s\n"), strError);
+    CPrintF(TRANSV("Cannot start recording: %s\n"), strError);
     return FALSE;
   }
 }
@@ -1337,7 +1357,7 @@ void CGame::StopDemoRec(void)
   if (!gm_bGameOn) return;
 
   _pNetwork->StopDemoRec();
-  CPrintF(TRANS("Finished recording.\n"));
+  CPrintF(TRANSV("Finished recording.\n"));
 }
 
 BOOL CGame::SaveGame(const CTFileName &fnGame)
@@ -1347,7 +1367,7 @@ BOOL CGame::SaveGame(const CTFileName &fnGame)
   INDEX ctLivePlayers = GetLivePlayersCount();
   if (ctPlayers>0 && ctLivePlayers<=0) {
     // display error
-    CPrintF(TRANS("Won't save game when dead!\n"));
+    CPrintF(TRANSV("Won't save game when dead!\n"));
     // do not save
     return FALSE;
   }
@@ -1355,12 +1375,12 @@ BOOL CGame::SaveGame(const CTFileName &fnGame)
   // save new session
   try {
     _pNetwork->Save_t( fnGame);
-    CPrintF(TRANS("Saved game: %s\n"), fnGame);
+    CPrintF(TRANSV("Saved game: %s\n"), (const char *) fnGame);
     SaveThumbnail(fnGame.NoExt()+"Tbn.tex");
     return TRUE;
   } catch (char *strError) {
     // and display error
-    CPrintF(TRANS("Cannot save game: %s\n"), strError);
+    CPrintF(TRANSV("Cannot save game: %s\n"), (const char *) strError);
     return FALSE;
   }
 }
@@ -1461,13 +1481,28 @@ SLONG CGame::PackHighScoreTable(void)
     // copy the value and the string
     memcpy(pub, str, sizeof(str));
     pub += MAX_HIGHSCORENAME+1;
-    memcpy(pub, &gm_ahseHighScores[i].hse_gdDifficulty, sizeof(INDEX));
+
+    INDEX ival;
+    FLOAT fval;
+
+    ival = gm_ahseHighScores[i].hse_gdDifficulty;
+    BYTESWAP(ival);
+    memcpy(pub, &ival, sizeof(INDEX));
     pub += sizeof(INDEX);
-    memcpy(pub, &gm_ahseHighScores[i].hse_tmTime,       sizeof(FLOAT));
+
+    fval = gm_ahseHighScores[i].hse_tmTime;
+    BYTESWAP(fval);
+    memcpy(pub, &fval,       sizeof(FLOAT));
     pub += sizeof(FLOAT);
-    memcpy(pub, &gm_ahseHighScores[i].hse_ctKills,      sizeof(INDEX));
+
+    ival = gm_ahseHighScores[i].hse_ctKills;
+    BYTESWAP(ival);
+    memcpy(pub, &ival,      sizeof(INDEX));
     pub += sizeof(INDEX);
-    memcpy(pub, &gm_ahseHighScores[i].hse_ctScore,      sizeof(INDEX));
+
+    ival = gm_ahseHighScores[i].hse_ctScore;
+    BYTESWAP(ival);
+    memcpy(pub, &ival,      sizeof(INDEX));
     pub += sizeof(INDEX);
   }
   // just copy it for now
@@ -1486,12 +1521,16 @@ void CGame::UnpackHighScoreTable(SLONG slSize)
     gm_ahseHighScores[i].hse_strPlayer = (const char*)pub;
     pub += MAX_HIGHSCORENAME+1;
     memcpy(&gm_ahseHighScores[i].hse_gdDifficulty, pub, sizeof(INDEX));
+    BYTESWAP(gm_ahseHighScores[i].hse_gdDifficulty);
     pub += sizeof(INDEX);
     memcpy(&gm_ahseHighScores[i].hse_tmTime      , pub, sizeof(FLOAT));
+    BYTESWAP(gm_ahseHighScores[i].hse_tmTime);
     pub += sizeof(FLOAT);
     memcpy(&gm_ahseHighScores[i].hse_ctKills     , pub, sizeof(INDEX));
+    BYTESWAP(gm_ahseHighScores[i].hse_ctKills);
     pub += sizeof(INDEX);
     memcpy(&gm_ahseHighScores[i].hse_ctScore     , pub, sizeof(INDEX));
+    BYTESWAP(gm_ahseHighScores[i].hse_ctScore);
     pub += sizeof(INDEX);
   }
 
@@ -1550,7 +1589,7 @@ void CGame::Load_t( void)
   strmFile>>gm_aiMenuLocalPlayers[2];
   strmFile>>gm_aiMenuLocalPlayers[3];
 
-  strmFile.Read_t( &gm_MenuSplitScreenCfg, sizeof( enum SplitScreenCfg));
+  strmFile>>(INDEX&)gm_MenuSplitScreenCfg;
 
   // read high-score table
   SLONG slHSSize;
@@ -1734,7 +1773,7 @@ BOOL CGame::AddPlayers(void)
       }
     }
   } catch (char *strError) {
-    CPrintF(TRANS("Cannot add player:\n%s\n"), strError);
+    CPrintF(TRANSV("Cannot add player:\n%s\n"), strError);
     return FALSE;
   }
 
@@ -1771,7 +1810,7 @@ static void PrintStats( CDrawPort *pdpDrawPort)
   // display resolution info (if needed)
   if( hud_bShowResolution) {
     CTString strRes;
-    strRes.PrintF( "%dx%dx%s", slDPWidth, slDPHeight, _pGfx->gl_dmCurrentDisplayMode.DepthString());
+    strRes.PrintF( "%dx%dx%s", slDPWidth, slDPHeight, (const char *) _pGfx->gl_dmCurrentDisplayMode.DepthString());
     pdpDrawPort->SetFont( _pfdDisplayFont);
     pdpDrawPort->SetTextScaling( fTextScale);
     pdpDrawPort->SetTextAspect( 1.0f);
@@ -1823,7 +1862,7 @@ static void PrintStats( CDrawPort *pdpDrawPort)
     ctLines = ClampUp( ctLines, (INDEX)(slDPHeight*0.7f));
     FLOAT f192oLines = 192.0f / (FLOAT)ctLines;
     const FLOAT fMaxWidth = slDPWidth  *0.1f;
-    const PIX pixJ = slDPHeight *0.9f;
+    const PIX pixJ = (PIX) (slDPHeight *0.9f);
     // draw canvas
     pdpDrawPort->Fill(       slDPWidth-1-fMaxWidth, pixJ-ctLines+1, fMaxWidth,   ctLines,   SE_COL_BLUE_DARK_HV|64);
     pdpDrawPort->DrawBorder( slDPWidth-2-fMaxWidth, pixJ-ctLines,   fMaxWidth+2, ctLines+2, C_WHITE  |192);
@@ -2266,7 +2305,7 @@ void CGame::GameRedrawView( CDrawPort *pdpDrawPort, ULONG ulFlags)
       // print pause indicators
       CTString strIndicator;
       if (_pNetwork->IsDisconnected()) {
-        strIndicator.PrintF(TRANS("Disconnected: %s\nPress F9 to reconnect"), (const char *)_pNetwork->WhyDisconnected());
+        strIndicator.PrintF(TRANSV("Disconnected: %s\nPress F9 to reconnect"), (const char *)_pNetwork->WhyDisconnected());
       } else if (_pNetwork->IsWaitingForPlayers()) {
         strIndicator = TRANS("Waiting for all players to connect");
       } else if (_pNetwork->IsWaitingForServer()) {
@@ -2277,18 +2316,18 @@ void CGame::GameRedrawView( CDrawPort *pdpDrawPort, ULONG ulFlags)
         strIndicator = TRANS("Game finished");
       } else if (_pNetwork->IsPaused() || _pNetwork->GetLocalPause()) {
         strIndicator = TRANS("Paused");
-      } else if (_tvMenuQuickSave.tv_llValue!=0I64 && 
+      } else if (_tvMenuQuickSave.tv_llValue!=0 && 
         (_pTimer->GetHighPrecisionTimer()-_tvMenuQuickSave).GetSeconds()<3) {
         strIndicator = TRANS("Use F6 for QuickSave during game!");
       } else if (_pNetwork->ga_sesSessionState.ses_strMOTD!="") {
         CTString strMotd = _pNetwork->ga_sesSessionState.ses_strMOTD;
         static CTString strLastMotd = "";
-        static CTimerValue tvLastMotd(0I64);
+        static CTimerValue tvLastMotd((__int64) 0);
         if (strLastMotd!=strMotd) {
           tvLastMotd = _pTimer->GetHighPrecisionTimer();
           strLastMotd = strMotd;
         }
-        if (tvLastMotd.tv_llValue!=0I64 && (_pTimer->GetHighPrecisionTimer()-tvLastMotd).GetSeconds()<3) {
+        if (tvLastMotd.tv_llValue!=((__int64) 0) && (_pTimer->GetHighPrecisionTimer()-tvLastMotd).GetSeconds()<3) {
           strIndicator = strMotd;
         }
       }
@@ -2386,7 +2425,9 @@ void CGame::GameRedrawView( CDrawPort *pdpDrawPort, ULONG ulFlags)
     bSaveScreenShot = FALSE;
     CTFileName fnmExpanded;
     ExpandFilePath(EFP_WRITE, CTString("ScreenShots"), fnmExpanded);
-    _mkdir(fnmExpanded);
+
+    // rcg01052002 This is done in Stream.cpp, now. --ryan.
+    //_mkdir(fnmExpanded);
 
     // create a name for screenshot
     CTFileName fnmScreenShot;
@@ -2409,7 +2450,7 @@ void CGame::GameRedrawView( CDrawPort *pdpDrawPort, ULONG ulFlags)
     try {
       // save screen shot as TGA
       iiImageInfo.SaveTGA_t( fnmScreenShot);
-      if( dem_iAnimFrame<0) CPrintF( TRANS("screen shot: %s\n"), (CTString&)fnmScreenShot);
+      if( dem_iAnimFrame<0) CPrintF( TRANS("screen shot: %s\n"), (const char *) (CTString&)fnmScreenShot);
     }
     // if failed
     catch (char *strError) {
@@ -2439,8 +2480,8 @@ void CGame::RecordHighScore(void)
   INDEX ctScore = penpl->m_psGameStats.ps_iScore;
 
   // find entry with lower score
-  INDEX iLess=0;
-  for(; iLess<HIGHSCORE_COUNT; iLess++) {
+  INDEX iLess;
+  for(iLess=0; iLess<HIGHSCORE_COUNT; iLess++) {
     if (gm_ahseHighScores[iLess].hse_ctScore<ctScore) {
       break;
     }
@@ -2518,7 +2559,7 @@ CTString CGame::GetDefaultGameDescription(BOOL bWithInfo)
   strTimeline = achTimeLine;
   setlocale(LC_ALL, "C");
 
-  strDescription.PrintF( "%s - %s", TranslateConst(_pNetwork->ga_World.GetName(), 0), strTimeline);
+  strDescription.PrintF( "%s - %s", (const char *) TranslateConst(_pNetwork->ga_World.GetName(), 0), (const char *) strTimeline);
 
   if (bWithInfo) {
     CPlayer *penPlayer = (CPlayer *)&*CEntity::GetPlayerEntity(0);
@@ -2550,7 +2591,7 @@ INDEX FixQuicksaveDir(const CTFileName &fnmDir, INDEX ctMax)
 {
   // list the directory
   CDynamicStackArray<CTFileName> afnmDir;
-  MakeDirList(afnmDir, fnmDir, "*.sav", 0);
+  MakeDirList(afnmDir, fnmDir, CTString("*.sav"), 0);
 
   CListHead lh;
   INDEX iMaxNo = -1;
@@ -2577,7 +2618,7 @@ INDEX FixQuicksaveDir(const CTFileName &fnmDir, INDEX ctMax)
   }
 
   // sort the list
-  lh.Sort(qsort_CompareQuickSaves_FileUp, offsetof(QuickSave, qs_lnNode));
+  lh.Sort(qsort_CompareQuickSaves_FileUp, _offsetof(QuickSave, qs_lnNode));
   INDEX ctCount = lh.Count();
 
   // delete all old ones while number of files is too large
@@ -2756,7 +2797,7 @@ static FLOAT _tmNow_SE;
 static ULONG _ulA_SE;
 static BOOL  _bPopup;
 
-void TiledTextureSE( PIXaabbox2D &_boxScreen, FLOAT fStretch, MEX2D &vScreen, MEXaabbox2D &boxTexture)
+void TiledTextureSE( PIXaabbox2D &_boxScreen, FLOAT fStretch, const MEX2D &vScreen, MEXaabbox2D &boxTexture)
 {
   PIX pixW = _boxScreen.Size()(1);
   PIX pixH = _boxScreen.Size()(2);
@@ -2790,11 +2831,11 @@ void CGame::LCDInit(void)
   } catch (char *strError) {
     FatalError("%s\n", strError);
   }
-  ::LCDInit();
+  ::_LCDInit();
 }
 void CGame::LCDEnd(void)
 {
-  ::LCDEnd();
+  ::_LCDEnd();
 }
 void CGame::LCDPrepare(FLOAT fFade)
 {
@@ -2802,7 +2843,7 @@ void CGame::LCDPrepare(FLOAT fFade)
   _tmNow_SE = (FLOAT)_pTimer->GetHighPrecisionTimer().GetSeconds();
   _ulA_SE   = NormFloatToByte(fFade);
 
-  ::LCDPrepare(fFade);
+  ::_LCDPrepare(fFade);
 }
 void CGame::LCDSetDrawport(CDrawPort *pdp)
 {
@@ -2817,31 +2858,31 @@ void CGame::LCDSetDrawport(CDrawPort *pdp)
     _bPopup = TRUE;
   }
   
-  ::LCDSetDrawport(pdp);
+  ::_LCDSetDrawport(pdp);
 }
 void CGame::LCDDrawBox(PIX pixUL, PIX pixDR, PIXaabbox2D &box, COLOR col)
 {
   col = SE_COL_BLUE_NEUTRAL|255;
 
-  ::LCDDrawBox(pixUL, pixDR, box, col);
+  ::_LCDDrawBox(pixUL, pixDR, box, col);
 }
 void CGame::LCDScreenBox(COLOR col)
 {
   col = SE_COL_BLUE_NEUTRAL|255;
 
-  ::LCDScreenBox(col);
+  ::_LCDScreenBox(col);
 }
 void CGame::LCDScreenBoxOpenLeft(COLOR col)
 {
   col = SE_COL_BLUE_NEUTRAL|255;
 
-  ::LCDScreenBoxOpenLeft(col);
+  ::_LCDScreenBoxOpenLeft(col);
 }
 void CGame::LCDScreenBoxOpenRight(COLOR col)
 {
   col = SE_COL_BLUE_NEUTRAL|255;
 
-  ::LCDScreenBoxOpenRight(col);
+  ::_LCDScreenBoxOpenRight(col);
 }
 void CGame::LCDRenderClouds1(void)
 {
@@ -2857,7 +2898,7 @@ void CGame::LCDRenderClouds1(void)
     INDEX iYM = iYU + iSize;
     INDEX iYB = iYM + iSize;
     INDEX iXL = 420;
-    INDEX iXR = iXL + iSize*_pdp_SE->dp_fWideAdjustment;
+    INDEX iXR = (INDEX) (iXL + iSize*_pdp_SE->dp_fWideAdjustment);
     
     box = PIXaabbox2D( PIX2D( iXL*_pdp_SE->GetWidth()/640, iYU*_pdp_SE->GetHeight()/480) ,
                        PIX2D( iXR*_pdp_SE->GetWidth()/640, iYM*_pdp_SE->GetHeight()/480));
@@ -2943,7 +2984,7 @@ void CGame::LCDDrawPointer(PIX pixI, PIX pixJ)
   _pdp_SE->PutTexture( &_toPointer, PIXaabbox2D( PIX2D(pixI, pixJ), PIX2D(pixI+pixSizeI, pixJ+pixSizeJ)),
                     LCDFadedColor(C_WHITE|255));
 
-  //::LCDDrawPointer(pixI, pixJ);
+  //::_LCDDrawPointer(pixI, pixJ);
 }
 COLOR CGame::LCDGetColor(COLOR colDefault, const char *strName)
 {
@@ -2994,16 +3035,17 @@ COLOR CGame::LCDGetColor(COLOR colDefault, const char *strName)
   } else if (!strcmp(strName, "bcg fill")) {
     colDefault = SE_COL_BLUE_DARK|255;
   }
-  return ::LCDGetColor(colDefault, strName);
+  return ::_LCDGetColor(colDefault, strName);
 }
 COLOR CGame::LCDFadedColor(COLOR col)
 {
-  return ::LCDFadedColor(col);
+  return ::_LCDFadedColor(col);
 }
 COLOR CGame::LCDBlinkingColor(COLOR col0, COLOR col1)
 {
-  return ::LCDBlinkingColor(col0, col1);
+  return ::_LCDBlinkingColor(col0, col1);
 }
+
 
 // menu interface functions
 void CGame::MenuPreRenderMenu(const char *strMenuName)

@@ -81,26 +81,26 @@ functions:
   const CTString &GetDescription(void) const {
     ((CTString&)m_strDescription).PrintF("-><none>");
     if (m_penTarget!=NULL) {
-      ((CTString&)m_strDescription).PrintF("->%s", m_penTarget->GetName());
+      ((CTString&)m_strDescription).PrintF("->%s", (const char *) m_penTarget->GetName());
     }
     return m_strDescription;
   };
   /* Get anim data for given animation property - return NULL for none. */
   CAnimData *GetAnimData(SLONG slPropertyOffset) {
-    if(slPropertyOffset==offsetof(CEnvironmentBase, m_iAnim)) {
+    if(slPropertyOffset==_offsetof(CEnvironmentBase, m_iAnim)) {
       return GetModelObject()->GetData();
 
-    } else if(slPropertyOffset==offsetof(CEnvironmentBase, m_iAtt1Anim)) {
+    } else if(slPropertyOffset==_offsetof(CEnvironmentBase, m_iAtt1Anim)) {
       CAttachmentModelObject *pamo = GetModelObject()->GetAttachmentModel(m_iAtt1Position);
       if( pamo != NULL) { return pamo->amo_moModelObject.GetData(); }
       return CEntity::GetAnimData(slPropertyOffset);
 
-    } else if(slPropertyOffset==offsetof(CEnvironmentBase, m_iAtt2Anim)) {
+    } else if(slPropertyOffset==_offsetof(CEnvironmentBase, m_iAtt2Anim)) {
       CAttachmentModelObject *pamo = GetModelObject()->GetAttachmentModel(m_iAtt2Position);
       if( pamo != NULL) { return pamo->amo_moModelObject.GetData(); }
       return CEntity::GetAnimData(slPropertyOffset);
 
-    } else if(slPropertyOffset==offsetof(CEnvironmentBase, m_iAtt3Anim)) {
+    } else if(slPropertyOffset==_offsetof(CEnvironmentBase, m_iAtt3Anim)) {
       CAttachmentModelObject *pamo = GetModelObject()->GetAttachmentModel(m_iAtt3Position);
       if( pamo != NULL) { return pamo->amo_moModelObject.GetData(); }
       return CEntity::GetAnimData(slPropertyOffset);
@@ -123,7 +123,7 @@ functions:
 
     // assure valid target
     if (m_penTarget!=NULL && !IsOfClass(m_penTarget, "Environment Marker")) {
-      WarningMessage("Target '%s' is not of Environment Marker class!", m_penTarget->GetName());
+      WarningMessage("Target '%s' is not of Environment Marker class!", (const char *) m_penTarget->GetName());
       m_penTarget = NULL;
       return FALSE;
     }
@@ -262,7 +262,7 @@ functions:
 
     // assure valid target
     if (m_penTarget!=NULL && !IsOfClass(m_penTarget, "Environment Marker")) {
-      WarningMessage("Target '%s' is not of Environment Marker class!", m_penTarget->GetName());
+      WarningMessage("Target '%s' is not of Environment Marker class!", (const char *) m_penTarget->GetName());
       m_penTarget = NULL;
     }
 };

@@ -13,13 +13,16 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include "Engine/StdH.h"
 
 #include <Engine/Base/CTString.h>
 #include <Engine/Base/Memory.h>
 #include <Engine/Base/Stream.h>
 #include <Engine/Base/Console.h>
 
+#ifndef _MSC_VER
+#include <stdio.h>   // for vsscanf()
+#endif
 
 /*
  * Equality comparison.
@@ -469,6 +472,7 @@ INDEX CTString::PrintF(const char *strFormat, ...)
   va_list arg;
   va_start(arg, strFormat);
   return VPrintF(strFormat, arg);
+  va_end(arg);
 }
 
 
@@ -504,8 +508,8 @@ INDEX CTString::VPrintF(const char *strFormat, va_list arg)
   return iLen;
 }
 
-
-
+// !!! FIXME: maybe don't do this, and just use the vsscanf() version.  --ryan.
+#ifdef _MSC_VER
 static void *psscanf = &sscanf;
 // Scan formatted from a string
 __declspec(naked) INDEX CTString::ScanF(const char *strFormat, ...)
@@ -519,6 +523,20 @@ __declspec(naked) INDEX CTString::ScanF(const char *strFormat, ...)
     jmp     dword ptr [psscanf]
   }
 }
+
+#else
+
+INDEX CTString::ScanF(const char *strFormat, ...)
+{
+    INDEX retval;
+    va_list ap;
+    va_start(ap, strFormat);
+    retval = (INDEX) vsscanf((const char *) (*this), strFormat, ap);
+    va_end(ap);
+    return(retval);
+}
+
+#endif
 
 
   // split string in two strings at specified position (char AT splitting position goes to str2)
@@ -554,10 +572,10 @@ void CTString::DeleteChar( INDEX iPos)
   if (ctChars==0) {
     return;
   }
-  if( iPos>ctChars) iPos=ctChars;
+  if( iPos>ctChars) iPos=ctChars - 1;
   else if( iPos<0)  iPos=0;
   // copy part of string
-  memmove( &str_String[iPos], &str_String[iPos+1], ctChars-iPos+1);
+  memmove( &str_String[iPos], &str_String[iPos+1], ctChars-iPos);
   // shrink memory used by string over deleted char
   ShrinkMemory( (void**)&str_String, ctChars);
 }
@@ -643,7 +661,7 @@ void CTString::LoadVar(const class CTFileName &fnmFile)
     str.Load_t(fnmFile);
     *this = str;
   } catch (char *strError) {
-    CPrintF(TRANS("Cannot load variable from '%s':\n%s\n"), (CTString&)fnmFile, strError);
+    CPrintF(TRANSV("Cannot load variable from '%s':\n%s\n"), (const char *) (CTString&)fnmFile, strError);
   }
 }
 
@@ -652,7 +670,7 @@ void CTString::SaveVar(const class CTFileName &fnmFile)
   try {
     Save_t(fnmFile);
   } catch (char *strError) {
-    CPrintF(TRANS("Cannot save variable to '%s':\n%s\n"), (CTString&)fnmFile, strError);
+    CPrintF(TRANSV("Cannot save variable to '%s':\n%s\n"), (const char *) (CTString&)fnmFile, strError);
   }
 }
 

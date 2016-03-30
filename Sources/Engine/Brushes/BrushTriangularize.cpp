@@ -13,7 +13,7 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include "Engine/StdH.h"
 
 #include <Engine/Brushes/Brush.h>
 #include <Engine/Templates/DynamicArray.cpp>
@@ -591,6 +591,7 @@ void CTriangularizer::DPrintF(char *strFormat, ...)
   va_list arg;
   va_start(arg, strFormat);
   vsprintf(strBuffer, strFormat, arg);
+  va_end(arg);
 
   // if the debug output file is not open
   if (!_bDebugOutputOpen) {
@@ -730,7 +731,7 @@ void CTriangularizer::FindBestTriangle(void)
 
 #if 0
   // if no acceptable triangles have been found
-  if (tr_fQualityBest<???) {
+  if (tr_fQualityBest</*???*/sdfsdfd) {
     /* dump all sector's vertices */
     /*
     FOREACHINSTATICARRAY(tr_bpoOriginalPolygon.bpo_pbscSector->bsc_abvxVertices,

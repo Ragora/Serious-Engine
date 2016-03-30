@@ -58,7 +58,7 @@ functions:
 
   BOOL IsTargetValid(SLONG slPropertyOffset, CEntity *penTarget)
   {
-    if( slPropertyOffset == offsetof(CMarker, m_penTarget))
+    if( slPropertyOffset == _offsetof(CMarker, m_penTarget))
     {
       if (IsOfClass(penTarget, "Enemy Marker")) { return TRUE; }
       else { return FALSE; }

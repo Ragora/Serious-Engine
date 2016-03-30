@@ -144,11 +144,11 @@ functions:
   /* Get anim data for given animation property - return NULL for none. */
   CAnimData *GetAnimData(SLONG slPropertyOffset) 
   {
-    if (slPropertyOffset==offsetof(CShooter, m_iModelPreFireAnimation) ||
-        slPropertyOffset==offsetof(CShooter, m_iModelPostFireAnimation)) {
+    if (slPropertyOffset==_offsetof(CShooter, m_iModelPreFireAnimation) ||
+        slPropertyOffset==_offsetof(CShooter, m_iModelPostFireAnimation)) {
       return GetModelObject()->GetData();
-    } else if (slPropertyOffset==offsetof(CShooter, m_iTexturePreFireAnimation) ||
-               slPropertyOffset==offsetof(CShooter, m_iTexturePostFireAnimation)) {
+    } else if (slPropertyOffset==_offsetof(CShooter, m_iTexturePreFireAnimation) ||
+               slPropertyOffset==_offsetof(CShooter, m_iTexturePostFireAnimation)) {
       return GetModelObject()->mo_toTexture.GetData();
     } else {
       return CModelHolder2::GetAnimData(slPropertyOffset);
@@ -156,7 +156,7 @@ functions:
   }
 
   // shoot projectile on enemy
-  CEntity *ShootProjectile(enum ProjectileType pt, FLOAT3D &vOffset, ANGLE3D &aOffset) {
+  CEntity *ShootProjectile(enum ProjectileType pt, const FLOAT3D &vOffset, const ANGLE3D &aOffset) {
     // launch
     CPlacement3D pl;
     pl = GetPlacement();
@@ -356,11 +356,11 @@ procedures:
     ClampDn(m_fCannonBallPower, 0.0f);
     
     if (m_penSoundLaunch!=NULL && !IsOfClass(m_penSoundLaunch, "SoundHolder")) {
-      WarningMessage( "Entity '%s' is not of class SoundHolder!", m_penSoundLaunch);
+      WarningMessage( "Entity '%s' is not of class SoundHolder!", (const char *) m_penSoundLaunch->GetName());
       m_penSoundLaunch=NULL;
     }
     if (m_penDestruction!=NULL && !IsOfClass(m_penDestruction, "ModelDestruction")) {
-      WarningMessage( "Entity '%s' is not of class ModelDestruction!", m_penDestruction);
+      WarningMessage( "Entity '%s' is not of class ModelDestruction!", (const char *) m_penDestruction->GetName());
       m_penDestruction=NULL;
     }
 

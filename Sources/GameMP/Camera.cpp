@@ -13,7 +13,7 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "Camera.h"
 
 class CCameraPos {
@@ -34,7 +34,7 @@ CCameraPos _cp1;
 CCameraPos _cp;
 
 // camera control
-extern INDEX cam_bRecord           = FALSE;
+INDEX cam_bRecord           = FALSE;
 static INDEX cam_bMoveForward      = FALSE;
 static INDEX cam_bMoveBackward     = FALSE;
 static INDEX cam_bMoveLeft         = FALSE;
@@ -48,7 +48,7 @@ static INDEX cam_bZoomOut          = FALSE;
 static INDEX cam_bZoomDefault      = FALSE;
 static INDEX cam_bResetToPlayer    = FALSE;
 static INDEX cam_bSnapshot         = FALSE;
-static INDEX cam_fSpeed            = 1.0f;
+static INDEX cam_fSpeed            = 1;
 
 // camera functions
 void CAM_Init(void)

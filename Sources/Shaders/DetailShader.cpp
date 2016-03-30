@@ -13,7 +13,7 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include "Shaders/StdH.h"
 
 #undef TEXTURE_COUNT
 #undef UVMAPS_COUNT
@@ -99,8 +99,8 @@ SHADER_MAIN(Detail)
   if(ctTexCoords>0) {
     for(INDEX itxc=0;itxc<ctTexCoords;itxc++)
     {
-      ptxcNew[itxc].u = ptxcOld[itxc].u * fMul;
-      ptxcNew[itxc].v = ptxcOld[itxc].v * fMul;
+      ptxcNew[itxc].uv.u = ptxcOld[itxc].uv.u * fMul;
+      ptxcNew[itxc].uv.v = ptxcOld[itxc].uv.v * fMul;
     }
     shaSetTexCoords(ptxcNew);
   }

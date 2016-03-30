@@ -13,13 +13,17 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include "Engine/StdH.h"
 
-#include <sys\types.h>
-#include <sys\stat.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <fcntl.h>
+
+// !!! FIXME : rcg10162001 Need this anymore, since _findfirst() is abstracted?
+#ifdef PLATFORM_WIN32
 #include <io.h>
-#include <DbgHelp.h>
+#endif
+
 #include <Engine/Base/Protection.h>
 
 #include <Engine/Base/Stream.h>
@@ -32,6 +36,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <Engine/Base/Unzip.h>
 #include <Engine/Base/CRC.h>
 #include <Engine/Base/Shell.h>
+#include <Engine/Base/FileSystem.h>
 #include <Engine/Templates/NameTable_CTFileName.h>
 #include <Engine/Templates/StaticArray.cpp>
 #include <Engine/Templates/DynamicStackArray.cpp>
@@ -41,22 +46,25 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 // default size of page used for stream IO operations (4Kb)
 ULONG _ulPageSize = 0;
-// maximum lenght of file that can be saved (default: 128Mb)
+// maximum length of file that can be saved (default: 128Mb)
 ULONG _ulMaxLenghtOfSavingFile = (1UL<<20)*128;
 extern INDEX fil_bPreferZips = FALSE;
 
 // set if current thread has currently enabled stream handling
-static _declspec(thread) BOOL _bThreadCanHandleStreams = FALSE;
+THREADLOCAL(BOOL, _bThreadCanHandleStreams, FALSE);
 // list of currently opened streams
 static _declspec(thread) CListHead *_plhOpenedStreams = NULL;
 
 ULONG _ulVirtuallyAllocatedSpace = 0;
 ULONG _ulVirtuallyAllocatedSpaceTotal = 0;
+THREADLOCAL(CListHead *, _plhOpenedStreams, NULL);
 
 // global string with application path
 CTFileName _fnmApplicationPath;
 // global string with filename of the started application
 CTFileName _fnmApplicationExe;
+// global string with user-specific writable directory.
+CTFileName _fnmUserDir;
 // global string with current MOD path
 CTFileName _fnmMod;
 // global string with current name (the parameter that is passed on cmdline)
@@ -117,10 +125,15 @@ static CTFileName _fnmApp;
 void InitStreams(void)
 {
   // obtain information about system
+// !!! FIXME: Move this into an abstraction of some sort...
+#ifdef PLATFORM_WIN32
   SYSTEM_INFO siSystemInfo;
   GetSystemInfo( &siSystemInfo);
   // and remember page size
   _ulPageSize = siSystemInfo.dwPageSize*16;   // cca. 64kB on WinNT/Win95
+#else
+  _ulPageSize = PAGESIZE;
+#endif
 
   // keep a copy of path for setting purposes
   _fnmApp = _fnmApplicationPath;
@@ -131,11 +144,13 @@ void InitStreams(void)
     LoadStringVar(CTString("DefaultMod.txt"), _fnmMod);
   }
 
-  CPrintF(TRANS("Current mod: %s\n"), _fnmMod==""?TRANS("<none>"):(CTString&)_fnmMod);
+  CPrintF(TRANSV("Current mod: %s\n"),
+            (_fnmMod=="") ? TRANS("<none>") :
+                            (const char *) (CTString&)_fnmMod);
   // if there is a mod active
   if (_fnmMod!="") {
     // load mod's include/exclude lists
-    CPrintF(TRANS("Loading mod include/exclude lists...\n"));
+    CPrintF(TRANSV("Loading mod include/exclude lists...\n"));
     BOOL bOK = FALSE;
     bOK |= LoadFileList(_afnmBaseWriteInc , CTString("BaseWriteInclude.lst"));
     bOK |= LoadFileList(_afnmBaseWriteExc , CTString("BaseWriteExclude.lst"));
@@ -146,7 +161,7 @@ void InitStreams(void)
     if (!bOK) {
       // the mod is not valid
       _fnmMod = CTString("");
-      CPrintF(TRANS("Error: MOD not found!\n"));
+      CPrintF(TRANSV("Error: MOD not found!\n"));
     // if mod is ok
     } else {
       // remember mod name (the parameter that is passed on cmdline)
@@ -160,7 +175,7 @@ void InitStreams(void)
   LoadStringVar(CTString("ModExt.txt"), _strModExt);
 
 
-  CPrintF(TRANS("Loading group files...\n"));
+  CPrintF(TRANSV("Loading group files...\n"));
 
   // for each group file in base directory
   struct _finddata_t c_file;
@@ -176,54 +191,49 @@ void InitStreams(void)
   }
   _findclose( hFile );
 
+  CDynamicArray<CTString> *files;
+
+  files = _pFileSystem->FindFiles(_fnmApplicationPath, "*.gro");
+  int max = files->Count();
+  int i;
+
+  // for each .gro file in the directory
+  for (i = 0; i < max; i++) {
+    // add it to active set
+    UNZIPAddArchive( _fnmApplicationPath+((*files)[i]) );
+  }
+  delete files;
+
   // if there is a mod active
   if (_fnmMod!="") {
     // for each group file in mod directory
-    struct _finddata_t c_file;
-    long hFile;
-    hFile = _findfirst(_fnmApplicationPath+_fnmMod+"*.gro", &c_file);
-    BOOL bOK = (hFile!=-1);
-    while(bOK) {
-      if (CTString(c_file.name).Matches("*.gro")) {
-        // add it to active set
-        UNZIPAddArchive(_fnmApplicationPath+_fnmMod+c_file.name);
-      }
-      bOK = _findnext(hFile, &c_file)==0;
-    }
-    _findclose( hFile );
+     files = _pFileSystem->FindFiles(_fnmApplicationPath+_fnmMod, "*.gro");
+     max = files->Count();
+     for (i = 0; i < max; i++) {
+       UNZIPAddArchive( _fnmApplicationPath + _fnmMod + ((*files)[i]) );
+     }
+     delete files;
   }
 
   // if there is a CD path
   if (_fnmCDPath!="") {
     // for each group file on the CD
-    struct _finddata_t c_file;
-    long hFile;
-    hFile = _findfirst(_fnmCDPath+"*.gro", &c_file);
-    BOOL bOK = (hFile!=-1);
-    while(bOK) {
-      if (CTString(c_file.name).Matches("*.gro")) {
-        // add it to active set
-        UNZIPAddArchive(_fnmCDPath+c_file.name);
-      }
-      bOK = _findnext(hFile, &c_file)==0;
+    files = _pFileSystem->FindFiles(_fnmCDPath, "*.gro");
+    max = files->Count();
+    for (i = 0; i < max; i++) {
+      UNZIPAddArchive( _fnmCDPath + ((*files)[i]) );
     }
-    _findclose( hFile );
+    delete files;
 
     // if there is a mod active
     if (_fnmMod!="") {
       // for each group file in mod directory
-      struct _finddata_t c_file;
-      long hFile;
-      hFile = _findfirst(_fnmCDPath+_fnmMod+"*.gro", &c_file);
-      BOOL bOK = (hFile!=-1);
-      while(bOK) {
-        if (CTString(c_file.name).Matches("*.gro")) {
-          // add it to active set
-          UNZIPAddArchive(_fnmCDPath+_fnmMod+c_file.name);
-        }
-        bOK = _findnext(hFile, &c_file)==0;
+      files = _pFileSystem->FindFiles(_fnmCDPath+_fnmMod, "*.gro");
+      max = files->Count();
+      for (i = 0; i < max; i++) {
+        UNZIPAddArchive( _fnmCDPath + _fnmMod + ((*files)[i]) );
       }
-      _findclose( hFile );
+      delete files;
     }
   }
 
@@ -238,7 +248,8 @@ void InitStreams(void)
   }
   CPrintF("\n");
 
-  LoadFileList(_afnmNoCRC, CTFILENAME("Data\\NoCRC.lst"));
+  const char *dirsep = CFileSystem::GetDirSeparator();
+  LoadFileList(_afnmNoCRC, CTFILENAME("Data" + dirsep + "NoCRC.lst"));
 
   _pShell->SetINDEX(CTString("sys")+"_iCPU"+"Misc", 1);
 }
@@ -281,6 +292,7 @@ void CTStream::DisableStreamHandling(void)
   _plhOpenedStreams = NULL;
 }
 
+#ifdef PLATFORM_WIN32
 int CTStream::ExceptionFilter(DWORD dwCode, _EXCEPTION_POINTERS *pExceptionInfoPtrs)
 {
   // If the exception is not a page fault, exit.
@@ -325,6 +337,7 @@ void CTStream::ExceptionFatalError(void)
 {
   FatalError( GetWindowsError( GetLastError()) );
 }
+#endif
 
 /*
  * Throw an exception of formatted string.
@@ -333,13 +346,20 @@ void CTStream::Throw_t(char *strFormat, ...)  // throws char *
 {
   const SLONG slBufferSize = 256;
   char strFormatBuffer[slBufferSize];
-  char strBuffer[slBufferSize];
+  static char *strBuffer = NULL;
+
+  // ...and yes, you are screwed if you call this in a catch block and
+  //  try to access the previous text again.
+  delete[] strBuffer;
+  strBuffer = new char[slBufferSize];
+
   // add the stream description to the format string
-  _snprintf(strFormatBuffer, slBufferSize, "%s (%s)", strFormat, strm_strStreamDescription);
+  _snprintf(strFormatBuffer, slBufferSize, "%s (%s)", strFormat, (const char *) strm_strStreamDescription);
   // format the message in buffer
   va_list arg;
   va_start(arg, strFormat); // variable arguments start after this argument
   _vsnprintf(strBuffer, slBufferSize, strFormatBuffer, arg);
+  va_end(arg);
   throw strBuffer;
 }
 
@@ -392,7 +412,7 @@ void CTStream::GetLine_t(char *strBuffer, SLONG slBufferSize, char cDelimiter /*
   INDEX iLetters = 0;
   // test if EOF reached
   if(AtEOF()) {
-    ThrowF_t(TRANS("EOF reached, file %s"), strm_strStreamDescription);
+    ThrowF_t(TRANS("EOF reached, file %s"), (const char *) strm_strStreamDescription);
   }
   // get line from istream
   FOREVER
@@ -479,6 +499,7 @@ void CTStream::FPrintF_t(const char *strFormat, ...) // throw char *
   va_list arg;
   va_start(arg, strFormat); // variable arguments start after this argument
   _vsnprintf(strBuffer, slBufferSize, strFormat, arg);
+  va_end(arg);
   // print the buffer
   PutString_t(strBuffer);
 }
@@ -517,11 +538,12 @@ void CTStream::ExpectID_t(const CChunkID &cidExpected) // throws char *
 void CTStream::ExpectKeyword_t(const CTString &strKeyword) // throw char *
 {
   // check that the keyword is present
-  for(INDEX iKeywordChar=0; iKeywordChar<(INDEX)strlen(strKeyword); iKeywordChar++) {
+  const INDEX total = (INDEX)strlen(strKeyword);
+  for(INDEX iKeywordChar=0; iKeywordChar<total; iKeywordChar++) {
     SBYTE chKeywordChar;
     (*this)>>chKeywordChar;
     if (chKeywordChar!=strKeyword[iKeywordChar]) {
-      ThrowF_t(TRANS("Expected keyword %s not found"), strKeyword);
+      ThrowF_t(TRANS("Expected keyword %s not found"), (const char *) strKeyword);
     }
   }
 }
@@ -834,7 +856,7 @@ void CTStream::DictionaryPreload_t(void)
         fnm.fnm_pserPreloaded = _pModelStock->Obtain_t(fnm);
       }
     } catch (char *strError) {
-      CPrintF( TRANS("Cannot preload %s: %s\n"), (CTString&)fnm, strError);
+      CPrintF( TRANS("Cannot preload %s: %s\n"), (const char *) (CTString&)fnm, strError);
     }
   }
 }
@@ -896,8 +918,9 @@ void CTFileStream::Open_t(const CTFileName &fnFileName, CTStream::OpenMode om/*=
   if (!_bThreadCanHandleStreams) {
     // error
     ::ThrowF_t(TRANS("Cannot open file `%s', stream handling is not enabled for this thread"),
-      (CTString&)fnFileName);
+      (const char *) (CTString&)fnFileName);
   }
+
 
   // check parameters
   ASSERT(strlen(fnFileName)>0);
@@ -985,7 +1008,7 @@ void CTFileStream::Create_t(const CTFileName &fnFileName,
   if(fstrm_pFile == NULL)
   {
     // throw exception
-    Throw_t(TRANS("Cannot create file `%s' (%s)"), (CTString&)fnmFullFileName,
+    Throw_t(TRANS("Cannot create file `%s' (%s)"), (const char *) (CTString&)fnmFullFileName,
       strerror(errno));
   }
   // if file creation was successfull, set stream description to file name
@@ -1380,7 +1403,7 @@ SLONG GetFileTimeStamp_t(const CTFileName &fnm)
   // try to open file for reading
   file_handle = _open( fnmExpanded, _O_RDONLY | _O_BINARY);
   if(file_handle==-1) {
-    ThrowF_t(TRANS("Cannot open file '%s' for reading"), CTString(fnm));
+    ThrowF_t(TRANS("Cannot open file '%s' for reading"), (const char *) CTString(fnm));
     return -1;
   }
   struct stat statFileStatus;
@@ -1470,6 +1493,7 @@ static INDEX ExpandFilePath_read(ULONG ulType, const CTFileName &fnmFile, CTFile
 {
   // search for the file in zips
   INDEX iFileInZip = UNZIPGetFileIndex(fnmFile);
+  const BOOL userdir_not_basedir = (_fnmUserDir != _fnmApplicationPath);
 
   // if a mod is active
   if (_fnmMod!="") {
@@ -1553,6 +1577,44 @@ static INDEX ExpandFilePath_read(ULONG ulType, const CTFileName &fnmFile, CTFile
     }
   }
   return EFP_NONE;
+}
+
+
+// rcg01042002 User dir and children may need to be created on the fly...
+static void VerifyDirsExist(const char *_path)
+{
+  char *path = (char *) AllocMemory(strlen(_path) + 1);
+  strcpy(path, _path);
+  const char *dirsep = CFileSystem::GetDirSeparator();
+
+    // skip first dirsep. This assumes an absolute path and some other
+    //  fundamentals of how a filepath is specified.
+  char *ptr = strstr(path, dirsep);
+  ASSERT(ptr != NULL);
+  if (ptr == NULL)
+    return;
+
+  for (ptr = strstr(ptr+1, dirsep); ptr != NULL; ptr = strstr(ptr+1, dirsep)) {
+    char ch = *ptr;
+    *ptr = '\0'; // terminate the path.
+    if (!_pFileSystem->IsDirectory(path)) {
+      if (_pFileSystem->Exists(path)) {
+        CPrintF("Expected %s to be a directory, but it's a file!\n", path);
+        break;
+      } else {
+        CPrintF("Creating directory %s ...\n", path);
+        _mkdir(path);
+        if (!_pFileSystem->IsDirectory(path)) {
+          CPrintF("Creation of directory %s FAILED!\n", path);
+          break;
+        }
+      }
+    }
+
+    *ptr = ch;  // put path char back...
+  }
+
+  FreeMemory(path);
 }
 
 // Expand a file's filename to full path

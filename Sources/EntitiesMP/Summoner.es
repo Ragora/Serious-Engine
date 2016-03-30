@@ -207,8 +207,8 @@ functions:
  
   BOOL IsTargetValid(SLONG slPropertyOffset, CEntity *penTarget)
   {
-    if ( slPropertyOffset >= offsetof(CSummoner, m_penGroup01Template01) &&
-      slPropertyOffset <= offsetof(CSummoner, m_penGroup03Template06))
+    if ( slPropertyOffset >= _offsetof(CSummoner, m_penGroup01Template01) &&
+      slPropertyOffset <= _offsetof(CSummoner, m_penGroup03Template06))
     {
       if (IsDerivedFromClass(penTarget, "Enemy Base")) {
         if (((CEnemyBase &)*penTarget).m_bTemplate) {
@@ -220,7 +220,7 @@ functions:
         return FALSE; 
       }
     }
-    if( slPropertyOffset == offsetof(CSummoner, m_penControlArea))
+    if( slPropertyOffset == _offsetof(CSummoner, m_penControlArea))
     {
       if (IsDerivedFromClass(penTarget, "AreaMarker")) {
         return TRUE;
@@ -228,7 +228,7 @@ functions:
         return FALSE;
       }
     }
-    if( slPropertyOffset == offsetof(CSummoner, m_penSpawnMarker))
+    if( slPropertyOffset == _offsetof(CSummoner, m_penSpawnMarker))
     {
       if (IsDerivedFromClass(penTarget, "Enemy Marker")) {
         return TRUE;
@@ -236,8 +236,8 @@ functions:
         return FALSE;
       }
     }
-    if( slPropertyOffset == offsetof(CSummoner, m_penTeleportMarker) ||
-        slPropertyOffset == offsetof(CSummoner, m_penDeathMarker))
+    if( slPropertyOffset == _offsetof(CSummoner, m_penTeleportMarker) ||
+        slPropertyOffset == _offsetof(CSummoner, m_penDeathMarker))
     {
       if (IsDerivedFromClass(penTarget, "SummonerMarker")) {
         return TRUE;
@@ -279,7 +279,7 @@ functions:
   virtual CTString GetPlayerKillDescription(const CTString &strPlayerName, const EDeath &eDeath)
   {
     CTString str;
-    str.PrintF(TRANS("The Summoner unsummoned %s"), strPlayerName);
+    str.PrintF(TRANSV("The Summoner unsummoned %s"), (const char *) strPlayerName);
     return str;
   }
   
@@ -926,7 +926,7 @@ procedures:
         } else {
           fToSpawn = 1.0f;
         }
-        INDEX iToSpawn = ceilf(fToSpawn);
+        INDEX iToSpawn = (INDEX) ceilf(fToSpawn);
         
         CMusicHolder *penMusicHolder = GetMusicHolder();
 //CPrintF("spawning %d from %d group\n", iToSpawn, iScheme);

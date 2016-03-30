@@ -13,7 +13,7 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include <Engine/StdH.h>
 #include <Engine/Math/Vector.h>
 #include <Engine/Math/Plane.h>
 #include <Engine/Math/Functions.h>
@@ -41,7 +41,7 @@ CStaticStackArray<GFXColor>   _aiExtColors;
 CStaticStackArray<INDEX>      _aiHitTiles;
 
 static ULONG *_pulSharedTopMap = NULL; // Shared memory used for topmap regeneration
-extern SLONG  _slSharedTopMapSize = 0; // Size of shared memory allocated for topmap regeneration
+SLONG  _slSharedTopMapSize = 0; // Size of shared memory allocated for topmap regeneration
 extern INDEX  _ctShadowMapUpdates;
 #pragma message(">> Create class with destructor to clear shared topmap memory")
 
@@ -351,10 +351,10 @@ Rect ExtractPolygonsInBox(CTerrain *ptrTerrain, const FLOATaabbox3D &bboxExtract
   INDEX *pauiIndices = &_aiExtIndices[0];
 
   // for each row
-  INDEX iy=0;
-  for(;iy<iHeight;iy++) {
+  INDEX iy, ix;
+  for(iy=0;iy<iHeight;iy++) {
     // for each column
-    for(INDEX ix=0;ix<iWidth;ix++) {
+    for(ix=0;ix<iWidth;ix++) {
       // Add one vertex
       GFXVertex4 &vx = *pavVertices;
       vx.x = (FLOAT)(ix+iStartX)*ptrTerrain->tr_vStretch(1);
@@ -380,7 +380,7 @@ Rect ExtractPolygonsInBox(CTerrain *ptrTerrain, const FLOATaabbox3D &bboxExtract
   // for each row
   for(iy=0;iy<iHeight-1;iy++) {
     // for each column
-    for(INDEX ix=0;ix<iWidth-1;ix++) {
+    for(ix=0;ix<iWidth-1;ix++) {
       // Add one quad ( if it is visible )
       if(iFacing&1) {
         // if all vertices in this triangle are visible
@@ -465,9 +465,9 @@ void ExtractVerticesInRect(CTerrain *ptrTerrain, Rect &rc, GFXVertex4 **pavVtx,
   UWORD *puwHeight   = &ptrTerrain->tr_auwHeightMap[iFirstHeight];
 
   GFXVertex *pavVertices = &_avExtVertices[0];
-  INDEX iy=0;
-  for(;iy<iHeight;iy++) {
-    for(INDEX ix=0;ix<iWidth;ix++) {
+  INDEX iy, ix;
+  for(iy=0;iy<iHeight;iy++) {
+    for(ix=0;ix<iWidth;ix++) {
       pavVertices->x = (FLOAT)(ix+iStartX)*ptrTerrain->tr_vStretch(1);
       pavVertices->z = (FLOAT)(iy+iStartY)*ptrTerrain->tr_vStretch(3);
       pavVertices->y = *puwHeight * ptrTerrain->tr_vStretch(2);
@@ -547,7 +547,7 @@ UBYTE GetValueFromMask(CTerrain *ptrTerrain, INDEX iLayer, FLOAT3D vHitPoint)
   vHit(3)=ceil(vHit(3)/ptrTerrain->tr_vStretch(3));
 
   CTerrainLayer &tl = ptrTerrain->GetLayer(iLayer);
-  INDEX iVtx = vHit(1) + tl.tl_iMaskWidth*vHit(3);
+  INDEX iVtx = (INDEX) (vHit(1) + tl.tl_iMaskWidth*vHit(3));
   if(iVtx<0 || iVtx>=tl.tl_iMaskWidth*tl.tl_iMaskHeight) {
     ASSERTALWAYS("Invalid hit point");
     return 0;
@@ -749,17 +749,17 @@ static void CalcPointLight(CPlacement3D &plLight, CLightSource *plsLight, Rect &
       }
       ULONG ulIntensity = NormFloatToByte(fIntensity);
       ulIntensity = (ulIntensity<<CT_RSHIFT)|(ulIntensity<<CT_GSHIFT)|(ulIntensity<<CT_BSHIFT);
-      colLight = MulColors(ByteSwap(colLight.abgr), ulIntensity);
+      colLight = MulColors(ByteSwap(colLight.ul.abgr), ulIntensity);
 
 
       FLOAT fDot = vNormal%vLightNormal;
       fDot = Clamp(fDot,0.0f,1.0f);
       SLONG slDot = NormFloatToByte(fDot);
 
-      pacolData->r = ClampUp(pacolData->r + ((colLight.r*slDot)>>8),255L);
-      pacolData->g = ClampUp(pacolData->g + ((colLight.g*slDot)>>8),255L);
-      pacolData->b = ClampUp(pacolData->b + ((colLight.b*slDot)>>8),255L);
-      pacolData->a = 255;
+      pacolData->ub.r = ClampUp(pacolData->ub.r + ((colLight.ub.r*slDot)>>8),255L);
+      pacolData->ub.g = ClampUp(pacolData->ub.g + ((colLight.ub.g*slDot)>>8),255L);
+      pacolData->ub.b = ClampUp(pacolData->ub.b + ((colLight.ub.b*slDot)>>8),255L);
+      pacolData->ub.a = 255;
       pacolData++;
     }
     pacolData+=pixStepX;
@@ -787,9 +787,9 @@ static void CalcDirectionalLight(CPlacement3D &plLight, CLightSource *plsLight, 
   GFXColor colAmbient = plsLight->GetLightAmbient();
 
   UBYTE ubColShift = 8;
-  SLONG slar = colAmbient.r;
-  SLONG slag = colAmbient.g;
-  SLONG slab = colAmbient.b;
+  SLONG slar = colAmbient.ub.r;
+  SLONG slag = colAmbient.ub.g;
+  SLONG slab = colAmbient.ub.b;
 
   extern INDEX mdl_bAllowOverbright;
   BOOL bOverBrightning = mdl_bAllowOverbright && _pGfx->gl_ctTextureUnits>1;
@@ -824,10 +824,10 @@ static void CalcDirectionalLight(CPlacement3D &plLight, CLightSource *plsLight, 
       fDot = Clamp(fDot,0.0f,1.0f);
       SLONG slDot = NormFloatToByte(fDot);
 
-      pacolData->r = ClampUp(pacolData->r + slar + ((colLight.r*slDot)>>ubColShift),255L);
-      pacolData->g = ClampUp(pacolData->g + slag + ((colLight.g*slDot)>>ubColShift),255L);
-      pacolData->b = ClampUp(pacolData->b + slab + ((colLight.b*slDot)>>ubColShift),255L);
-      pacolData->a = 255;
+      pacolData->ub.r = ClampUp(pacolData->ub.r + slar + ((colLight.ub.r*slDot)>>ubColShift),255L);
+      pacolData->ub.g = ClampUp(pacolData->ub.g + slag + ((colLight.ub.g*slDot)>>ubColShift),255L);
+      pacolData->ub.b = ClampUp(pacolData->ub.b + slab + ((colLight.ub.b*slDot)>>ubColShift),255L);
+      pacolData->ub.a = 255;
       pacolData++;
     }
     pacolData+=pixStepX;
@@ -1030,8 +1030,8 @@ Point Calculate2dHitPoint(CTerrain *ptrTerrain, FLOAT3D &vHitPoint)
   
   // Unstretch hit point and convert it to 2d
   Point pt;
-  pt.pt_iX = ceil(vRelHitPoint(1) / ptrTerrain->tr_vStretch(1) - 0.5f);
-  pt.pt_iY = ceil(vRelHitPoint(3) / ptrTerrain->tr_vStretch(3) - 0.5f);
+  pt.pt_iX = (INDEX) (ceil(vRelHitPoint(1) / ptrTerrain->tr_vStretch(1) - 0.5f));
+  pt.pt_iY = (INDEX) (ceil(vRelHitPoint(3) / ptrTerrain->tr_vStretch(3) - 0.5f));
   
   return pt;
 }

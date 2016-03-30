@@ -22,13 +22,37 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <Engine/Templates/StaticArray.h>
 #include <Engine/Templates/DynamicArray.h>
 #include <Engine/Base/Updateable.h>
+#include <Engine/Base/Stream.h>
 
 struct TextureEffectPixel {
   char tepp_achDummy[8];
 };
+
+static __forceinline CTStream &operator>>(CTStream &strm, TextureEffectPixel &t) {
+  strm.Read_t(t.tepp_achDummy, sizeof (t.tepp_achDummy));  // char[8]
+  return(strm);
+}
+
+static __forceinline CTStream &operator<<(CTStream &strm, const TextureEffectPixel &t) {
+  strm.Write_t(t.tepp_achDummy, sizeof (t.tepp_achDummy));  // char[8]
+  return(strm);
+}
+
+
 struct TextureEffectSourceProperties {
   char tesp_achDummy[64];
 };
+
+static __forceinline CTStream &operator>>(CTStream &strm, TextureEffectSourceProperties &t) {
+  strm.Read_t(t.tesp_achDummy, sizeof (t.tesp_achDummy));  // char[64]
+  return(strm);
+}
+
+static __forceinline CTStream &operator<<(CTStream &strm, const TextureEffectSourceProperties &t) {
+  strm.Write_t(t.tesp_achDummy, sizeof (t.tesp_achDummy));  // char[64]
+  return(strm);
+}
+
 class CTextureEffectSource {
 public:
   class CTextureEffectGlobal *tes_ptegGlobalEffect;  // global effect of this effect source

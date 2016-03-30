@@ -16,7 +16,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 307
 %{
 #include "StdH.h"
-#include "Models/Enemies/Werebull/Werebull.h"
+#include "Models/Enemies/WereBull/WereBull.h"
 %}
 
 uses "EntitiesMP/EnemyBase";
@@ -70,7 +70,7 @@ functions:
   virtual CTString GetPlayerKillDescription(const CTString &strPlayerName, const EDeath &eDeath)
   {
     CTString str;
-    str.PrintF(TRANS("Sirian werebull sent %s flying"), strPlayerName);
+    str.PrintF(TRANSV("Sirian werebull sent %s flying"), (const char *) strPlayerName);
     return str;
   }
 

@@ -61,7 +61,7 @@ functions:
   virtual CTString GetPlayerKillDescription(const CTString &strPlayerName, const EDeath &eDeath)
   {
     CTString str;
-    str.PrintF(TRANS("%s was electrocuted by a fish"), strPlayerName);
+    str.PrintF(TRANSV("%s was electrocuted by a fish"), (const char *) strPlayerName);
     return str;
   }
   virtual const CTFileName &GetComputerMessageName(void) const {
@@ -218,7 +218,7 @@ functions:
       FLOAT fR = 0.7f+0.1f*(FLOAT(rand())/RAND_MAX);
       FLOAT fG = 0.7f+0.2f*(FLOAT(rand())/RAND_MAX);
       FLOAT fB = 0.7f+0.3f*(FLOAT(rand())/RAND_MAX);
-      colAmbient = RGBToColor( fR*128*fDieFactor, fG*128*fDieFactor, fB*128*fDieFactor);
+      colAmbient = RGBToColor( (UBYTE) (fR*128*fDieFactor), (UBYTE) (fG*128*fDieFactor), (UBYTE) (fB*128*fDieFactor));
       colLight = C_WHITE;
       return CEnemyBase::AdjustShadingParameters(vLightDirection, colLight, colAmbient);
     }

@@ -1,15 +1,22 @@
 %option prefix="syy"
 %{
-#include "ParsingSmbs.h"
-#include "smcPars.h"
-
 #include <Engine/Base/CTString.h>
 #include <Engine/Base/CTString.inl>
 #include <Engine/Base/FileName.h>
 #include <Engine/Base/ErrorReporting.h>
 
 #include <Engine/Templates/DynamicStackArray.cpp>
+
+#include "ParsingSmbs.h"
+#include "smcPars.h"
+
 extern CTFileName _fnmApplicationPath;
+
+YYSTYPE syylval;
+
+#ifdef __cplusplus
+extern "C" { int syywrap(void); }
+#endif
 
 int syywrap(void)
 {

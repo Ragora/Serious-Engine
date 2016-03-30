@@ -16,6 +16,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef __GAME_H
 #define __GAME_H 1
 
+#ifdef PLATFORM_UNIX
+#include <Engine/Base/SDL/SDLEvents.h>
+#endif
 #include <GameMP/PlayerSettings.h>
 #include <GameMP/SessionProperties.h>
 
@@ -266,7 +269,7 @@ public:
   // game start/end functions
   virtual BOOL NewGame(const CTString &strSessionName, const CTFileName &fnWorld,
     class CSessionProperties &sp);
-  virtual BOOL JoinGame(CNetworkSession &session);
+  virtual BOOL JoinGame(const CNetworkSession &session);
   virtual BOOL LoadGame(const CTFileName &fnGame);
   virtual BOOL SaveGame(const CTFileName &fnGame);
   virtual void StopGame(void);

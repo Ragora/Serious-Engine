@@ -13,7 +13,7 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include <Engine/StdH.h>
 
 #include <Engine/Base/Stream.h>
 #include <Engine/Math/Float.h>
@@ -34,11 +34,13 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define WORLDSTATEVERSION_MULTITEXTURING 8
 #define WORLDSTATEVERSION_SHADOWSPERMIP 7
 #define WORLDSTATEVERSION_CURRENT WORLDSTATEVERSION_NOCLASSCONTAINER
-extern CWorld *_pwoCurrentLoading = NULL;  // world that is currently loading
+
+CWorld *_pwoCurrentLoading = NULL;  // world that is currently loading
+extern BOOL _bReadEntitiesByID = FALSE;
+
 extern BOOL _bPortalSectorLinksPreLoaded;
 extern BOOL _bEntitySectorLinksPreLoaded;
 extern BOOL _bFileReplacingApplied;
-extern BOOL _bReadEntitiesByID = FALSE;
 
 /*
  * Save entire world (both brushes  current state).

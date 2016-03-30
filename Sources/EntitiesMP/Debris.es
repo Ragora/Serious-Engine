@@ -40,7 +40,7 @@ event ESpawnDebris {
   CTextureData *ptdBump,          // bump texture
   INDEX iModelAnim,               // animation for debris model
   enum DebrisParticlesType dptParticles,   // particles type
-  enum BasicEffectType  betStain, // stain left when touching brushes
+  int /*enum BasicEffectType*/  betStain, // stain left when touching brushes
   COLOR colDebris,                // multiply color for debris
   BOOL bCustomShading,          // if debris uses custom shading
   ANGLE3D aShadingDirection,    // custom shading direction
@@ -67,7 +67,7 @@ properties:
   4 FLOAT m_fFadeStartTime = 0.0f,              // fade start time
   5 FLOAT m_fFadeTime = 0.0f,                   // fade time
   6 FLOAT3D m_fLastStainHitPoint = FLOAT3D(0,0,0), // last stain hit point
-  7 enum BasicEffectType m_betStain = BET_NONE, // type of stain left
+  7 INDEX /*enum BasicEffectType*/ m_betStain = BET_NONE, // type of stain left
   8 INDEX m_ctLeftStains = 0,                   // count of stains already left
   9 FLOAT m_tmStarted = 0.0f,                   // time when spawned
   10 FLOAT m_fStretch = 1.0f,                   // stretch
@@ -162,7 +162,7 @@ functions:
         m_fLastStainHitPoint = vPoint;
         // stain
         ese.colMuliplier = C_WHITE|CT_OPAQUE;
-        ese.betType = m_betStain;
+        ese.betType = (BasicEffectType) m_betStain;
         ese.vNormal = FLOAT3D(plPlaneNormal);
         GetNormalComponent( en_vCurrentTranslationAbsolute, plPlaneNormal, ese.vDirection);
         FLOAT fLength = ese.vDirection.Length() / 7.5f;

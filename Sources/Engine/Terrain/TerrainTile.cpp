@@ -13,11 +13,18 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
-#include <Engine/Terrain/TerrainTile.h>
+#include <Engine/StdH.h>
 #include <Engine/Terrain/Terrain.h>
 #include <Engine/Terrain/TerrainRender.h>
 #include <Engine/Terrain/TerrainMisc.h>
+
+// !!! FIXME: This is messing up name mangling. Need to look at this. --ryan.
+#if ((defined PLATFORM_UNIX) && (defined __forceinline))
+#  undef __forceinline
+#  define __forceinline
+#endif
+
+#include <Engine/Terrain/TerrainTile.h>
 
 extern CTerrain *_ptrTerrain;
 extern FLOAT3D  _vViewerAbs;
@@ -171,7 +178,7 @@ inline void CTerrainTile::AddTriangle(INDEX iind1,INDEX iind2,INDEX iind3)
         continue; // skip it
       }
 
-      COLOR ul = ttl.tl_acColors[iind1].a + ttl.tl_acColors[iind2].a + ttl.tl_acColors[iind3].a;
+      COLOR ul = ttl.tl_acColors[iind1].ub.a + ttl.tl_acColors[iind2].ub.a + ttl.tl_acColors[iind3].ub.a;
       if(ul>0) {
         INDEX *pIndices = ttl.tl_auiIndices.Push(3);
         pIndices[0] = iind1;
@@ -233,7 +240,7 @@ void CTerrainTile::AddVertex(INDEX ic, INDEX ir)
   GFXVertex4 &vxFinal = GetVertices().Push();
   GFXTexCoord &tcShadow = GetShadowMapTC().Push();
 
-  GFXVertex4 &vx = GetVertex(ic,ir,tt_iIndex);
+  const GFXVertex4 &vx = GetVertex(ic,ir,tt_iIndex);
   vxFinal.x = vx.x * _ptrTerrain->tr_vStretch(1);
   vxFinal.y = vx.y * _ptrTerrain->tr_vStretch(2);
   vxFinal.z = vx.z * _ptrTerrain->tr_vStretch(3);
@@ -249,36 +256,36 @@ void CTerrainTile::AddVertex(INDEX ic, INDEX ir)
       // Set vertex color
       GFXColor &col = ttl.tl_acColors.Push();
       BYTE bAlpha = GetVertexAlpha(ic,ir,tt_iIndex,itl);
-      col.abgr = 0x00FFFFFF;
-      col.a = bAlpha;
+      col.ul.abgr = 0x00FFFFFF;
+      col.ub.a = bAlpha;
       // if this is normal layer
       if(tl.tl_ltType == LT_NORMAL) {
         // Set its texcoords
         GFXTexCoord &tc = ttl.tl_atcTexCoords.Push();
-        tc.u = (FLOAT)ic;
-        tc.v = (FLOAT)ir;
+        tc.uv.u = (FLOAT)ic;
+        tc.uv.v = (FLOAT)ir;
       }
     }
 
     GFXTexCoord &tcDetail = GetDetailTC().Push();
-    tcDetail.u = ic * 2;
-    tcDetail.v = ir * 2;
+    tcDetail.uv.u = ic * 2;
+    tcDetail.uv.v = ir * 2;
   // if tile is in lowest lod
   } else if(tt_iLod==_ptrTerrain->tr_iMaxTileLod) {
     GFXTexCoord &tc = GetTexCoords().Push();
     FLOAT fWidth = (_ptrTerrain->tr_pixHeightMapWidth-1);
     FLOAT fHeight = (_ptrTerrain->tr_pixHeightMapHeight-1);
-    tc.u = vx.x / fWidth;
-    tc.v = vx.z / fHeight;
+    tc.uv.u = vx.x / fWidth;
+    tc.uv.v = vx.z / fHeight;
   // tile is not in highest lod nor in lowest lod
   } else {
     GFXTexCoord &tc = GetTexCoords().Push();
-    tc.u = ((vx.x - tt_iOffsetX * _ptrTerrain->GetQuadsPerTileRow()) / (_ptrTerrain->GetQuadsPerTileRow()));
-    tc.v = ((vx.z - tt_iOffsetZ * _ptrTerrain->GetQuadsPerTileRow()) / (_ptrTerrain->GetQuadsPerTileRow()));
+    tc.uv.u = ((vx.x - tt_iOffsetX * _ptrTerrain->GetQuadsPerTileRow()) / (_ptrTerrain->GetQuadsPerTileRow()));
+    tc.uv.v = ((vx.z - tt_iOffsetZ * _ptrTerrain->GetQuadsPerTileRow()) / (_ptrTerrain->GetQuadsPerTileRow()));
   }
 
-  tcShadow.u = vx.x / (_ptrTerrain->tr_pixHeightMapWidth-1);
-  tcShadow.v = vx.z / (_ptrTerrain->tr_pixHeightMapHeight-1);
+  tcShadow.uv.u = vx.x / (_ptrTerrain->tr_pixHeightMapWidth-1);
+  tcShadow.uv.v = vx.z / (_ptrTerrain->tr_pixHeightMapHeight-1);
 }
 
 void CTerrainTile::ReGenerateTileLayer(INDEX iTileLayer)
@@ -340,18 +347,18 @@ void CTerrainTile::ReGenerateTileLayer(INDEX iTileLayer)
       ASSERT(iTileY<tl.tl_ctTilesInCol);
 
       // Add four texcoords
-      ptc[ivx  ].u = tl.tl_fTileU * (iTileX +   bFlipX);
-      ptc[ivx  ].v = tl.tl_fTileV * (iTileY +   bFlipY);
-      ptc[ivx+1].u = tl.tl_fTileU * (iTileX + 1-bFlipX);
-      ptc[ivx+1].v = tl.tl_fTileV * (iTileY +   bFlipY);
-      ptc[ivx+2].u = tl.tl_fTileU * (iTileX +   bFlipX);
-      ptc[ivx+2].v = tl.tl_fTileV * (iTileY + 1-bFlipY);
-      ptc[ivx+3].u = tl.tl_fTileU * (iTileX + 1-bFlipX);
-      ptc[ivx+3].v = tl.tl_fTileV * (iTileY + 1-bFlipY);
+      ptc[ivx  ].uv.u = tl.tl_fTileU * (iTileX +   bFlipX);
+      ptc[ivx  ].uv.v = tl.tl_fTileV * (iTileY +   bFlipY);
+      ptc[ivx+1].uv.u = tl.tl_fTileU * (iTileX + 1-bFlipX);
+      ptc[ivx+1].uv.v = tl.tl_fTileV * (iTileY +   bFlipY);
+      ptc[ivx+2].uv.u = tl.tl_fTileU * (iTileX +   bFlipX);
+      ptc[ivx+2].uv.v = tl.tl_fTileV * (iTileY + 1-bFlipY);
+      ptc[ivx+3].uv.u = tl.tl_fTileU * (iTileX + 1-bFlipX);
+      ptc[ivx+3].uv.v = tl.tl_fTileV * (iTileY + 1-bFlipY);
 
       if(bSwapXY) {
-        Swap(ptc[ivx+1].u,ptc[ivx+2].u);
-        Swap(ptc[ivx+1].v,ptc[ivx+2].v);
+        Swap(ptc[ivx+1].uv.u,ptc[ivx+2].uv.u);
+        Swap(ptc[ivx+1].uv.v,ptc[ivx+2].uv.v);
       }
 
       // if tile is visible
@@ -407,8 +414,8 @@ void CTerrainTile::ReGenerate()
 
   // for each vertex in row
   INDEX iStep = 1<<tt_iLod;
-  INDEX ir=0;
-  for(;ir<tt_ctVtxY;ir+=iStep) {
+  INDEX ir;
+  for(ir=0;ir<tt_ctVtxY;ir+=iStep) {
     // for each vertex in col
     for(INDEX ic=0;ic<tt_ctVtxX;ic+=iStep) {
       // add vertex in this row and col
@@ -616,8 +623,8 @@ void CTerrainTile::ReGenerateTopBorder()
   tt_iFirstBorderVertex[NB_TOP] = GetVertices().Count();
 
   // Add half of topleft corner
-  INDEX icb=0;
-  for(;icb<ctVtxInsert;icb+=iBorderStep) {
+  INDEX icb;
+  for(icb=0;icb<ctVtxInsert;icb+=iBorderStep) {
     AddVertex(icb+iBorderStep,0);
     INDEX ivxAdded = GetVertices().Count()-1;
     AddTriangle(iBaseFanVtx-1,ivxAdded,iLastVx);
@@ -702,8 +709,8 @@ void CTerrainTile::ReGenerateLeftBorder()
   tt_iFirstBorderVertex[NB_LEFT] = GetVertices().Count();
 
   // Add half of topleft corner
-  INDEX irb=0;
-  for(;irb<ctVtxInsert;irb+=iBorderStep) {
+  INDEX irb;
+  for(irb=0;irb<ctVtxInsert;irb+=iBorderStep) {
     AddVertex(iVtxCol,irb+iBorderStep);
     INDEX ivxAdded = GetVertices().Count()-1;
     AddTriangle(iBaseFanVtx,iLastVx,ivxAdded);
@@ -789,8 +796,8 @@ void CTerrainTile::ReGenerateRightBorder()
 
   iLastVx = irVtx;
   // Add half of topleft corner
-  INDEX irb=0;
-  for(;irb<ctVtxInsert;irb+=iBorderStep) {
+  INDEX irb;
+  for(irb=0;irb<ctVtxInsert;irb+=iBorderStep) {
     AddVertex(iVtxCol,irb+iBorderStep);
     INDEX ivxAdded = GetVertices().Count()-1;
     AddTriangle(iBaseFanVtx,ivxAdded,iLastVx);
@@ -877,8 +884,8 @@ void CTerrainTile::ReGenerateBottomBorder()
 
   iLastVx = icVtx-1;
   // Add half of bottom left corner
-  INDEX icb=0;
-  for(;icb<ctVtxInsert;icb+=iBorderStep) {
+  INDEX icb;
+  for(icb=0;icb<ctVtxInsert;icb+=iBorderStep) {
     AddVertex(icb+iBorderStep,iVtxRow);
     INDEX ivxAdded = GetVertices().Count()-1;
     AddTriangle(iBaseFanVtx-1,iLastVx,ivxAdded);
@@ -937,49 +944,49 @@ void CTerrainTile::ReGenerateBottomBorder()
 }
 
 
-CStaticStackArray<GFXVertex4> &CTerrainTile::GetVertices() {
+__forceinline CStaticStackArray<GFXVertex4> &CTerrainTile::GetVertices() {
   ASSERT(tt_iArrayIndex!=-1);
   ASSERT(tt_iLod!=-1);
   CArrayHolder &ah = _ptrTerrain->tr_aArrayHolders[tt_iLod];
   TileArrays &ta = ah.ah_ataTileArrays[tt_iArrayIndex];
   return ta.ta_avVertices;
 }
-CStaticStackArray<GFXTexCoord> &CTerrainTile::GetTexCoords() {
+__forceinline CStaticStackArray<GFXTexCoord> &CTerrainTile::GetTexCoords() {
   ASSERT(tt_iArrayIndex!=-1);
   ASSERT(tt_iLod!=-1);
   CArrayHolder &ah = _ptrTerrain->tr_aArrayHolders[tt_iLod];
   TileArrays &ta = ah.ah_ataTileArrays[tt_iArrayIndex];
   return ta.ta_auvTexCoords;
 }
-CStaticStackArray<GFXTexCoord> &CTerrainTile::GetShadowMapTC() {
+__forceinline CStaticStackArray<GFXTexCoord> &CTerrainTile::GetShadowMapTC() {
   ASSERT(tt_iArrayIndex!=-1);
   ASSERT(tt_iLod!=-1);
   CArrayHolder &ah = _ptrTerrain->tr_aArrayHolders[tt_iLod];
   TileArrays &ta = ah.ah_ataTileArrays[tt_iArrayIndex];
   return ta.ta_auvShadowMap;
 }
-CStaticStackArray<GFXTexCoord> &CTerrainTile::GetDetailTC() {
+__forceinline CStaticStackArray<GFXTexCoord> &CTerrainTile::GetDetailTC() {
   ASSERT(tt_iArrayIndex!=-1);
   ASSERT(tt_iRequestedLod==0 || tt_iLod==0);
   CArrayHolder &ah = _ptrTerrain->tr_aArrayHolders[tt_iRequestedLod];
   TileArrays &ta = ah.ah_ataTileArrays[tt_iArrayIndex];
   return ta.ta_auvDetailMap;
 }
-CStaticStackArray<INDEX> &CTerrainTile::GetIndices() {
+__forceinline CStaticStackArray<INDEX> &CTerrainTile::GetIndices() {
   ASSERT(tt_iArrayIndex!=-1);
   ASSERT(tt_iLod!=-1);
   CArrayHolder &ah = _ptrTerrain->tr_aArrayHolders[tt_iLod];
   TileArrays &ta = ah.ah_ataTileArrays[tt_iArrayIndex];
   return ta.ta_auiIndices;
 }
-CStaticStackArray<TileLayer> &CTerrainTile::GetTileLayers() {
+__forceinline CStaticStackArray<TileLayer> &CTerrainTile::GetTileLayers() {
   ASSERT(tt_iArrayIndex!=-1);
   ASSERT(tt_iRequestedLod==0 || tt_iLod==0);
   CArrayHolder &ah = _ptrTerrain->tr_aArrayHolders[tt_iRequestedLod];
   TileArrays &ta = ah.ah_ataTileArrays[tt_iArrayIndex];
   return ta.ta_atlLayers;
 }
-CTextureData *CTerrainTile::GetTopMap()
+__forceinline CTextureData *CTerrainTile::GetTopMap()
 {
   ASSERT(tt_iArrayIndex!=-1);
   ASSERT(tt_iLod!=-1);

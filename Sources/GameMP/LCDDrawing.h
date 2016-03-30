@@ -19,23 +19,23 @@ with this program; if not, write to the Free Software Foundation, Inc.,
   #pragma once
 #endif
 
-extern void LCDInit(void);
-extern void LCDEnd(void);
-extern void LCDPrepare(FLOAT fFade);
-extern void LCDSetDrawport(CDrawPort *pdp);
-extern void LCDDrawBox(PIX pixUL, PIX pixDR, PIXaabbox2D &box, COLOR col);
-extern void LCDScreenBox(COLOR col);
-extern void LCDScreenBoxOpenLeft(COLOR col);
-extern void LCDScreenBoxOpenRight(COLOR col);
-extern void LCDRenderClouds1(void);
-extern void LCDRenderClouds2(void);
-extern void LCDRenderClouds2Light(void);
-extern void LCDRenderGrid(void);
-extern void LCDDrawPointer(PIX pixI, PIX pixJ);
-extern COLOR LCDGetColor(COLOR colDefault, const char *strName);
-extern COLOR LCDFadedColor(COLOR col);
-extern COLOR LCDBlinkingColor(COLOR col0, COLOR col1);
-
+extern void _LCDInit(void);
+extern void _LCDEnd(void);
+extern void _LCDPrepare(FLOAT fFade);
+extern void _LCDSetDrawport(CDrawPort *pdp);
+extern void _LCDDrawBox(PIX pixUL, PIX pixDR, PIXaabbox2D &box, COLOR col);
+extern void _LCDScreenBox(COLOR col);
+extern void _LCDScreenBoxOpenLeft(COLOR col);
+extern void _LCDScreenBoxOpenRight(COLOR col);
+extern void _LCDRenderClouds1(void);
+extern void _LCDRenderClouds2(void);
+extern void _LCDRenderClouds2Light(void);
+extern void _LCDRenderGrid(void);
+extern void _LCDDrawPointer(PIX pixI, PIX pixJ);
+extern COLOR _LCDGetColor(COLOR colDefault, const char *strName);
+extern COLOR _LCDFadedColor(COLOR col);
+extern COLOR _LCDBlinkingColor(COLOR col0, COLOR col1);
 
 #endif  /* include-once check. */
+
 

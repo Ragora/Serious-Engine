@@ -49,6 +49,8 @@ public:
 
   // Declare a symbol in the shell.
   void DeclareSymbol(const CTString &strDeclaration, void *pvValue);
+  /* rcg10072001 Added this version of DeclareSymbol()... */
+  void DeclareSymbol(const char *strDeclaration, void *pvValue);
   // Execute command(s).
   void Execute(const CTString &strCommands);
   // Save shell commands to restore persistent symbols to a script file

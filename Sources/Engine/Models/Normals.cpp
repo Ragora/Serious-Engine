@@ -13,12 +13,12 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include "Engine/StdH.h"
 
 #include <Engine/Models/Normals.h>
 #include <Engine/Math/Vector.h>
 
-extern FLOAT3D avGouraudNormals[MAX_GOURAUDNORMALS] = {
+FLOAT3D avGouraudNormals[MAX_GOURAUDNORMALS] = {
   FLOAT3D(  1.000000f,  0.000000f,  0.000000f),
   FLOAT3D(  0.980785f,  0.000000f,  0.195090f),
   FLOAT3D(  0.980785f,  0.195090f,  0.000000f),

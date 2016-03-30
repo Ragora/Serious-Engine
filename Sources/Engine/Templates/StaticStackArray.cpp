@@ -80,7 +80,7 @@ template<class Type>
 inline Type &CStaticStackArray<Type>::Push(void) {
   sa_UsedCount++;
   if (sa_UsedCount>CStaticArray<Type>::Count()) {
-    Expand(CStaticArray<Type>::Count()+sa_ctAllocationStep);
+    this->Expand(CStaticArray<Type>::Count()+sa_ctAllocationStep);
   }
   ASSERT(sa_UsedCount <= CStaticArray<Type>::Count());
   return CStaticArray<Type>::operator[](sa_UsedCount-1);

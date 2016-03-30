@@ -44,6 +44,7 @@ ENGINE_API CTString::CTString(INDEX iDummy, const char *strFormat, ...)
   va_list arg;
   va_start(arg, strFormat);
   VPrintF(strFormat, arg);
+  va_end(arg);
 }
 
 /*

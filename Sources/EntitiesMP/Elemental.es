@@ -18,7 +18,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "StdH.h"
 //#include "Models/Enemies/Elementals/AirMan.h"
 //#include "Models/Enemies/Elementals/IceMan.h"
-#include "Models/Enemies/Elementals/StoneMan.h"
+#include "Models/Enemies/Elementals/Stoneman.h"
 //#include "Models/Enemies/Elementals/Twister.h"
 //#include "Models/Enemies/Elementals/WaterMan.h"
 //#include "Models/Enemies/Elementals/Projectile/IcePyramid.h"
@@ -286,7 +286,7 @@ functions:
   virtual CTString GetPlayerKillDescription(const CTString &strPlayerName, const EDeath &eDeath)
   {
     CTString str;
-    str.PrintF(TRANS("%s was killed by a Lava Golem"), strPlayerName);
+    str.PrintF(TRANSV("%s was killed by a Lava Golem"), (const char *) strPlayerName);
     return str;
   }
   virtual const CTFileName &GetComputerMessageName(void) const {
@@ -1515,7 +1515,7 @@ procedures:
       // fire count
       if (m_iFireCount <= 0)
       {
-        WarningMessage("Entity: %s - Fire count must be greater than zero", GetName());
+        WarningMessage("Entity: %s - Fire count must be greater than zero", (const char *) GetName());
         m_iFireCount = 1;
       }
     }

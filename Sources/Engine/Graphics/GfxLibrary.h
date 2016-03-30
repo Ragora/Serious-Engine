@@ -41,10 +41,11 @@ extern CStaticStackArray<GFXColor>    _acolCommon;
 extern CStaticStackArray<INDEX>       _aiCommonElements;
 extern CStaticStackArray<INDEX>       _aiCommonQuads;
 
-
+#include <Engine/Graphics/OpenGL.h>
 #include <Engine/Graphics/Gfx_wrapper.h>
+#include <Engine/Base/DynamicLoader.h>
 
-
+// WARNING: Changing these constants breaks inline asm on GNU systems!
 #define SQRTTABLESIZE   8192
 #define SQRTTABLESIZELOG2 13
 
@@ -58,8 +59,10 @@ struct CTVERTEX {
   ULONG ulColor;   // color
   FLOAT fU,fV;     // texture coordinates
 };
-#define D3DFVF_CTVERTEX (D3DFVF_XYZ|D3DFVF_DIFFUSE|D3DFVF_TEX1)
 
+#ifdef SE1_D3D
+#define D3DFVF_CTVERTEX (D3DFVF_XYZ|D3DFVF_DIFFUSE|D3DFVF_TEX1)
+#endif
 
 // Gfx API type 
 enum GfxAPIType
@@ -71,6 +74,17 @@ enum GfxAPIType
 #endif // SE1_D3D
   GAT_CURRENT = 9,   // current API
 };
+
+
+__forceinline bool GfxValidApi(GfxAPIType eAPI)
+{
+#ifdef SE1_D3D
+  return(eAPI==GAT_OGL || eAPI==GAT_D3D || eAPI==GAT_NONE);
+#else
+  return(eAPI==GAT_OGL || eAPI==GAT_NONE);
+#endif
+}
+
 
 
 // vertex type (for lock/unlock function)
@@ -121,7 +135,7 @@ class ENGINE_API CGfxLibrary
 public:
   CGfxAPI gl_gaAPI[2];
   CViewPort *gl_pvpActive;   // active viewport
-  HINSTANCE  gl_hiDriver;    // DLL handle
+  CDynamicLoader *gl_hiDriver;     // DLL handle
 
   GfxAPIType   gl_eCurrentAPI;  // (0=none, 1=OpenGL, 2=DirectX8) 
   CDisplayMode gl_dmCurrentDisplayMode;
@@ -190,8 +204,10 @@ private:
   void StopDisplayMode(void);
 
   // OpenGL specific
+  void *OGL_GetProcAddress(const char *procname); // rcg10112001
   BOOL InitDriver_OGL( BOOL b3Dfx=FALSE);  // DLL init and function call adjustments
   void EndDriver_OGL(void);
+  void PlatformEndDriver_OGL(void); // rcg10112001
   void TestExtension_OGL( ULONG ulFlag, const char *strName); // if exist, add OpenGL extension to flag and list
   void AddExtension_OGL(  ULONG ulFlag, const char *strName); // unconditionally add OpenGL extension to flag and list
 #ifdef PLATFORM_WIN32
@@ -204,6 +220,7 @@ private:
   void SwapBuffers_OGL( CViewPort *pvpToSwap);
 
   // Direct3D specific
+#ifdef SE1_D3D
   BOOL InitDriver_D3D(void);
   void EndDriver_D3D(void);
   BOOL InitDisplay_D3D( INDEX iAdapter, PIX pixSizeI, PIX pixSizeJ, enum DisplayDepth eColorDepth);
@@ -211,6 +228,7 @@ private:
   BOOL SetCurrentViewport_D3D( CViewPort *pvp);
   void UploadPattern_D3D( ULONG ulPatternEven);
   void SwapBuffers_D3D( CViewPort *pvpToSwap);
+#endif
 
 public:
 
@@ -353,7 +371,6 @@ ENGINE_API extern CTexParams _tpGlobal[GFX_MAXTEXUNITS];
 ENGINE_API extern CGfxLibrary *_pGfx;
 // forced texture upload quality (0 = default, 16 = force 16-bit, 32 = force 32-bit)
 ENGINE_API extern INDEX _iTexForcedQuality;
-
 
 #endif  /* include-once check. */
 

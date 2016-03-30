@@ -75,10 +75,10 @@ void ENGINE_API AddRelationPairHeadHead(CRelationSrc &rsSrc, CRelationDst &rdDst
 
 // get a domain member related to a codomain member through a link
 #define DST(plink, dstclass, dstmember) \
-  ( (dstclass *) ( ((UBYTE *)(&(plink->GetDst()))) - offsetof(dstclass, dstmember) ) )
+  ( (dstclass *) ( ((UBYTE *)(&(plink->GetDst()))) - _offsetof(dstclass, dstmember) ) )
 // get a codomain member that a domain member is related to through a link
 #define SRC(plink, srcclass, srcmember) \
-  ( (srcclass *) ( ((UBYTE *)(&(plink->GetSrc()))) - offsetof(srcclass, srcmember) ) )
+  ( (srcclass *) ( ((UBYTE *)(&(plink->GetSrc()))) - _offsetof(srcclass, srcmember) ) )
 
 // make 'for' construct for walking all codomain members related to a domain member
 #define FOREACHDSTOFSRC(srchead, dstclass, dstmember, pdst) \

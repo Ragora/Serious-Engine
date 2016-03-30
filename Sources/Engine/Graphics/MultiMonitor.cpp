@@ -13,8 +13,11 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include "Engine/StdH.h"
+
+#ifdef PLATFORM_WIN32
 #include <tchar.h>
+#endif
 #include <Engine/Graphics/MultiMonitor.h>
 #include <Engine/Base/Console.h>
 #include <Engine/Base/ErrorReporting.h>
@@ -29,6 +32,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 extern INDEX gfx_bDisableMultiMonSupport;
 extern INDEX gfx_ctMonitors;
 extern INDEX gfx_bMultiMonDisabled;
+
+#ifdef PLATFORM_WIN32
+#pragma comment(lib, "advapi32.lib")
 
 typedef BOOL EnumDisplayDevices_t(
   PVOID Unused,       // not used; must be NULL
@@ -134,6 +140,7 @@ void Mon_DisableEnable9x_t(BOOL bDisable)
     ThrowF_t(TRANS("Cannot change settings for at least one secondary monitor\n"));
   }
 }
+#endif
 
 void MonitorsOff(void)
 {
@@ -142,6 +149,7 @@ void MonitorsOff(void)
     return;
   }
 
+#ifdef PLATFORM_WIN32
   // check for WinNT or Win2k
   BOOL bNT = FALSE;
   OSVERSIONINFO osv;
@@ -153,38 +161,45 @@ void MonitorsOff(void)
 
   // if there is more than one monitor, and OS is not WinNT
   if (gfx_ctMonitors>1 && !bNT) {
-    CPrintF(TRANS("Multimonitor configuration detected...\n"));
+    CPrintF(TRANSV("Multimonitor configuration detected...\n"));
     // if multimon is not allowed
     if (gfx_bDisableMultiMonSupport) {
-      CPrintF(TRANS("  Multimonitor support disallowed.\n"));
-      CPrintF(TRANS("  Disabling multimonitor..."));
+      CPrintF(TRANSV("  Multimonitor support disallowed.\n"));
+      CPrintF(TRANSV("  Disabling multimonitor..."));
       // disable all but primary
       try {
         Mon_DisableEnable9x_t(/*bDisable = */ TRUE);
-        CPrintF(TRANS(" disabled\n"));
+        CPrintF(TRANSV(" disabled\n"));
       } catch(char *strError) {
-        CPrintF(TRANS(" error: %s\n"), strError);
+        CPrintF(TRANSV(" error: %s\n"), strError);
       }
       gfx_bMultiMonDisabled = TRUE;
     // if multimon is allowed
     } else {
-      CPrintF(TRANS("  Multimonitor support was allowed.\n"));
+      CPrintF(TRANSV("  Multimonitor support was allowed.\n"));
     }
   }
+#else
+  CPrintF(TRANSV("Multimonitor is not supported on this platform.\n"));
+#endif
 }
 
 void MonitorsOn(void)
 {
+#ifdef PLATFORM_WIN32
   // if multimon was disabled
   if (gfx_bMultiMonDisabled) {
-    CPrintF(TRANS("Multimonitor support was disabled.\n"));
-    CPrintF(TRANS("  re-enabling multimonitor..."));
+    CPrintF(TRANSV("Multimonitor support was disabled.\n"));
+    CPrintF(TRANSV("  re-enabling multimonitor..."));
     // enable all secondary
     try {
       Mon_DisableEnable9x_t(/*bDisable = */ FALSE);
-      CPrintF(TRANS(" enabled\n"));
+      CPrintF(TRANSV(" enabled\n"));
     } catch(char *strError) {
-      CPrintF(TRANS(" error: %s\n"), strError);
+      CPrintF(TRANSV(" error: %s\n"), strError);
     }
   }
+#else
+  CPrintF(TRANSV("Multimonitor is not supported on this platform.\n"));
+#endif
 }

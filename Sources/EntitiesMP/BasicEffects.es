@@ -373,7 +373,7 @@ functions:
       try {
         m_aoLightAnimation.SetData_t(CTFILENAME("Animations\\BasicEffects.ani"));
       } catch (char *strError) {
-        WarningMessage(TRANS("Cannot load Animations\\BasicEffects.ani: %s"), strError);
+        WarningMessage(TRANSV("Cannot load Animations\\BasicEffects.ani: %s"), strError);
       }
       // play light animation
       if (m_aoLightAnimation.GetData()!=NULL) {

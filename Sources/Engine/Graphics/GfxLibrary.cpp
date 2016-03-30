@@ -13,7 +13,7 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include <Engine/StdH.h>
 
 #include <Engine/Graphics/GfxLibrary.h>
 
@@ -21,7 +21,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <Engine/Base/ErrorReporting.h>
 #include <Engine/Base/Console.h>
 #include <Engine/Base/Shell.h>
-#include <Engine/Base/Statistics_internal.h>
+#include <Engine/Base/Statistics_Internal.h>
 #include <Engine/Base/ListIterator.inl>
 #include <Engine/Math/Functions.h>
 #include <Engine/Math/AABBox.h>
@@ -29,6 +29,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <Engine/Sound/SoundLibrary.h>
 #include <Engine/Templates/Stock_CModelData.h>
 
+#include <Engine/Graphics/OpenGL.h>
 #include <Engine/Graphics/Adapter.h>
 #include <Engine/Graphics/ShadowMap.h>
 #include <Engine/Graphics/Texture.h>
@@ -45,6 +46,16 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <Engine/Templates/DynamicContainer.cpp>
 #include <Engine/Templates/Stock_CTextureData.h>
 
+// !!! FIXME: rcg10112001 This just screams to be broken up into subclasses.
+// !!! FIXME: rcg10112001  That would get rid of all the #ifdef'ing and
+// !!! FIXME: rcg10112001  the need to continually assert that the current
+// !!! FIXME: rcg10112001  driver type is valid.
+
+
+// !!! FIXME: rcg11052001  ... and I could get rid of this, too...
+#ifdef PLATFORM_UNIX
+#include <SDL.h>
+#endif
 
 // control for partial usage of compiled vertex arrays
 extern BOOL CVA_b2D     = FALSE;
@@ -84,7 +95,7 @@ static UWORD _auwGammaTable[256*3];
 
 // table for clipping [-512..+1024] to [0..255]
 static UBYTE aubClipByte[256*2+ 256 +256*3];
-extern const UBYTE *pubClipByte = &aubClipByte[256*2];
+const UBYTE *pubClipByte = &aubClipByte[256*2];
 
 // fast square root and 1/sqrt tables
 UBYTE aubSqrt[SQRTTABLESIZE];    
@@ -99,7 +110,7 @@ static BOOL GFX_bRenderingScene = FALSE;
 static ULONG GFX_ulLastDrawPortID = 0;  
 
 // last size of vertex buffers
-extern INDEX _iLastVertexBufferSize = 0;
+INDEX _iLastVertexBufferSize = 0;
 // pretouch flag
 extern BOOL _bNeedPretouch;
 
@@ -109,8 +120,8 @@ static ULONG _ulWhite = 0xFFFFFFFF;
 
 // fast sin/cos table
 static FLOAT afSinTable[256+256+64];
-extern const FLOAT *pfSinTable = afSinTable +256;
-extern const FLOAT *pfCosTable = afSinTable +256+64;
+const FLOAT *pfSinTable = afSinTable +256;
+const FLOAT *pfCosTable = afSinTable +256+64;
 
 // texture/shadow control
 extern INDEX tex_iNormalQuality    = 00;      // 0=optimal, 1=16bit, 2=32bit, 3=compressed (1st num=opaque tex, 2nd=alpha tex)
@@ -215,6 +226,15 @@ extern INDEX ter_bOptimizeRendering = TRUE;
 extern INDEX ter_bTempFreezeCast   = FALSE;
 extern INDEX ter_bNoRegeneration   = FALSE;
 
+// !!! FIXME : rcg11232001 Hhmm...I'm failing an assertion in the
+// !!! FIXME : rcg11232001 Advanced Rendering Options menu because
+// !!! FIXME : rcg11232001 Scripts/CustomOptions/GFX-AdvancedRendering.cfg
+// !!! FIXME : rcg11232001 references non-existing cvars, so I'm adding them
+// !!! FIXME : rcg11232001 here for now.
+static INDEX mdl_bRenderBump       = TRUE;
+static FLOAT ogl_fTextureAnisotropy = 0.0f;
+static FLOAT tex_fNormalSize = 0.0f;
+
 // rendering control
 extern INDEX wld_bAlwaysAddAll         = FALSE;
 extern INDEX wld_bRenderMirrors        = TRUE;
@@ -308,6 +328,7 @@ extern INDEX sys_bUsingDirect3D = 0;
 
 //#define LLMHF_INJECTED 0x00000001
 
+#ifdef PLATFORM_WIN32
 /*
  * Structure used by WH_KEYBOARD_LL
  */
@@ -373,6 +394,11 @@ void EnableWindowsKeys(void)
   // if( _hLLKeyHook!=NULL) UnhookWindowsHookEx(_hLLKeyHook);
 }
 
+#else
+    #define DisableWindowsKeys()
+    #define EnableWindowsKeys()
+#endif
+
 // texture size reporting
 
 static CTString ReportQuality( INDEX iQuality)
@@ -422,17 +448,17 @@ static void TexturesInfo(void)
   }}
 
   // report
-  const PIX pixNormDim = sqrt((FLOAT)TS.ts_pixNormSize);
-  const PIX pixAnimDim = sqrt((FLOAT)TS.ts_pixAnimSize);
+  const PIX pixNormDim = (PIX) (sqrt(TS.ts_pixNormSize));
+  const PIX pixAnimDim = (PIX) (sqrt(TS.ts_pixAnimSize));
   const PIX pixEffDim  = 1L<<tex_iEffectSize;
   CTString strTmp;
   strTmp = tex_bFineEffect ? "32-bit" : "16-bit";
   CPrintF( "\n");
-  CPrintF( "Normal-opaque textures quality:         %s\n", ReportQuality(TS.ts_iNormQualityO));
-  CPrintF( "Normal-translucent textures quality:    %s\n", ReportQuality(TS.ts_iNormQualityA));
-  CPrintF( "Animation-opaque textures quality:      %s\n", ReportQuality(TS.ts_iAnimQualityO));
-  CPrintF( "Animation-translucent textures quality: %s\n", ReportQuality(TS.ts_iAnimQualityA));
-  CPrintF( "Effect textures quality:                %s\n", strTmp);
+  CPrintF( "Normal-opaque textures quality:         %s\n", (const char *) ReportQuality(TS.ts_iNormQualityO));
+  CPrintF( "Normal-translucent textures quality:    %s\n", (const char *) ReportQuality(TS.ts_iNormQualityA));
+  CPrintF( "Animation-opaque textures quality:      %s\n", (const char *) ReportQuality(TS.ts_iAnimQualityO));
+  CPrintF( "Animation-translucent textures quality: %s\n", (const char *) ReportQuality(TS.ts_iAnimQualityA));
+  CPrintF( "Effect textures quality:                %s\n", (const char *) strTmp);
   CPrintF( "\n");
   CPrintF( "Max allowed normal texture area size:    %3dx%d\n", pixNormDim, pixNormDim);
   CPrintF( "Max allowed animation texture area size: %3dx%d\n", pixAnimDim, pixAnimDim);
@@ -486,8 +512,11 @@ static void GAPInfo(void)
 #endif // SE1_D3D
   CPrintF( "\n");
 
+  ASSERT( GfxValidApi(eAPI) );
+
+#ifdef PLATFORM_WIN32
   // in case of driver hasn't been initialized yet
-  if( (_pGfx->go_hglRC==NULL 
+  if( (_pGfx->go_hglRC==NULL
 #ifdef SE1_D3D
     && _pGfx->gl_pd3dDevice==NULL
 #endif // SE1_D3D
@@ -496,6 +525,14 @@ static void GAPInfo(void)
     CPrintF( TRANS("Display driver hasn't been initialized.\n\n"));
     return;
   }
+#else
+  // in case of driver hasn't been initialized yet
+  if (_pGfx->go_hglRC==NULL || eAPI==GAT_NONE) {
+    // be brief, be quick
+    CPrintF( TRANS("Display driver hasn't been initialized.\n\n"));
+    return;
+  }
+#endif
 
   // report API
   CPrintF( "- Graphics API: ");
@@ -507,9 +544,9 @@ static void GAPInfo(void)
 
   // report renderer
   CDisplayAdapter &da = _pGfx->gl_gaAPI[eAPI].ga_adaAdapter[_pGfx->gl_iCurrentAdapter];
-  if( eAPI==GAT_OGL) CPrintF( "- Vendor:   %s\n", da.da_strVendor);
-  CPrintF( "- Renderer: %s\n", da.da_strRenderer);
-  CPrintF( "- Version:  %s\n", da.da_strVersion);
+  if( eAPI==GAT_OGL) CPrintF( "- Vendor:   %s\n", (const char *) da.da_strVendor);
+  CPrintF( "- Renderer: %s\n", (const char *) da.da_strRenderer);
+  CPrintF( "- Version:  %s\n", (const char *) da.da_strVersion);
   CPrintF( "\n");
 
   // Z-buffer depth
@@ -562,7 +599,7 @@ static void GAPInfo(void)
         if( gap_bForceTruform) CPrintF( "(for all models)\n");
         else CPrintF( "(only for Truform-ready models)\n");
         CTString strNormalMode = ogl_bTruformLinearNormals ? "linear" : "quadratic";
-        CPrintF( "- Tesselation level: %d of %d (%s normals)\n", _pGfx->gl_iTessellationLevel, _pGfx->gl_iMaxTessellationLevel, strNormalMode);
+        CPrintF( "- Tesselation level: %d of %d (%s normals)\n", _pGfx->gl_iTessellationLevel, _pGfx->gl_iMaxTessellationLevel, (const char *) strNormalMode);
       } else CPrintF( "disabled\n");
     } else CPrintF( "not supported\n");
 
@@ -587,7 +624,7 @@ static void GAPInfo(void)
         CTString strEffect = "Partial anti-aliasing";
         if( ogl_iTBufferEffect<1) strEffect = "none";
         if( ogl_iTBufferEffect>1) strEffect = "Motion blur";
-        CPrintF( "%s (%d buffers used)\n", strEffect, _pGfx->go_ctSampleBuffers);
+        CPrintF( "%s (%d buffers used)\n", (const char *) strEffect, _pGfx->go_ctSampleBuffers);
       }
     }
 
@@ -601,8 +638,8 @@ static void GAPInfo(void)
         CTString strSep="";
         CPrintF( "enabled (for ");
         if( CVA_bWorld)  { CPrintF( "world");               strSep="/"; }
-        if( CVA_bModels) { CPrintF( "%smodels",    strSep); strSep="/"; }
-        if( CVA_b2D)     { CPrintF( "%sparticles", strSep); }
+        if( CVA_bModels) { CPrintF( "%smodels",    (const char *) strSep); strSep="/"; }
+        if( CVA_b2D)     { CPrintF( "%sparticles", (const char *) strSep); }
         CPrintF( ")\n");
       } else CPrintF( "disabled\n");
     } else CPrintF( "not supported\n");
@@ -613,9 +650,9 @@ static void GAPInfo(void)
     else {
       CTString strSep="";
       if( _pGfx->gl_ulFlags & GLF_EXTC_ARB)    { CPrintF( "ARB");                strSep=", "; }
-      if( _pGfx->gl_ulFlags & GLF_EXTC_S3TC)   { CPrintF( "%sS3TC",     strSep); strSep=", "; }
-      if( _pGfx->gl_ulFlags & GLF_EXTC_FXT1)   { CPrintF( "%sFTX1",     strSep); strSep=", "; }
-      if( _pGfx->gl_ulFlags & GLF_EXTC_LEGACY) { CPrintF( "%sold S3TC", strSep); }
+      if( _pGfx->gl_ulFlags & GLF_EXTC_S3TC)   { CPrintF( "%sS3TC",     (const char *) strSep); strSep=", "; }
+      if( _pGfx->gl_ulFlags & GLF_EXTC_FXT1)   { CPrintF( "%sFTX1",     (const char *) strSep); strSep=", "; }
+      if( _pGfx->gl_ulFlags & GLF_EXTC_LEGACY) { CPrintF( "%sold S3TC", (const char *) strSep); }
       CPrintF( "\n- Current texture compression system: ");
       switch( ogl_iTextureCompressionType) {
       case 0:   CPrintF( "none\n");         break;
@@ -645,11 +682,12 @@ static void GAPInfo(void)
     } */
     // report OpenGL externsions
     CPrintF("\n");
-    CPrintF("- Published extensions: %s", ReformatExtensionsString(_pGfx->go_strExtensions));
-    if( _pGfx->go_strWinExtensions != "") CPrintF("%s", ReformatExtensionsString(_pGfx->go_strWinExtensions));
-    CPrintF("\n- Supported extensions: %s\n", ReformatExtensionsString(_pGfx->go_strSupportedExtensions));
+    CPrintF("- Published extensions: %s", (const char *) ReformatExtensionsString(_pGfx->go_strExtensions));
+    if( _pGfx->go_strWinExtensions != "") CPrintF("%s", (const char *) ReformatExtensionsString(_pGfx->go_strWinExtensions));
+    CPrintF("\n- Supported extensions: %s\n", (const char *) ReformatExtensionsString(_pGfx->go_strSupportedExtensions));
   }
 
+#ifdef PLATFORM_WIN32
   // Direct3D only stuff
 #ifdef SE1_D3D
   if( eAPI==GAT_D3D)
@@ -708,6 +746,7 @@ static void GAPInfo(void)
     }
   }
 #endif // SE1_D3D
+#endif // PLATFORM_WIN32
 }
 
 
@@ -926,6 +965,46 @@ static void PrepareTables(void)
       aubGouraudConv[h*128+p] = (UBYTE)GouraudNormal(v);
     }
   }
+
+
+// !!! FIXME: rcg01082002
+// You can't count on these arrays to be identical on every system, due to
+//  floating point unit differences. This includes Linux and win32 on the
+//  x86 platform, and win32 debug builds vs. win32 release builds. Hell, I
+//  wouldn't be surprised if they gave different values between AMD and Intel
+//  processors. The tables generate identically between a win32 release and
+//  Linux release build at this point...except the Gouraud table, which has
+//  several minor variances. I recommend you get a table you like, use the
+//  below code to dump it to disk, and then make it a static array that you
+//  never need to calculate at runtime in the first place. Then you can remove
+//  this code and this godawful long comment.  :)
+#if 0
+  FILE *feh;
+
+  feh = fopen("aubClipByte.bin", "wb");
+  fwrite(aubClipByte, sizeof (aubClipByte), 1, feh);
+  fclose(feh);
+
+  feh = fopen("aubSqrt.bin", "wb");
+  fwrite(aubSqrt, sizeof (aubSqrt), 1, feh);
+  fclose(feh);
+
+  feh = fopen("auw1oSqrt.bin", "wb");
+  fwrite(auw1oSqrt, sizeof (auw1oSqrt), 1, feh);
+  fclose(feh);
+
+  feh = fopen("afSinTable.bin", "wb");
+  fwrite(afSinTable, sizeof (afSinTable), 1, feh);
+  fclose(feh);
+
+  feh = fopen("aubGouraudConv.bin", "wb");
+  fwrite(aubGouraudConv, sizeof (aubGouraudConv), 1, feh);
+  fclose(feh);
+
+printf("w00t.\n");
+exit(0);
+#endif
+
 }
 
 
@@ -1032,8 +1111,12 @@ void CGfxLibrary::Init(void)
 {
   ASSERT( this!=NULL);
 
+  // we will never allow glide splash screen
+  putenv( "FX_GLIDE_NO_SPLASH=1");
+
+#ifdef PLATFORM_WIN32
   // report desktop settings
-  CPrintF(TRANS("Desktop settings...\n"));
+  CPrintF(TRANSV("Desktop settings...\n"));
 
   HDC hdc = GetDC(NULL); 
   SLONG slBPP = GetDeviceCaps(hdc, PLANES) * GetDeviceCaps(hdc, BITSPIXEL); 
@@ -1041,10 +1124,16 @@ void CGfxLibrary::Init(void)
 
   gfx_ctMonitors = GetSystemMetrics(SM_CMONITORS);
 
-  CPrintF(TRANS("  Color Depth: %dbit\n"), slBPP);
-  CPrintF(TRANS("  Screen: %dx%d\n"), GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN));
-  CPrintF(TRANS("  Virtual screen: %dx%d\n"), GetSystemMetrics(SM_CXVIRTUALSCREEN), GetSystemMetrics(SM_CYVIRTUALSCREEN));
-  CPrintF(TRANS("  Monitors directly reported: %d\n"), gfx_ctMonitors);
+  CPrintF(TRANSV("  Color Depth: %dbit\n"), slBPP);
+  CPrintF(TRANSV("  Screen: %dx%d\n"), GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN));
+  CPrintF(TRANSV("  Virtual screen: %dx%d\n"), GetSystemMetrics(SM_CXVIRTUALSCREEN), GetSystemMetrics(SM_CYVIRTUALSCREEN));
+  CPrintF(TRANSV("  Monitors directly reported: %d\n"), gfx_ctMonitors);
+
+#else
+
+  gfx_ctMonitors = 1;
+
+#endif
 
   CPrintF("\n");
 
@@ -1056,87 +1145,70 @@ void CGfxLibrary::Init(void)
   putenv( "FX_GLIDE_NO_SPLASH=1");
 
   // declare some console vars
-  _pShell->DeclareSymbol("user void MonitorsOn(void);",  &MonitorsOn);
-  _pShell->DeclareSymbol("user void MonitorsOff(void);", &MonitorsOff);
+  _pShell->DeclareSymbol("user void MonitorsOn(void);",  (void *) &MonitorsOn);
+  _pShell->DeclareSymbol("user void MonitorsOff(void);", (void *) &MonitorsOff);
 
-  _pShell->DeclareSymbol("user void GAPInfo(void);",      &GAPInfo);
-  _pShell->DeclareSymbol("user void TexturesInfo(void);", &TexturesInfo);
-  _pShell->DeclareSymbol("user void UncacheShadows(void);",  &UncacheShadows);
-  _pShell->DeclareSymbol("user void RecacheShadows(void);",  &RecacheShadows);
-  _pShell->DeclareSymbol("user void RefreshTextures(void);", &RefreshTextures);
-  _pShell->DeclareSymbol("user void ReloadModels(void);",    &ReloadModels);
+  _pShell->DeclareSymbol("user void GAPInfo(void);", (void *) &GAPInfo);
+  _pShell->DeclareSymbol("user void TexturesInfo(void);", (void *) &TexturesInfo);
+  _pShell->DeclareSymbol("user void UncacheShadows(void);", (void *) &UncacheShadows);
+  _pShell->DeclareSymbol("user void RecacheShadows(void);", (void *) &RecacheShadows);
+  _pShell->DeclareSymbol("user void RefreshTextures(void);", (void *) &RefreshTextures);
+  _pShell->DeclareSymbol("user void ReloadModels(void);", (void *) &ReloadModels);
 
-  _pShell->DeclareSymbol("persistent user INDEX ogl_bUseCompiledVertexArrays;", &ogl_bUseCompiledVertexArrays);
-  _pShell->DeclareSymbol("persistent user INDEX ogl_bExclusive;", &ogl_bExclusive);
-  _pShell->DeclareSymbol("persistent user INDEX ogl_bAllowQuadArrays;",   &ogl_bAllowQuadArrays);
-  _pShell->DeclareSymbol("persistent user INDEX ogl_iTextureCompressionType;", &ogl_iTextureCompressionType);
-  _pShell->DeclareSymbol("persistent user INDEX ogl_iMaxBurstSize;",    &ogl_iMaxBurstSize);
-  _pShell->DeclareSymbol("persistent user INDEX ogl_bGrabDepthBuffer;", &ogl_bGrabDepthBuffer);
-  _pShell->DeclareSymbol("persistent user INDEX ogl_iFinish;", &ogl_iFinish);
+  _pShell->DeclareSymbol("persistent user INDEX ogl_bUseCompiledVertexArrays;", (void *) &ogl_bUseCompiledVertexArrays);
+  _pShell->DeclareSymbol("persistent user INDEX ogl_bExclusive;",    (void *) &ogl_bExclusive);
+  _pShell->DeclareSymbol("persistent user INDEX ogl_bAllowQuadArrays;",   (void *) &ogl_bAllowQuadArrays);
+  _pShell->DeclareSymbol("persistent user INDEX ogl_iTextureCompressionType;", (void *) &ogl_iTextureCompressionType);
+  _pShell->DeclareSymbol("persistent user INDEX ogl_iMaxBurstSize;", (void *) &ogl_iMaxBurstSize);
+  _pShell->DeclareSymbol("persistent user INDEX ogl_bGrabDepthBuffer;", (void *) &ogl_bGrabDepthBuffer);
+  _pShell->DeclareSymbol("persistent user INDEX ogl_iFinish;", (void *) &ogl_iFinish);
 
-  _pShell->DeclareSymbol("persistent user INDEX ogl_iTBufferEffect;",  &ogl_iTBufferEffect);
-  _pShell->DeclareSymbol("persistent user INDEX ogl_iTBufferSamples;", &ogl_iTBufferSamples);
-  _pShell->DeclareSymbol("persistent user INDEX ogl_bTruformLinearNormals;", &ogl_bTruformLinearNormals);
-  _pShell->DeclareSymbol("persistent user INDEX ogl_bAlternateClipPlane;",   &ogl_bAlternateClipPlane);
+  _pShell->DeclareSymbol("persistent user INDEX ogl_iTBufferEffect;",  (void *) &ogl_iTBufferEffect);
+  _pShell->DeclareSymbol("persistent user INDEX ogl_iTBufferSamples;", (void *) &ogl_iTBufferSamples);
+  _pShell->DeclareSymbol("persistent user INDEX ogl_bTruformLinearNormals;", (void *) &ogl_bTruformLinearNormals);
+  _pShell->DeclareSymbol("persistent user INDEX ogl_bAlternateClipPlane;",   (void *) &ogl_bAlternateClipPlane);
 
-  _pShell->DeclareSymbol("persistent user INDEX d3d_bUseHardwareTnL;", &d3d_bUseHardwareTnL);
-  _pShell->DeclareSymbol("persistent user INDEX d3d_iMaxBurstSize;",   &d3d_iMaxBurstSize);
-  _pShell->DeclareSymbol("persistent user INDEX d3d_iVertexBuffersSize;",   &d3d_iVertexBuffersSize);
-  _pShell->DeclareSymbol("persistent user INDEX d3d_iVertexRangeTreshold;", &d3d_iVertexRangeTreshold);
-  _pShell->DeclareSymbol("persistent user INDEX d3d_bAlternateDepthReads;", &d3d_bAlternateDepthReads);
-  _pShell->DeclareSymbol("persistent      INDEX d3d_bFastUpload;", &d3d_bFastUpload);
-  _pShell->DeclareSymbol("persistent user INDEX d3d_iFinish;", &d3d_iFinish);
+  _pShell->DeclareSymbol("persistent user INDEX d3d_bUseHardwareTnL;", (void *) &d3d_bUseHardwareTnL);
+  _pShell->DeclareSymbol("persistent user INDEX d3d_iMaxBurstSize;", (void *) &d3d_iMaxBurstSize);
+  _pShell->DeclareSymbol("persistent user INDEX d3d_iVertexBuffersSize;", (void *) &d3d_iVertexBuffersSize);
+  _pShell->DeclareSymbol("persistent user INDEX d3d_iVertexRangeTreshold;", (void *) &d3d_iVertexRangeTreshold);
+  _pShell->DeclareSymbol("persistent user INDEX d3d_bAlternateDepthReads;", (void *) &d3d_bAlternateDepthReads);
+  _pShell->DeclareSymbol("persistent user INDEX d3d_bOptimizeVertexBuffers;", (void *) &d3d_bOptimizeVertexBuffers);
+  _pShell->DeclareSymbol("persistent user INDEX d3d_iFinish;", (void *) &d3d_iFinish);
 
-  _pShell->DeclareSymbol("persistent user INDEX gap_iUseTextureUnits;",   &gap_iUseTextureUnits);
-  _pShell->DeclareSymbol("persistent user INDEX gap_iTextureFiltering;",  &gap_iTextureFiltering);
-  _pShell->DeclareSymbol("persistent user INDEX gap_iTextureAnisotropy;", &gap_iTextureAnisotropy);
-  _pShell->DeclareSymbol("persistent user FLOAT gap_fTextureLODBias;",    &gap_fTextureLODBias);
-  _pShell->DeclareSymbol("persistent user INDEX gap_bAllowGrayTextures;", &gap_bAllowGrayTextures);
-  _pShell->DeclareSymbol("persistent user INDEX gap_bAllowSingleMipmap;", &gap_bAllowSingleMipmap);
-  _pShell->DeclareSymbol("persistent user INDEX gap_bOptimizeStateChanges;", &gap_bOptimizeStateChanges);
-  _pShell->DeclareSymbol("persistent user INDEX gap_iOptimizeDepthReads;",   &gap_iOptimizeDepthReads);
-  _pShell->DeclareSymbol("persistent user INDEX gap_iOptimizeClipping;",     &gap_iOptimizeClipping);
-  _pShell->DeclareSymbol("persistent user INDEX gap_iSwapInterval;", &gap_iSwapInterval);
-  _pShell->DeclareSymbol("persistent user INDEX gap_iRefreshRate;",  &gap_iRefreshRate);
-  _pShell->DeclareSymbol("persistent user INDEX gap_iDithering;",    &gap_iDithering);
-  _pShell->DeclareSymbol("persistent user INDEX gap_bForceTruform;", &gap_bForceTruform);
-  _pShell->DeclareSymbol("persistent user INDEX gap_iTruformLevel;", &gap_iTruformLevel);
-  _pShell->DeclareSymbol("persistent user INDEX gap_iDepthBits;",   &gap_iDepthBits);
-  _pShell->DeclareSymbol("persistent user INDEX gap_iStencilBits;", &gap_iStencilBits);
+  _pShell->DeclareSymbol("persistent user INDEX gap_iUseTextureUnits;", (void *) &gap_iUseTextureUnits);
+  _pShell->DeclareSymbol("persistent user INDEX gap_iTextureFiltering;", (void *) &gap_iTextureFiltering);
+  _pShell->DeclareSymbol("persistent user INDEX gap_iTextureAnisotropy;", (void *) &gap_iTextureAnisotropy);
+  _pShell->DeclareSymbol("persistent user FLOAT gap_fTextureLODBias;", (void *) &gap_fTextureLODBias);
+  _pShell->DeclareSymbol("persistent user INDEX gap_bAllowGrayTextures;", (void *) &gap_bAllowGrayTextures);
+  _pShell->DeclareSymbol("persistent user INDEX gap_bAllowSingleMipmap;", (void *) &gap_bAllowSingleMipmap);
+  _pShell->DeclareSymbol("persistent user INDEX gap_bOptimizeStateChanges;", (void *) &gap_bOptimizeStateChanges);
+  _pShell->DeclareSymbol("persistent user INDEX gap_iOptimizeDepthReads;", (void *) &gap_iOptimizeDepthReads);
+  _pShell->DeclareSymbol("persistent user INDEX gap_iOptimizeClipping;", (void *) &gap_iOptimizeClipping);
+  _pShell->DeclareSymbol("persistent user INDEX gap_iSwapInterval;", (void *) &gap_iSwapInterval);
+  _pShell->DeclareSymbol("persistent user INDEX gap_iRefreshRate;", (void *) &gap_iRefreshRate);
+  _pShell->DeclareSymbol("persistent user INDEX gap_iDithering;", (void *) &gap_iDithering);
+  _pShell->DeclareSymbol("persistent user INDEX gap_bForceTruform;", (void *) &gap_bForceTruform);
+  _pShell->DeclareSymbol("persistent user INDEX gap_iTruformLevel;", (void *) &gap_iTruformLevel);
+  _pShell->DeclareSymbol("persistent user INDEX gap_iDepthBits;", (void *) &gap_iDepthBits);
+  _pShell->DeclareSymbol("persistent user INDEX gap_iStencilBits;", (void *) &gap_iStencilBits);
 
-  _pShell->DeclareSymbol("void MdlPostFunc(INDEX);", &MdlPostFunc);
+  _pShell->DeclareSymbol("void MdlPostFunc(INDEX);", (void *) &MdlPostFunc);
 
-  _pShell->DeclareSymbol("           user INDEX gfx_bRenderPredicted;", &gfx_bRenderPredicted);
-  _pShell->DeclareSymbol("           user INDEX gfx_bRenderModels;",    &gfx_bRenderModels);
-  _pShell->DeclareSymbol("           user INDEX mdl_bShowTriangles;", &mdl_bShowTriangles);
-  _pShell->DeclareSymbol("           user INDEX mdl_bCreateStrips;",  &mdl_bCreateStrips);
-  _pShell->DeclareSymbol("           user INDEX mdl_bShowStrips;",    &mdl_bShowStrips);
-  _pShell->DeclareSymbol("persistent user FLOAT mdl_fLODMul;",       &mdl_fLODMul);
-  _pShell->DeclareSymbol("persistent user FLOAT mdl_fLODAdd;",       &mdl_fLODAdd);
-  _pShell->DeclareSymbol("persistent user INDEX mdl_iLODDisappear;", &mdl_iLODDisappear);
-  _pShell->DeclareSymbol("persistent user INDEX mdl_bRenderDetail;",     &mdl_bRenderDetail);
-  _pShell->DeclareSymbol("persistent user INDEX mdl_bRenderSpecular;",   &mdl_bRenderSpecular);
-  _pShell->DeclareSymbol("persistent user INDEX mdl_bRenderReflection;", &mdl_bRenderReflection);
-  _pShell->DeclareSymbol("persistent user INDEX mdl_bAllowOverbright;",  &mdl_bAllowOverbright);
-  _pShell->DeclareSymbol("persistent user INDEX mdl_bFineQuality post:MdlPostFunc;", &mdl_bFineQuality);
-  _pShell->DeclareSymbol("persistent user INDEX mdl_iShadowQuality;",  &mdl_iShadowQuality);
-  _pShell->DeclareSymbol("                INDEX mdl_bTruformWeapons;", &mdl_bTruformWeapons);
-  
-  _pShell->DeclareSymbol("           user INDEX ska_bShowSkeleton;",   &ska_bShowSkeleton);
-  _pShell->DeclareSymbol("           user INDEX ska_bShowColision;",   &ska_bShowColision);
-  _pShell->DeclareSymbol("persistent user FLOAT ska_fLODMul;",         &ska_fLODMul);
-  _pShell->DeclareSymbol("persistent user FLOAT ska_fLODAdd;",         &ska_fLODAdd);
-  
-  _pShell->DeclareSymbol("           user INDEX ter_bShowQuadTree;",   &ter_bShowQuadTree);
-  _pShell->DeclareSymbol("           user INDEX ter_bShowWireframe;",  &ter_bShowWireframe);
-  _pShell->DeclareSymbol("           user INDEX ter_bLerpVertices;",   &ter_bLerpVertices);
-  _pShell->DeclareSymbol("           user INDEX ter_bShowInfo;",       &ter_bShowInfo);
-  _pShell->DeclareSymbol("           user INDEX ter_bOptimizeRendering;", &ter_bOptimizeRendering);
-  _pShell->DeclareSymbol("           user INDEX ter_bTempFreezeCast;   ", &ter_bTempFreezeCast);
-  _pShell->DeclareSymbol("           user INDEX ter_bNoRegeneration;   ", &ter_bNoRegeneration);
-  
-  
-  
+  _pShell->DeclareSymbol("           user INDEX gfx_bRenderPredicted;", (void *) &gfx_bRenderPredicted);
+  _pShell->DeclareSymbol("           user INDEX gfx_bRenderModels;", (void *) &gfx_bRenderModels);
+  _pShell->DeclareSymbol("           user INDEX mdl_bShowTriangles;", (void *) &mdl_bShowTriangles);
+  _pShell->DeclareSymbol("           user INDEX mdl_bCreateStrips;", (void *) &mdl_bCreateStrips);
+  _pShell->DeclareSymbol("           user INDEX mdl_bShowStrips;", (void *) &mdl_bShowStrips);
+  _pShell->DeclareSymbol("persistent user FLOAT mdl_fLODMul;", (void *) &mdl_fLODMul);
+  _pShell->DeclareSymbol("persistent user FLOAT mdl_fLODAdd;", (void *) &mdl_fLODAdd);
+  _pShell->DeclareSymbol("persistent user INDEX mdl_iLODDisappear;", (void *) &mdl_iLODDisappear);
+  _pShell->DeclareSymbol("persistent user INDEX mdl_bRenderDetail;", (void *) &mdl_bRenderDetail);
+  _pShell->DeclareSymbol("persistent user INDEX mdl_bRenderSpecular;", (void *) &mdl_bRenderSpecular);
+  _pShell->DeclareSymbol("persistent user INDEX mdl_bRenderReflection;", (void *) &mdl_bRenderReflection);
+  _pShell->DeclareSymbol("persistent user INDEX mdl_bAllowOverbright;", (void *) &mdl_bAllowOverbright);
+  _pShell->DeclareSymbol("persistent user INDEX mdl_bFineQuality post:MdlPostFunc;", (void *) &mdl_bFineQuality);
+  _pShell->DeclareSymbol("persistent user INDEX mdl_iShadowQuality;", (void *) &mdl_iShadowQuality);
 
   _pShell->DeclareSymbol("persistent user FLOAT gfx_tmProbeDecay;", &gfx_tmProbeDecay);
   _pShell->DeclareSymbol("persistent user INDEX gfx_iProbeSize;",   &gfx_iProbeSize);
@@ -1147,89 +1219,114 @@ void CGfxLibrary::Init(void)
   _pShell->DeclareSymbol("     const user INDEX gfx_ctMonitors;",        &gfx_ctMonitors);
   _pShell->DeclareSymbol("     const user INDEX gfx_bMultiMonDisabled;", &gfx_bMultiMonDisabled);
 
-  _pShell->DeclareSymbol("persistent user INDEX tex_iNormalQuality;",    &tex_iNormalQuality);
-  _pShell->DeclareSymbol("persistent user INDEX tex_iAnimationQuality;", &tex_iAnimationQuality);
-  _pShell->DeclareSymbol("persistent user INDEX tex_bFineEffect;",       &tex_bFineEffect);
-  _pShell->DeclareSymbol("persistent user INDEX tex_bFineFog;",          &tex_bFineFog);
-  _pShell->DeclareSymbol("persistent user INDEX tex_iNormalSize;",    &tex_iNormalSize);
-  _pShell->DeclareSymbol("persistent user INDEX tex_iAnimationSize;", &tex_iAnimationSize);
-  _pShell->DeclareSymbol("persistent user INDEX tex_iEffectSize;",    &tex_iEffectSize);
-  _pShell->DeclareSymbol("persistent user INDEX tex_iFogSize;",       &tex_iFogSize);
+
+    // !!! FIXME : rcg11232001 Hhmm...I'm failing an assertion in the
+    // !!! FIXME : rcg11232001 Advanced Rendering Options menu because
+    // !!! FIXME : rcg11232001 Scripts/CustomOptions/GFX-AdvancedRendering.cfg
+    // !!! FIXME : rcg11232001 references non-existing cvars, so I'm adding
+    // !!! FIXME : rcg11232001 them here for now.
+//  _pShell->DeclareSymbol("persistent user INDEX mdl_bRenderBump;", (void *) &mdl_bRenderBump);
+//  _pShell->DeclareSymbol("persistent user FLOAT ogl_fTextureAnisotropy;", (void *) &ogl_fTextureAnisotropy);
+  _pShell->DeclareSymbol("persistent user FLOAT tex_fNormalSize;", (void *) &tex_fNormalSize);
+
+
+
+
+  _pShell->DeclareSymbol("                INDEX mdl_bTruformWeapons;", (void *) &mdl_bTruformWeapons);
+
+  _pShell->DeclareSymbol("persistent user FLOAT gfx_tmProbeDecay;", (void *) &gfx_tmProbeDecay);
+  _pShell->DeclareSymbol("persistent user INDEX gfx_iProbeSize;",   (void *) &gfx_iProbeSize);
+  _pShell->DeclareSymbol("persistent user INDEX gfx_bClearScreen;", (void *) &gfx_bClearScreen);
+  _pShell->DeclareSymbol("persistent user INDEX gfx_bDisableMultiMonSupport;", (void *) &gfx_bDisableMultiMonSupport);
+
+  _pShell->DeclareSymbol("persistent user INDEX gfx_bDisableWindowsKeys;", (void *) &gfx_bDisableWindowsKeys);
+  _pShell->DeclareSymbol("persistent user INDEX gfx_bDecoratedText;", (void *) &gfx_bDecoratedText);
+  _pShell->DeclareSymbol("     const user INDEX gfx_ctMonitors;", (void *) &gfx_ctMonitors);
+  _pShell->DeclareSymbol("     const user INDEX gfx_bMultiMonDisabled;", (void *) &gfx_bMultiMonDisabled);
+
+  _pShell->DeclareSymbol("persistent user INDEX tex_iNormalQuality;", (void *) &tex_iNormalQuality);
+  _pShell->DeclareSymbol("persistent user INDEX tex_iAnimationQuality;", (void *) &tex_iAnimationQuality);
+  _pShell->DeclareSymbol("persistent user INDEX tex_iNormalSize;", (void *) &tex_iNormalSize);
+  _pShell->DeclareSymbol("persistent user INDEX tex_iAnimationSize;", (void *) &tex_iAnimationSize);
+  _pShell->DeclareSymbol("persistent user INDEX tex_iEffectSize;", (void *) &tex_iEffectSize);
+  _pShell->DeclareSymbol("persistent user INDEX tex_bFineEffect;", (void *) &tex_bFineEffect);
+  _pShell->DeclareSymbol("persistent user INDEX tex_bFineFog;", (void *) &tex_bFineFog);
+  _pShell->DeclareSymbol("persistent user INDEX tex_iFogSize;", (void *) &tex_iFogSize);
+
   _pShell->DeclareSymbol("persistent user INDEX tex_bCompressAlphaChannel;", &tex_bCompressAlphaChannel);
   _pShell->DeclareSymbol("persistent user INDEX tex_bAlternateCompression;", &tex_bAlternateCompression);
   _pShell->DeclareSymbol("persistent user INDEX tex_bDynamicMipmaps;", &tex_bDynamicMipmaps);
-  _pShell->DeclareSymbol("persistent user INDEX tex_iDithering;",  &tex_iDithering);
-  _pShell->DeclareSymbol("persistent user INDEX tex_iFiltering;",  &tex_iFiltering);
-  _pShell->DeclareSymbol("persistent user INDEX tex_iEffectFiltering;",   &tex_iEffectFiltering);
-  _pShell->DeclareSymbol("persistent user INDEX tex_bProgressiveFilter;", &tex_bProgressiveFilter);
-  _pShell->DeclareSymbol("           user INDEX tex_bColorizeMipmaps;",   &tex_bColorizeMipmaps);
+  _pShell->DeclareSymbol("persistent user INDEX tex_iDithering;",  (void *) &tex_iDithering);
+  _pShell->DeclareSymbol("persistent user INDEX tex_iFiltering;",  (void *) &tex_iFiltering);
+  _pShell->DeclareSymbol("persistent user INDEX tex_iEffectFiltering;", (void *) &tex_iEffectFiltering);
+  _pShell->DeclareSymbol("persistent user INDEX tex_bProgressiveFilter;", (void *) &tex_bProgressiveFilter);
+  _pShell->DeclareSymbol("           user INDEX tex_bColorizeMipmaps;", (void *) &tex_bColorizeMipmaps);
 
-  _pShell->DeclareSymbol("persistent user INDEX shd_iStaticSize;",   &shd_iStaticSize);
-  _pShell->DeclareSymbol("persistent user INDEX shd_iDynamicSize;",  &shd_iDynamicSize);
-  _pShell->DeclareSymbol("persistent user INDEX shd_bFineQuality;",  &shd_bFineQuality);
-  _pShell->DeclareSymbol("persistent user INDEX shd_iAllowDynamic;", &shd_iAllowDynamic);
-  _pShell->DeclareSymbol("persistent user INDEX shd_bDynamicMipmaps;", &shd_bDynamicMipmaps);
-  _pShell->DeclareSymbol("persistent user INDEX shd_iFiltering;", &shd_iFiltering);
-  _pShell->DeclareSymbol("persistent user INDEX shd_iDithering;", &shd_iDithering);
-  _pShell->DeclareSymbol("persistent user FLOAT shd_tmFlushDelay;", &shd_tmFlushDelay);
-  _pShell->DeclareSymbol("persistent user FLOAT shd_fCacheSize;",   &shd_fCacheSize);
-  _pShell->DeclareSymbol("persistent user INDEX shd_bCacheAll;",    &shd_bCacheAll);
-  _pShell->DeclareSymbol("persistent user INDEX shd_bAllowFlats;", &shd_bAllowFlats);
-  _pShell->DeclareSymbol("persistent      INDEX shd_iForceFlats;", &shd_iForceFlats);
-  _pShell->DeclareSymbol("           user INDEX shd_bShowFlats;",  &shd_bShowFlats);
-  _pShell->DeclareSymbol("           user INDEX shd_bColorize;",   &shd_bColorize);
+  _pShell->DeclareSymbol("persistent user INDEX shd_iStaticSize;", (void *) &shd_iStaticSize);
+  _pShell->DeclareSymbol("persistent user INDEX shd_iDynamicSize;", (void *) &shd_iDynamicSize);
+  _pShell->DeclareSymbol("persistent user INDEX shd_bFineQuality;",  (void *) &shd_bFineQuality);
+  _pShell->DeclareSymbol("persistent user INDEX shd_iAllowDynamic;", (void *) &shd_iAllowDynamic);
+  _pShell->DeclareSymbol("persistent user INDEX shd_bDynamicMipmaps;", (void *) &shd_bDynamicMipmaps);
+  _pShell->DeclareSymbol("persistent user INDEX shd_iFiltering;", (void *) &shd_iFiltering);
+  _pShell->DeclareSymbol("persistent user INDEX shd_iDithering;", (void *) &shd_iDithering);
+  _pShell->DeclareSymbol("persistent user FLOAT shd_tmFlushDelay;", (void *) &shd_tmFlushDelay);
+  _pShell->DeclareSymbol("persistent user FLOAT shd_fCacheSize;",   (void *) &shd_fCacheSize);
+  _pShell->DeclareSymbol("persistent user INDEX shd_bCacheAll;",    (void *) &shd_bCacheAll);
+  _pShell->DeclareSymbol("persistent user INDEX shd_bAllowFlats;",  (void *) &shd_bAllowFlats);
+  _pShell->DeclareSymbol("persistent      INDEX shd_iForceFlats;", (void *) &shd_iForceFlats);
+  _pShell->DeclareSymbol("           user INDEX shd_bShowFlats;", (void *) &shd_bShowFlats);
+  _pShell->DeclareSymbol("           user INDEX shd_bColorize;",  (void *) &shd_bColorize);
   
-  _pShell->DeclareSymbol("           user INDEX gfx_bRenderParticles;", &gfx_bRenderParticles);
-  _pShell->DeclareSymbol("           user INDEX gfx_bRenderFog;",       &gfx_bRenderFog);
-  _pShell->DeclareSymbol("           user INDEX gfx_bRenderWorld;",     &gfx_bRenderWorld);
-  _pShell->DeclareSymbol("persistent user INDEX gfx_iLensFlareQuality;", &gfx_iLensFlareQuality);
-  _pShell->DeclareSymbol("persistent user INDEX wld_bTextureLayers;", &wld_bTextureLayers);
-  _pShell->DeclareSymbol("persistent user INDEX wld_bRenderMirrors;", &wld_bRenderMirrors);
-  _pShell->DeclareSymbol("persistent user FLOAT wld_fEdgeOffsetI;",   &wld_fEdgeOffsetI);
-  _pShell->DeclareSymbol("persistent user FLOAT wld_fEdgeAdjustK;",   &wld_fEdgeAdjustK);
-  _pShell->DeclareSymbol("persistent user INDEX wld_iDetailRemovingBias;", &wld_iDetailRemovingBias);
-  _pShell->DeclareSymbol("           user INDEX wld_bRenderEmptyBrushes;", &wld_bRenderEmptyBrushes);
-  _pShell->DeclareSymbol("           user INDEX wld_bRenderShadowMaps;",   &wld_bRenderShadowMaps);
-  _pShell->DeclareSymbol("           user INDEX wld_bRenderTextures;",     &wld_bRenderTextures);
+  _pShell->DeclareSymbol("           user INDEX gfx_bRenderParticles;", (void *) &gfx_bRenderParticles);
+  _pShell->DeclareSymbol("           user INDEX gfx_bRenderFog;", (void *) &gfx_bRenderFog);
+  _pShell->DeclareSymbol("           user INDEX gfx_bRenderWorld;", (void *) &gfx_bRenderWorld);
+  _pShell->DeclareSymbol("persistent user INDEX gfx_iLensFlareQuality;", (void *) &gfx_iLensFlareQuality);
+  _pShell->DeclareSymbol("persistent user INDEX wld_bTextureLayers;", (void *) &wld_bTextureLayers);
+  _pShell->DeclareSymbol("persistent user INDEX wld_bRenderMirrors;", (void *) &wld_bRenderMirrors);
+  _pShell->DeclareSymbol("persistent user FLOAT wld_fEdgeOffsetI;",   (void *) &wld_fEdgeOffsetI);
+  _pShell->DeclareSymbol("persistent user FLOAT wld_fEdgeAdjustK;",   (void *) &wld_fEdgeAdjustK);
+  _pShell->DeclareSymbol("persistent user INDEX wld_iDetailRemovingBias;", (void *) &wld_iDetailRemovingBias);
+  _pShell->DeclareSymbol("           user INDEX wld_bRenderEmptyBrushes;", (void *) &wld_bRenderEmptyBrushes);
+  _pShell->DeclareSymbol("           user INDEX wld_bRenderShadowMaps;", (void *) &wld_bRenderShadowMaps);
+  _pShell->DeclareSymbol("           user INDEX wld_bRenderTextures;", (void *) &wld_bRenderTextures);
   _pShell->DeclareSymbol("           user INDEX wld_bRenderDetailPolygons;", &wld_bRenderDetailPolygons);
-  _pShell->DeclareSymbol("           user INDEX wld_bShowTriangles;",        &wld_bShowTriangles);
-  _pShell->DeclareSymbol("           user INDEX wld_bShowDetailTextures;",   &wld_bShowDetailTextures);
+  _pShell->DeclareSymbol("           user INDEX wld_bShowTriangles;", (void *) &wld_bShowTriangles);
+  _pShell->DeclareSymbol("           user INDEX wld_bShowDetailTextures;", (void *) &wld_bShowDetailTextures);
 
-  _pShell->DeclareSymbol("           user INDEX wed_bIgnoreTJunctions;", &wed_bIgnoreTJunctions);
-  _pShell->DeclareSymbol("persistent user INDEX wed_bUseBaseForReplacement;", &wed_bUseBaseForReplacement);
+  _pShell->DeclareSymbol("           user INDEX wed_bIgnoreTJunctions;", (void *) &wed_bIgnoreTJunctions);
+  _pShell->DeclareSymbol("persistent user INDEX wed_bUseBaseForReplacement;", (void *) &wed_bUseBaseForReplacement);
 
+  _pShell->DeclareSymbol("persistent user INDEX tex_iHueShift;", (void *) &tex_iHueShift);
+  _pShell->DeclareSymbol("persistent user FLOAT tex_fSaturation;", (void *) &tex_fSaturation);
+  _pShell->DeclareSymbol("persistent user INDEX shd_iHueShift;", (void *) &shd_iHueShift);
+  _pShell->DeclareSymbol("persistent user FLOAT shd_fSaturation;", (void *) &shd_fSaturation);
+  _pShell->DeclareSymbol("persistent user INDEX gfx_iHueShift;", (void *) &gfx_iHueShift);
+  _pShell->DeclareSymbol("persistent user FLOAT gfx_fSaturation;", (void *) &gfx_fSaturation);
+  _pShell->DeclareSymbol("persistent user FLOAT gfx_fBrightness;", (void *) &gfx_fBrightness);
+  _pShell->DeclareSymbol("persistent user FLOAT gfx_fContrast;", (void *) &gfx_fContrast);
+  _pShell->DeclareSymbol("persistent user FLOAT gfx_fGamma;", (void *) &gfx_fGamma);
+  _pShell->DeclareSymbol("persistent user FLOAT gfx_fBiasR;", (void *) &gfx_fBiasR);
+  _pShell->DeclareSymbol("persistent user FLOAT gfx_fBiasG;", (void *) &gfx_fBiasG);
+  _pShell->DeclareSymbol("persistent user FLOAT gfx_fBiasB;", (void *) &gfx_fBiasB);
+  _pShell->DeclareSymbol("persistent user INDEX gfx_iLevels;", (void *) &gfx_iLevels);
 
-  _pShell->DeclareSymbol("persistent user INDEX tex_iHueShift;",   &tex_iHueShift);
-  _pShell->DeclareSymbol("persistent user FLOAT tex_fSaturation;", &tex_fSaturation);
-  _pShell->DeclareSymbol("persistent user INDEX shd_iHueShift;",   &shd_iHueShift);
-  _pShell->DeclareSymbol("persistent user FLOAT shd_fSaturation;", &shd_fSaturation);
-  _pShell->DeclareSymbol("persistent user INDEX gfx_iHueShift;",   &gfx_iHueShift);
-  _pShell->DeclareSymbol("persistent user FLOAT gfx_fSaturation;", &gfx_fSaturation);
-  _pShell->DeclareSymbol("persistent user FLOAT gfx_fBrightness;", &gfx_fBrightness);
-  _pShell->DeclareSymbol("persistent user FLOAT gfx_fContrast;",   &gfx_fContrast);
-  _pShell->DeclareSymbol("persistent user FLOAT gfx_fGamma;",      &gfx_fGamma);
-  _pShell->DeclareSymbol("persistent user FLOAT gfx_fBiasR;",  &gfx_fBiasR);
-  _pShell->DeclareSymbol("persistent user FLOAT gfx_fBiasG;",  &gfx_fBiasG);
-  _pShell->DeclareSymbol("persistent user FLOAT gfx_fBiasB;",  &gfx_fBiasB);
-  _pShell->DeclareSymbol("persistent user INDEX gfx_iLevels;", &gfx_iLevels);
+  _pShell->DeclareSymbol("persistent user INDEX gfx_iStereo;", (void *) &gfx_iStereo);
+  _pShell->DeclareSymbol("persistent user INDEX gfx_bStereoInvert;", (void *) &gfx_bStereoInvert);
+  _pShell->DeclareSymbol("persistent user INDEX gfx_iStereoOffset;", (void *) &gfx_iStereoOffset);
+  _pShell->DeclareSymbol("persistent user FLOAT gfx_fStereoSeparation;", (void *) &gfx_fStereoSeparation);
 
-  _pShell->DeclareSymbol("persistent user INDEX gfx_iStereo;", &gfx_iStereo);
-  _pShell->DeclareSymbol("persistent user INDEX gfx_bStereoInvert;", &gfx_bStereoInvert);
-  _pShell->DeclareSymbol("persistent user INDEX gfx_iStereoOffset;", &gfx_iStereoOffset);
-  _pShell->DeclareSymbol("persistent user FLOAT gfx_fStereoSeparation;", &gfx_fStereoSeparation);
-
-  _pShell->DeclareSymbol( "INDEX sys_bHasTextureCompression;", &sys_bHasTextureCompression);
-  _pShell->DeclareSymbol( "INDEX sys_bHasTextureAnisotropy;", &sys_bHasTextureAnisotropy);
-  _pShell->DeclareSymbol( "INDEX sys_bHasAdjustableGamma;", &sys_bHasAdjustableGamma);
-  _pShell->DeclareSymbol( "INDEX sys_bHasTextureLODBias;", &sys_bHasTextureLODBias);
-  _pShell->DeclareSymbol( "INDEX sys_bHasMultitexturing;", &sys_bHasMultitexturing);
-  _pShell->DeclareSymbol( "INDEX sys_bHas32bitTextures;", &sys_bHas32bitTextures);
-  _pShell->DeclareSymbol( "INDEX sys_bHasSwapInterval;", &sys_bHasSwapInterval);
-  _pShell->DeclareSymbol( "INDEX sys_bHasHardwareTnL;", &sys_bHasHardwareTnL);
-  _pShell->DeclareSymbol( "INDEX sys_bHasTruform;", &sys_bHasTruform);
-  _pShell->DeclareSymbol( "INDEX sys_bHasCVAs;", &sys_bHasCVAs);
-  _pShell->DeclareSymbol( "INDEX sys_bUsingOpenGL;",   &sys_bUsingOpenGL);
-  _pShell->DeclareSymbol( "INDEX sys_bUsingDirect3D;", &sys_bUsingDirect3D);
+  _pShell->DeclareSymbol( "INDEX sys_bHasTextureCompression;", (void *) &sys_bHasTextureCompression);
+  _pShell->DeclareSymbol( "INDEX sys_bHasTextureAnisotropy;", (void *) &sys_bHasTextureAnisotropy);
+  _pShell->DeclareSymbol( "INDEX sys_bHasAdjustableGamma;", (void *) &sys_bHasAdjustableGamma);
+  _pShell->DeclareSymbol( "INDEX sys_bHasTextureLODBias;", (void *) &sys_bHasTextureLODBias);
+  _pShell->DeclareSymbol( "INDEX sys_bHasMultitexturing;", (void *) &sys_bHasMultitexturing);
+  _pShell->DeclareSymbol( "INDEX sys_bHas32bitTextures;", (void *) &sys_bHas32bitTextures);
+  _pShell->DeclareSymbol( "INDEX sys_bHasSwapInterval;", (void *) &sys_bHasSwapInterval);
+  _pShell->DeclareSymbol( "INDEX sys_bHasHardwareTnL;", (void *) &sys_bHasHardwareTnL);
+  _pShell->DeclareSymbol( "INDEX sys_bHasTruform;", (void *) &sys_bHasTruform);
+  _pShell->DeclareSymbol( "INDEX sys_bHasCVAs;", (void *) &sys_bHasCVAs);
+  _pShell->DeclareSymbol( "INDEX sys_bUsingOpenGL;",  (void *) &sys_bUsingOpenGL);
+  _pShell->DeclareSymbol( "INDEX sys_bUsingDirect3D;", (void *) &sys_bUsingDirect3D);
 
   // initialize gfx APIs support
   InitAPIs();
@@ -1339,6 +1436,28 @@ BOOL CGfxLibrary::StartDisplayMode( enum GfxAPIType eAPI, INDEX iAdapter, PIX pi
       CDS_ResetMode();
     }
     // startup OpenGL
+
+// !!! FIXME : Do something with this.
+#ifdef PLATFORM_UNIX
+  gl_dmCurrentDisplayMode.dm_pixSizeI = pixSizeI;
+  gl_dmCurrentDisplayMode.dm_pixSizeJ = pixSizeJ;
+  Uint8 bpp;
+  switch(eColorDepth) {
+  case DD_DEFAULT:
+    gl_iCurrentDepth = 0;
+    break;
+  case DD_16BIT:
+    gl_iCurrentDepth = 16;
+    break;
+  case DD_32BIT:
+    gl_iCurrentDepth = 32;
+    break;
+  default:
+    ASSERT(FALSE);
+    NOTHING;
+  }
+#endif
+
     bSuccess = InitDriver_OGL(iAdapter!=0);
     // try to setup sub-driver
     if( !bSuccess) {
@@ -1403,21 +1522,25 @@ void CGfxLibrary::StopDisplayMode(void)
     MonitorsOn();       // re-enable multimonitor support if disabled
     CDS_ResetMode();
   }
-#ifdef SE1_D3D
+
+#ifdef PLATFORM_WIN32
   else if( gl_eCurrentAPI==GAT_D3D)
   { // Direct3D
     EndDriver_D3D();
     MonitorsOn();
   }
-#endif // SE1_D3D
+#endif
+
   else
   { // none
     ASSERT( gl_eCurrentAPI==GAT_NONE);
   }
 
   // free driver DLL
-  if( gl_hiDriver!=NONE) FreeLibrary(gl_hiDriver);
-  gl_hiDriver = NONE;
+  if (gl_hiDriver != NULL)
+    delete gl_hiDriver;
+
+  gl_hiDriver = NULL;
 
   // reset some vars
   gl_ctRealTextureUnits = 0;
@@ -1521,10 +1644,17 @@ void CGfxLibrary::CreateWindowCanvas(void *hWnd, CViewPort **ppvpNew, CDrawPort 
 {
   RECT rectWindow;	// rectangle for the client area of the window
 
-	// get the dimensions from the window
+  // get the dimensions from the window
+// !!! FIXME : rcg11052001 Abstract this.
+#ifdef PLATFORM_WIN32
   GetClientRect( (HWND)hWnd, &rectWindow);
   PIX pixWidth  = rectWindow.right  - rectWindow.left;
-	PIX pixHeight = rectWindow.bottom - rectWindow.top;
+  PIX pixHeight = rectWindow.bottom - rectWindow.top;
+#else
+  SDL_Surface *screen = SDL_GetVideoSurface();
+  PIX pixWidth  = screen->w;
+  PIX pixHeight = screen->h;
+#endif
 
   *ppvpNew = NULL;
   *ppdpNew = NULL;
@@ -1547,6 +1677,7 @@ void CGfxLibrary::DestroyWindowCanvas(CViewPort *pvpOld) {
 /////////////////////////////////////////////////////////////////////
 // Work canvas functions
 
+#ifdef PLATFORM_WIN32
 #define WorkCanvasCLASS "WorkCanvas Window"
 static BOOL _bClassRegistered = FALSE;
 
@@ -1601,15 +1732,14 @@ void CGfxLibrary::DestroyWorkCanvas(CDrawPort *pdpOld)
   DestroyWindowCanvas(pvp);
   ::DestroyWindow(hwnd);
 }
-
-
+#endif
 
 // optimize memory used by cached shadow maps
 
 #define SHADOWMAXBYTES (256*256*4*4/3)
 static SLONG slCachedShadowMemory=0, slDynamicShadowMemory=0;
 static INDEX ctCachedShadows=0, ctFlatShadows=0, ctDynamicShadows=0;
-extern BOOL _bShadowsUpdated = TRUE;
+BOOL _bShadowsUpdated = TRUE;
 
 void CGfxLibrary::ReduceShadows(void)
 {
@@ -1699,11 +1829,11 @@ void CGfxLibrary::ReduceShadows(void)
 
 
 // some vars for probing
-extern INDEX _ctProbeTexs = 0;
-extern INDEX _ctProbeShdU = 0;
-extern INDEX _ctProbeShdB = 0;
-extern INDEX _ctFullShdU  = 0;
-extern SLONG _slFullShdUBytes = 0;
+INDEX _ctProbeTexs = 0;
+INDEX _ctProbeShdU = 0;
+INDEX _ctProbeShdB = 0;
+INDEX _ctFullShdU  = 0;
+SLONG _slFullShdUBytes = 0;
 static BOOL GenerateGammaTable(void);
 
 
@@ -1756,8 +1886,14 @@ void CGfxLibrary::SwapBuffers(CViewPort *pvp)
       }
     }
     // swap buffers
+
+// !!! FIXME: Move this to platform-specific directories.
+#ifdef PLATFORM_WIN32
     CTempDC tdc(pvp->vp_hWnd);
     pwglSwapBuffers(tdc.hdc);
+#else
+    SDL_GL_SwapBuffers();
+#endif
 
     // force finishing of all rendering operations (if required)
     if( ogl_iFinish==3) gfxFinish();
@@ -1867,6 +2003,7 @@ void CGfxLibrary::SwapBuffers(CViewPort *pvp)
   //pvp->vp_Raster.ra_MainDrawPort.FillZBuffer(ZBUF_BACK);
 
   // adjust gamma table if supported ...
+#ifdef PLATFORM_WIN32
   if( gl_ulFlags & GLF_ADJUSTABLEGAMMA) {
     // ... and required
     const BOOL bTableSet = GenerateGammaTable();
@@ -1882,8 +2019,10 @@ void CGfxLibrary::SwapBuffers(CViewPort *pvp)
 #endif // SE1_D3D
     }
   }
+  else
+#endif
   // if not supported
-  else {
+  {
     // just reset settings to default
     gfx_fBrightness = 0;
     gfx_fContrast   = 1;
@@ -1987,7 +2126,7 @@ static BOOL GenerateGammaTable(void)
   }
 
   // adjust brightness
-  INDEX iAdd = 256* 256*gfx_fBrightness;
+  INDEX iAdd = (INDEX) (256* 256*gfx_fBrightness);
   for( i=0; i<256; i++) {
     _auwGammaTable[i] = Clamp( _auwGammaTable[i]+iAdd, 0L, 65280L);
   }
@@ -1997,7 +2136,7 @@ static BOOL GenerateGammaTable(void)
     const FLOAT fLevels = 256 * 256.0f/gfx_iLevels;
     for( i=0; i<256; i++) {
       INDEX iVal = _auwGammaTable[i];
-      iVal = ((INDEX)(iVal/fLevels)) *fLevels;
+      iVal = (INDEX) (((INDEX)(iVal/fLevels)) *fLevels);
       _auwGammaTable[i] = ClampUp( iVal, 0xFF00L);
     }
   }

@@ -440,18 +440,21 @@ void CDependencyList::ExtractTranslations_t( const CTFileName &fnTranslations)
     // for each byte in file
     for(INDEX iByte=0; iByte<slSize-4; iByte++) {
       UBYTE *pub = pubFile+iByte;
-      ULONG *pul = (ULONG*)pub;
+      ULONG ul = *((ULONG*)pub);
+
+      BYTESWAP(ul);
 
       // if exe translatable string is here
-      if (*pul=='SRTE') {
+      if (ul=='SRTE') {
         // get it
         CTString str = (char*)(pub+4);
         // add it
         AddStringForTranslation(str);
       // if data translatable string is here
-      } else if (*pul=='SRTD') {
+      } else if (ul=='SRTD') {
         char achr[ 256];
         INDEX iStrLen = *(INDEX *)(pub + 4);
+        BYTESWAP(iStrLen);
         if( iStrLen > 254 || iStrLen<0) {
           continue;
         }
@@ -462,7 +465,7 @@ void CDependencyList::ExtractTranslations_t( const CTFileName &fnTranslations)
         // add it
         AddStringForTranslation(str);
       // if text translatable string is here
-      } else if (*pul=='SRTT') {
+      } else if (ul=='SRTT') {
 
         // after describing long and one space we will find file name
         char *pchrStart = (char*)pub + 4 + 1;

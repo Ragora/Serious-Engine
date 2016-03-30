@@ -58,7 +58,7 @@ void SubMain( int argc, char *argv[])
   }
   
   // initialize engine
-  SE_InitEngine("");
+  SE_InitEngine(argv[0], "");
   // get application path from cmd line
   _fnmApplicationPath = CTString(ACHR_APP_DIR);
   // if not ending with backslash

@@ -13,7 +13,7 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include "Engine/StdH.h"
 
 #include <Engine/Graphics/ImageInfo.h>
 #include <Engine/Graphics/Color.h>
@@ -56,10 +56,52 @@ struct PCXHeader
   SBYTE Filler[54];
 };
 
+static __forceinline CTStream &operator>>(CTStream &strm, PCXHeader &t) {
+  strm>>t.MagicID;
+  strm>>t.Version;
+  strm>>t.Encoding;
+  strm>>t.PixelBits;
+  strm>>t.Xmin;
+  strm>>t.Ymin;
+  strm>>t.Xmax;
+  strm>>t.Ymax;
+  strm>>t.Hres;
+  strm>>t.Vres;
+  strm.Read_t(t.Palette, sizeof (t.Palette));
+  strm>>t.Reserved;
+  strm>>t.Planes;
+  strm>>t.BytesPerLine;
+  strm>>t.PaletteInfo;
+  strm>>t.HscreenSize;
+  strm>>t.VscreenSize;
+  strm.Read_t(t.Filler, sizeof (t.Filler));
+}
+
+static __forceinline CTStream &operator<<(CTStream &strm, const PCXHeader &t) {
+  strm<<t.MagicID;
+  strm<<t.Version;
+  strm<<t.Encoding;
+  strm<<t.PixelBits;
+  strm<<t.Xmin;
+  strm<<t.Ymin;
+  strm<<t.Xmax;
+  strm<<t.Ymax;
+  strm<<t.Hres;
+  strm<<t.Vres;
+  strm.Write_t(t.Palette, sizeof (t.Palette));
+  strm<<t.Reserved;
+  strm<<t.Planes;
+  strm<<t.BytesPerLine;
+  strm<<t.PaletteInfo;
+  strm<<t.HscreenSize;
+  strm<<t.VscreenSize;
+  strm.Write_t(t.Filler, sizeof (t.Filler));
+}
+
 // TARGA header structure
 struct TGAHeader
 {
-  UBYTE IdLenght;
+  UBYTE IdLength;
   UBYTE ColorMapType;
   UBYTE ImageType;
   UBYTE ColorMapSpec[5];
@@ -71,6 +113,33 @@ struct TGAHeader
   UBYTE Descriptor;
 };
 
+static __forceinline CTStream &operator>>(CTStream &strm, TGAHeader &t) {
+  strm>>t.IdLength;
+  strm>>t.ColorMapType;
+  strm>>t.ImageType;
+  strm>>t.ColorMapSpec[5];
+  strm>>t.Xorigin;
+  strm>>t.Yorigin;
+  strm>>t.Width;
+  strm>>t.Height;
+  strm>>t.BitsPerPixel;
+  strm>>t.Descriptor;
+  return(strm);
+}
+
+static __forceinline CTStream &operator<<(CTStream &strm, const TGAHeader &t) {
+  strm<<t.IdLength;
+  strm<<t.ColorMapType;
+  strm<<t.ImageType;
+  strm<<t.ColorMapSpec[5];
+  strm<<t.Xorigin;
+  strm<<t.Yorigin;
+  strm<<t.Width;
+  strm<<t.Height;
+  strm<<t.BitsPerPixel;
+  strm<<t.Descriptor;
+  return(strm);
+}
 
 
 /******************************************************
@@ -93,14 +162,22 @@ void CImageInfo::Read_t( CTStream *inFile)   // throw char *
   inFile->ExpectID_t( CChunkID("CTII"));
   if( inFile->GetSize_t() != 5*4) throw( "Invalid image info file.");
 
-  *inFile >> (PIX)ii_Width;
-  *inFile >> (PIX)ii_Height;
-  *inFile >> (SLONG)ii_BitsPerPixel;
+  SLONG tmp;
+  *inFile >> tmp;
+  ii_Width = (PIX) tmp;
+  *inFile >> tmp;
+  ii_Height = (PIX) tmp;
+  *inFile >> tmp;
+  ii_BitsPerPixel = (SLONG) tmp;
 
   // read image contents (all channels)
   ULONG pic_size = ii_Width*ii_Height * ii_BitsPerPixel/8;
   ii_Picture = (UBYTE*)AllocMemory( pic_size);
   inFile->ReadFullChunk_t( CChunkID("IPIC"), ii_Picture, pic_size);
+
+  #if PLATFORM_BIGENDIAN
+  STUBBED("Byte order");
+  #endif
 }
 
 // writes image info raw format to file
@@ -117,6 +194,10 @@ void CImageInfo::Write_t( CTStream *outFile) const  // throw char *
   // write image contents (all channels)
   ULONG pic_size = ii_Width*ii_Height * ii_BitsPerPixel/8;
   outFile->WriteFullChunk_t( CChunkID("IPIC"), ii_Picture, pic_size);
+
+  #if PLATFORM_BIGENDIAN
+  STUBBED("Byte order");
+  #endif
 }
 
 
@@ -221,7 +302,7 @@ INDEX CImageInfo::GetGfxFileInfo_t( const CTFileName &strFileName) // throw char
 
   // lets assume it's a TGA file
   GfxFile.Open_t( strFileName, CTStream::OM_READ);
-  GfxFile.Read_t( &TGAhdr, sizeof( struct TGAHeader));
+  GfxFile>>TGAhdr;
   GfxFile.Close();
 
   // check for supported targa format
@@ -237,7 +318,7 @@ INDEX CImageInfo::GetGfxFileInfo_t( const CTFileName &strFileName) // throw char
 
   // we miss Targa, so lets check for supported PCX format
   GfxFile.Open_t( strFileName, CTStream::OM_READ);
-  GfxFile.Read_t( &PCXhdr, sizeof( struct PCXHeader));
+  GfxFile>>PCXhdr;
   GfxFile.Close();
 
   // check for supported PCX format
@@ -278,13 +359,15 @@ void CImageInfo::LoadTGA_t( const CTFileName &strFileName) // throw char *
 
   // load entire TGA file to memory, as is, and close it (no further usage)
   pTGABuffer = (UBYTE*)AllocMemory( slFileSize);
+STUBBED("Byte swapping TGA data");
+
   TGAFile.Read_t( pTGABuffer, slFileSize);
   TGAFile.Close();
 
   // TGA header starts at the begining of the TGA file
   pTGAHdr = (struct TGAHeader*)pTGABuffer;
   // TGA image bytes definition follows up
-  pTGAImage = pTGABuffer + sizeof(struct TGAHeader) + pTGAHdr->IdLenght;
+  pTGAImage = pTGABuffer + sizeof(struct TGAHeader) + pTGAHdr->IdLength;
 
   // detremine picture size dimensions
   ii_Width        = (SLONG)pTGAHdr->Width;
@@ -433,6 +516,7 @@ void CImageInfo::LoadPCX_t( const CTFileName &strFileName) // throw char *
 
   // load entire PCX file to memory, as is, and close it (no further usage)
   pPCXBuffer = (UBYTE*)AllocMemory( slFileSize);
+STUBBED("Byte swapping PCX data");
   PCXFile.Read_t( pPCXBuffer, slFileSize);
   PCXFile.Close();
 

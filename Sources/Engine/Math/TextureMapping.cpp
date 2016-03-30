@@ -13,7 +13,7 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include "Engine/StdH.h"
 
 #include <Engine/Math/TextureMapping.h>
 
@@ -199,7 +199,10 @@ void CMappingDefinition::ReadOld_t(CTStream &strm) // throw char *
     FLOAT tm_fOffsetU;      // texture offsets (in meters)
     FLOAT tm_fOffsetV;
   } tmo;
-  strm.Read_t(&tmo, sizeof(tmo));
+  strm>>tmo.tm_ulFlags;
+  strm>>tmo.tm_aRotation;
+  strm>>tmo.tm_fOffsetU;
+  strm>>tmo.tm_fOffsetV;
 
   FLOAT fSin = Sin(tmo.tm_aRotation);
   FLOAT fCos = Cos(tmo.tm_aRotation);
@@ -336,12 +339,22 @@ void CMappingDefinition::Transform(const FLOATplane3D &plSourcePlane,
 // stream operations
 CTStream &operator>>(CTStream &strm, CMappingDefinition &md)
 {
-  strm.Read_t(&md, sizeof(md));
+  strm>>md.md_fUoS;
+  strm>>md.md_fUoT;
+  strm>>md.md_fVoS;
+  strm>>md.md_fVoT;
+  strm>>md.md_fUOffset;
+  strm>>md.md_fVOffset;
   return strm;
 }
 CTStream &operator<<(CTStream &strm, const CMappingDefinition &md)
 {
-  strm.Write_t(&md, sizeof(md));
+  strm<<md.md_fUoS;
+  strm<<md.md_fUoT;
+  strm<<md.md_fVoS;
+  strm<<md.md_fVoT;
+  strm<<md.md_fUOffset;
+  strm<<md.md_fVOffset;
   return strm;
 }
 

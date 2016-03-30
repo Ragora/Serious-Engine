@@ -161,7 +161,7 @@ functions:
 
   /*BOOL IsTargetValid(SLONG slPropertyOffset, CEntity *penTarget)
   {
-    if( slPropertyOffset == offsetof(Classname, propert_var) {
+    if( slPropertyOffset == _offsetof(Classname, propert_var) {
       if (IsOfClass(penTarget, "???")) { return TRUE; }
       else { return FALSE; }
     return CEntity::IsTargetValid(slPropertyOffset, penTarget);
@@ -171,7 +171,7 @@ functions:
   virtual CTString GetPlayerKillDescription(const CTString &strPlayerName, const EDeath &eDeath)
   {
     CTString str;
-    str.PrintF(TRANS("%s was -*blown away*- by an Air Elemental"), strPlayerName);
+    str.PrintF(TRANSV("%s was -*blown away*- by an Air Elemental"), (const char *) strPlayerName);
     return str;
   }
   virtual const CTFileName &GetComputerMessageName(void) const {
@@ -267,7 +267,7 @@ functions:
         
     CEntityPointer *penTrigger = &m_penTrigger01;
     // see if any triggers have to be set
-    INDEX i=0;
+    INDEX i;
     for (i=0; i<AIRBOSS_MAX_TA; i++) {
       FLOAT fHealth = afTriggerArray[i]*m_fMaxHealth;
       // triggers

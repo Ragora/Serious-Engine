@@ -13,8 +13,9 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include <Engine/StdH.h>
 
+#include <Engine/Base/ThreadLocalStorage.h>  //rcg10242001
 #include <Engine/Base/Stream.h>
 #include <Engine/Base/Console.h>
 #include <Engine/Network/MessageDispatcher.h>
@@ -48,7 +49,7 @@ public:
 };
 
 // the thread's local buffer
-static _declspec(thread) CMessageBuffer mbReceivedMessage = { 0,0 };
+THREADLOCAL(CMessageBuffer, mbReceivedMessage, CMessageBuffer());
 
 void CMessageBuffer::Allocate(void)
 {
@@ -434,13 +435,15 @@ BOOL CMessageDispatcher::ReceiveFromClientReliable(INDEX iClient, CNetworkMessag
   return bReceived;
 }
 
+#define SLASHSLASH  0x2F2F   // looks like "//" in ASCII.
+
 /* Send/receive broadcast messages. */
 void CMessageDispatcher::SendBroadcast(const CNetworkMessage &nmMessage, ULONG ulAddr, UWORD uwPort)
 {
   CAddress adrDestination;
   adrDestination.adr_ulAddress = ulAddr;
   adrDestination.adr_uwPort = uwPort;
-  adrDestination.adr_uwID = '//';
+  adrDestination.adr_uwID = SLASHSLASH;
   // send the message
   _cmiComm.Broadcast_Send((void*)nmMessage.nm_pubMessage, nmMessage.nm_slSize,adrDestination);
 

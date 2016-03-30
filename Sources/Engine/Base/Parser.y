@@ -1,5 +1,5 @@
 %{
-#include "StdH.h"
+#include <Engine/StdH.h>
 
 #include <Engine/Base/Console.h>
 #include <Engine/Base/Shell.h>
@@ -11,6 +11,11 @@
 %}
 
 %{
+// turn off over-helpful bit of bison... --ryan.
+#ifdef __GNUC__
+#define __attribute__(x)
+#endif
+
 #define YYERROR_VERBOSE 1
 // if error occurs in parsing
 void yyerror(char *str)
@@ -95,7 +100,7 @@ void Declaration(
     if (!ShellTypeIsSame(ssNew.ss_istType, istType) || 
       ((ssNew.ss_ulFlags&SSF_CONSTANT)!=(ulQualifiers&SSF_CONSTANT))) {
       // error
-      _pShell->ErrorF("Symbol '%s' is already declared diferrently", ssNew.ss_strName);
+      _pShell->ErrorF("Symbol '%s' is already declared diferrently", (const char *) ssNew.ss_strName);
       return;
     }
 
@@ -112,7 +117,7 @@ void Declaration(
       NOTHING;  // function values are not retained
     } else {
       // error
-      _pShell->ErrorF("'%s': old value couldn't be retained", ssNew.ss_strName);
+      _pShell->ErrorF("'%s': old value couldn't be retained", (const char *) ssNew.ss_strName);
       return;
     }
   }
@@ -331,7 +336,7 @@ pre_func_opt
     ||_shell_ast[_shell_ast[$3->ss_istType].st_istBaseType].st_sttType!=STT_INDEX
     ||_shell_ast[$3->ss_istType].st_istFirstArgument!=_shell_ast[$3->ss_istType].st_istLastArgument
     ||_shell_ast[_shell_ast[$3->ss_istType].st_istFirstArgument].st_sttType!=STT_INDEX) {
-    _pShell->ErrorF("'%s' must return 'INDEX' and take 'INDEX' as input", $3->ss_strName);
+    _pShell->ErrorF("'%s' must return 'INDEX' and take 'INDEX' as input", (const char *) $3->ss_strName);
   } else {
     void *pv = $3->ss_pvValue;
     $$ = (INDEX(*)(INDEX))$3->ss_pvValue;
@@ -347,7 +352,7 @@ post_func_opt
     ||_shell_ast[_shell_ast[$3->ss_istType].st_istBaseType].st_sttType!=STT_VOID
     ||_shell_ast[$3->ss_istType].st_istFirstArgument!=_shell_ast[$3->ss_istType].st_istLastArgument
     ||_shell_ast[_shell_ast[$3->ss_istType].st_istFirstArgument].st_sttType!=STT_INDEX) {
-    _pShell->ErrorF("'%s' must return 'void' and take 'INDEX' as input", $3->ss_strName);
+    _pShell->ErrorF("'%s' must return 'void' and take 'INDEX' as input", (const char *) $3->ss_strName);
   } else {
     $$ = (void(*)(INDEX))$3->ss_pvValue;
   }
@@ -430,7 +435,7 @@ statement
 | lvalue '=' expression ';' {
   // if it is constant
   if ($1.lv_pssSymbol->ss_ulFlags&SSF_CONSTANT) {
-    _pShell->ErrorF("Symbol '%s' is a constant", $1.lv_pssSymbol->ss_strName);
+    _pShell->ErrorF("Symbol '%s' is a constant", (const char *) $1.lv_pssSymbol->ss_strName);
   // if it is not constant
   } else {
     // if it can be changed
@@ -473,7 +478,7 @@ statement
   // if it is constant
   if (ssSymbol.ss_ulFlags&SSF_CONSTANT) {
     // error
-    _pShell->ErrorF("Symbol '%s' is a constant", ssSymbol.ss_strName);
+    _pShell->ErrorF("Symbol '%s' is a constant", (const char *) ssSymbol.ss_strName);
   }
 
   // get symbol type
@@ -496,7 +501,7 @@ statement
     _pShell->ErrorF("Warning: assigning INDEX to FLOAT!");  
     *(FLOAT*)ssSymbol.ss_pvValue = $5.iIndex;
   } else {
-    _pShell->ErrorF("Symbol '%s' and its initializer have different types", ssSymbol.ss_strName);
+    _pShell->ErrorF("Symbol '%s' and its initializer have different types", (const char *) ssSymbol.ss_strName);
   }
 }
 | k_help identifier { 
@@ -566,7 +571,7 @@ lvalue
   $$.lv_pssSymbol = &ssSymbol;
   if (!ssSymbol.IsDeclared()) {
     // error
-    _pShell->ErrorF("Identifier '%s' is not declared", $1->ss_strName);
+    _pShell->ErrorF("Identifier '%s' is not declared", (const char *) $1->ss_strName);
     fDummy = -666;
     $$.lv_sttType = STT_VOID;
     $$.lv_pvAddress = &fDummy;
@@ -578,7 +583,7 @@ lvalue
   // if the identifier is something else
   } else {
     // error
-    _pShell->ErrorF("'%s' doesn't have a value", $1->ss_strName);
+    _pShell->ErrorF("'%s' doesn't have a value", (const char *) $1->ss_strName);
     fDummy = -666.0f;
     $$.lv_sttType = STT_VOID;
     $$.lv_pvAddress = &fDummy;
@@ -616,7 +621,7 @@ lvalue
       }
     }
   } else {
-    _pShell->ErrorF("'%s[]' doesn't have a value", $1->ss_strName);
+    _pShell->ErrorF("'%s[]' doesn't have a value", (const char *) $1->ss_strName);
     fDummy = -666.0f;
     $$.lv_pvAddress = &fDummy;
   }
@@ -673,7 +678,7 @@ expression
   } else {
     $$.sttType = STT_FLOAT;
     $$.fFloat = -666.0f;
-    _pShell->ErrorF("'%s' is of wrong type", $1.lv_pssSymbol->ss_strName);
+    _pShell->ErrorF("'%s' is of wrong type", (const char *) $1.lv_pssSymbol->ss_strName);
   }
 }
 /* shift */
@@ -975,7 +980,7 @@ expression
   // if the identifier is not declared
   if (!$1->IsDeclared()) {
     // error
-    _pShell->ErrorF("Identifier '%s' is not declared", $1->ss_strName);
+    _pShell->ErrorF("Identifier '%s' is not declared", (const char *) $1->ss_strName);
   // if the identifier is declared
   } else {
     // get its type
@@ -989,52 +994,76 @@ expression
       _shell_ast[_shell_ast[$3.istType].st_istBaseType].st_sttType = stResult.st_sttType;
       // if types are same
       if (ShellTypeIsSame($3.istType, $1->ss_istType)) {
+        bool callfunc = true;
 
-#define PUSHPARAMS \
-  memcpy(_alloca($3.ctBytes), _ubStack+_iStack-$3.ctBytes, $3.ctBytes);
-
-        // if void
-        if (stResult.st_sttType==STT_VOID) {
-          // just call the function
-          $$.sttType = STT_VOID;
-          //PUSHPARAMS;
-          ((void (*)(void*))$1->ss_pvValue)(_ubStack+_iStack-$3.ctBytes);
-        // if index
-        } else if (stResult.st_sttType==STT_INDEX) {
-          // call the function and return result
-          $$.sttType = STT_INDEX;
-          PUSHPARAMS;
-          $$.iIndex = ((INDEX (*)(void))$1->ss_pvValue)();
-        // if float
-        } else if (stResult.st_sttType==STT_FLOAT) {
-          // call the function and return result
-          $$.sttType = STT_FLOAT;
-          PUSHPARAMS;
-          $$.fFloat = ((FLOAT (*)(void))$1->ss_pvValue)();
-        // if string
-        } else if (stResult.st_sttType==STT_STRING) {
-          // call the function and return result
-          $$.sttType = STT_STRING;
-          CTString &strNew = _shell_astrTempStrings.Push();
-          PUSHPARAMS;
-          strNew = ((CTString (*)(void))$1->ss_pvValue)();
-          $$.strString = (const char*)strNew;
-        } else {
-          ASSERT(FALSE);
-          $$.sttType = STT_FLOAT;
-          $$.fFloat = -666.0f;
+// !!! FIXME: maybe just dump the win32 codepath here? This will break on Win64, and maybe break on different compilers/compiler versions, etc.
+#ifdef PLATFORM_WIN32
+        #define CALLPARAMS
+        #define FUNCSIG void
+        #define PUSHPARAMS memcpy(_alloca($3.ctBytes), _ubStack+_iStack-$3.ctBytes, $3.ctBytes);
+#else
+        // This is possibly more portable, but no less scary than the alloca hack.
+        #define MAXSCRIPTFUNCARGS 5
+        void *ARG[MAXSCRIPTFUNCARGS];
+        if (($3.ctBytes > sizeof (ARG)))
+        {
+            _pShell->ErrorF("Function '%s' has too many arguments!", (const char *) $1->ss_strName);
+            callfunc = false;
+        }
+        else
+        {
+            memcpy(ARG, _ubStack+_iStack-$3.ctBytes, $3.ctBytes);
+            memset(((char *) ARG) + $3.ctBytes, '\0', sizeof (ARG) - $3.ctBytes);
+        }
+        #define PUSHPARAMS
+        #define FUNCSIG void*, void*, void*, void*, void*
+        #define CALLPARAMS ARG[0], ARG[1], ARG[2], ARG[3], ARG[4]
+#endif
+  
+        if (callfunc) {
+          // if void
+          if (stResult.st_sttType==STT_VOID) {
+            // just call the function
+            $$.sttType = STT_VOID;
+            PUSHPARAMS;
+            ((void (*)(FUNCSIG))$1->ss_pvValue)(CALLPARAMS);
+          // if index
+          } else if (stResult.st_sttType==STT_INDEX) {
+            // call the function and return result
+            $$.sttType = STT_INDEX;
+            PUSHPARAMS;
+            $$.iIndex = ((INDEX (*)(FUNCSIG))$1->ss_pvValue)(CALLPARAMS);
+          // if float
+          } else if (stResult.st_sttType==STT_FLOAT) {
+            // call the function and return result
+            $$.sttType = STT_FLOAT;
+            PUSHPARAMS;
+            $$.fFloat = ((FLOAT (*)(FUNCSIG))$1->ss_pvValue)(CALLPARAMS);
+          // if string
+          } else if (stResult.st_sttType==STT_STRING) {
+            // call the function and return result
+            $$.sttType = STT_STRING;
+            CTString &strNew = _shell_astrTempStrings.Push();
+            PUSHPARAMS;
+            strNew = ((CTString (*)(FUNCSIG))$1->ss_pvValue)(CALLPARAMS);
+            $$.strString = (const char*)strNew;
+          } else {
+            ASSERT(FALSE);
+            $$.sttType = STT_FLOAT;
+            $$.fFloat = -666.0f;
+          }
         }
       // if types are different
       } else {
         // error
         $$.sttType = STT_VOID;
-        _pShell->ErrorF("Wrong parameters for '%s'", $1->ss_strName);
+        _pShell->ErrorF("Wrong parameters for '%s'", (const char *) $1->ss_strName);
       }
     // if the identifier is something else
     } else {
       // error
       $$.sttType = STT_VOID;
-      _pShell->ErrorF("Can't call '%s'", $1->ss_strName);
+      _pShell->ErrorF("Can't call '%s'", (const char *) $1->ss_strName);
     }
   }
 

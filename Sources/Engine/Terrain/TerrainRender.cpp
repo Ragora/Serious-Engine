@@ -13,13 +13,13 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include <Engine/StdH.h>
 #include <Engine/Terrain/Terrain.h>
 #include <Engine/Terrain/TerrainRender.h>
 #include <Engine/Terrain/TerrainEditing.h>
 #include <Engine/Math/Projection.h>
 #include <Engine/Math/OBBox.h>
-#include <Engine/Graphics/Drawport.h>
+#include <Engine/Graphics/DrawPort.h>
 #include <Engine/Graphics/Fog_internal.h>
 #include <Engine/Rendering/Render.h>
 #include <Engine/Entities/Entity.h>
@@ -159,7 +159,7 @@ void PrepareScene(CAnyProjection3D &apr, CDrawPort *pdp, CTerrain *ptrTerrain)
   _vViewerObj = _vViewer * !pen->en_mRotation;
 
 
-  CPlacement3D &plTerrain = pen->GetLerpedPlacement();
+  const CPlacement3D &plTerrain = pen->GetLerpedPlacement();
 
   _mObjectToView  = mViewer * pen->en_mRotation;
   _vObjectToView  = (plTerrain.pl_PositionVector - _aprProjection->pr_vViewerPosition) * mViewer;
@@ -859,16 +859,16 @@ static FLOAT   _fHazeAdd;
 static void GetHazeMapInVertex( GFXVertex4 &vtx, GFXTexCoord &txHaze)
 {
   const FLOAT fD = vtx.x*_vViewerObj(1) + vtx.y*_vViewerObj(2) + vtx.z*_vViewerObj(3);
-  txHaze.u = (fD+_fHazeAdd) * _haze_fMul;
-  txHaze.v = 0.0f;
+  txHaze.uv.u = (fD+_fHazeAdd) * _haze_fMul;
+  txHaze.uv.v = 0.0f;
 }
 
 static void GetFogMapInVertex( GFXVertex4 &vtx, GFXTexCoord &tex)
 {
   const FLOAT fD = vtx.x*_vFViewerObj(1) + vtx.y*_vFViewerObj(2) + vtx.z*_vFViewerObj(3);
   const FLOAT fH = vtx.x*_vHDirObj(1)    + vtx.y*_vHDirObj(2)    + vtx.z*_vHDirObj(3);
-  tex.u = (fD+_fFogAddZ) * _fog_fMulZ;
-  tex.v = (fH+_fFogAddH) * _fog_fMulH;
+  tex.uv.u = (fD+_fFogAddZ) * _fog_fMulZ;
+  tex.uv.v = (fH+_fFogAddH) * _fog_fMulH;
 }
 
 static CStaticStackArray<GFXTexCoord> _atcHaze;
@@ -1371,7 +1371,7 @@ void DrawSelectedVertices(GFXVertex *pavVertices, GFXColor *pacolColors, INDEX c
     GFXVertex &vtx = pavVertices[ivx];
     GFXColor  &col = pacolColors[ivx];
     // draw vertex
-    _pdp->DrawPoint3D(FLOAT3D(vtx.x,vtx.y,vtx.z),ByteSwap(col.abgr),3);
+    _pdp->DrawPoint3D(FLOAT3D(vtx.x,vtx.y,vtx.z),ByteSwap(col.ul.abgr),3);
   }
   gfxDisableDepthBias();
 }

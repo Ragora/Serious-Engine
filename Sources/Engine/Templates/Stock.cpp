@@ -150,7 +150,7 @@ void CStock_TYPE::DumpMemoryUsage_t(CTStream &strm) // throw char *
       return;
     }
     strLine.PrintF("%7.1fk %s(%d) %s", 
-      slUsedByObject/1024.0f, (const char*)(itt->GetName()), itt->GetUsedCount(), itt->GetDescription());
+      slUsedByObject/1024.0f, (const char*)(itt->GetName()), itt->GetUsedCount(), (const char *) itt->GetDescription());
     strm.PutLine_t(strLine);
   }}
 }

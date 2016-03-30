@@ -13,9 +13,9 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
- #include "StdH.h"
+#include "Engine/StdH.h"
 
-#include <Engine/Base/Statistics_internal.h>
+#include <Engine/Base/Statistics_Internal.h>
 #include <Engine/Base/Console.h>
 #include <Engine/Models/ModelObject.h>
 #include <Engine/Models/ModelData.h>
@@ -40,7 +40,13 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define W  word ptr
 #define B  byte ptr
 
+#if (defined __MSVC_INLINE__)
 #define ASMOPT 1
+#elif (defined __GNU_INLINE__)
+#define ASMOPT 0  // !!! FIXME: rcg10112001 Write GCC inline asm versions...
+#else
+#define ASMOPT 0
+#endif
 
 
 extern BOOL CVA_bModels;
@@ -100,8 +106,14 @@ static INDEX _ctAllSrfVx  = 0;
 static BOOL  _bFlatFill   = FALSE;
 static SLONG _slLR=0, _slLG=0, _slLB=0;
 static SLONG _slAR=0, _slAG=0, _slAB=0;
-static const __int64 mmRounder = 0x007F007F007F007F;
-static const __int64 mmF000    = 0x00FF000000000000;
+
+#if (defined __GNUC__)
+static const __int64 mmRounder = 0x007F007F007F007Fll;
+static const __int64 mmF000    = 0x00FF000000000000ll;
+#else
+static const __int64 mmRounder = (__int64) 0x007F007F007F007F;
+static const __int64 mmF000    = (__int64) 0x00FF000000000000;
+#endif
 
 // viewer absolute and object space projection
 static FLOAT3D _vViewer;
@@ -567,6 +579,7 @@ extern void PrepareModelForRendering( CModelData &md)
 
 
 // strip rendering support
+INDEX _icol=0;
 COLOR _acol[] = { C_BLACK,   C_WHITE,
                   C_dGRAY,   C_GRAY,   C_lGRAY,      C_dRED,     C_RED,     C_lRED,
                   C_dGREEN,  C_GREEN,  C_lGREEN,     C_dBLUE,    C_BLUE,    C_lBLUE,
@@ -685,8 +698,8 @@ static void GetFogMapInVertex( GFXVertex3 &vtx, GFXTexCoord &tex)
 #else
   const FLOAT fD = vtx.x*_vFViewerObj(1) + vtx.y*_vFViewerObj(2) + vtx.z*_vFViewerObj(3);
   const FLOAT fH = vtx.x*_vHDirObj(1)    + vtx.y*_vHDirObj(2)    + vtx.z*_vHDirObj(3);
-  tex.s = (fD+_fFogAddZ) * _fog_fMulZ;
-  tex.t = (fH+_fFogAddH) * _fog_fMulH;
+  tex.st.s = (fD+_fFogAddZ) * _fog_fMulZ;
+  tex.st.t = (fH+_fFogAddH) * _fog_fMulH;
 #endif
 
 }
@@ -724,14 +737,14 @@ static BOOL IsModelInFog( FLOAT3D &vMin, FLOAT3D &vMax)
 {
   GFXTexCoord tex;
   GFXVertex3  vtx;
-  vtx.x=vMin(1); vtx.y=vMin(2); vtx.z=vMin(3); GetFogMapInVertex(vtx,tex); if(InFog(tex.t)) return TRUE;
-  vtx.x=vMin(1); vtx.y=vMin(2); vtx.z=vMax(3); GetFogMapInVertex(vtx,tex); if(InFog(tex.t)) return TRUE;
-  vtx.x=vMin(1); vtx.y=vMax(2); vtx.z=vMin(3); GetFogMapInVertex(vtx,tex); if(InFog(tex.t)) return TRUE;
-  vtx.x=vMin(1); vtx.y=vMax(2); vtx.z=vMax(3); GetFogMapInVertex(vtx,tex); if(InFog(tex.t)) return TRUE;
-  vtx.x=vMax(1); vtx.y=vMin(2); vtx.z=vMin(3); GetFogMapInVertex(vtx,tex); if(InFog(tex.t)) return TRUE;
-  vtx.x=vMax(1); vtx.y=vMin(2); vtx.z=vMax(3); GetFogMapInVertex(vtx,tex); if(InFog(tex.t)) return TRUE;
-  vtx.x=vMax(1); vtx.y=vMax(2); vtx.z=vMin(3); GetFogMapInVertex(vtx,tex); if(InFog(tex.t)) return TRUE;
-  vtx.x=vMax(1); vtx.y=vMax(2); vtx.z=vMax(3); GetFogMapInVertex(vtx,tex); if(InFog(tex.t)) return TRUE;
+  vtx.x=vMin(1); vtx.y=vMin(2); vtx.z=vMin(3); GetFogMapInVertex(vtx,tex); if(InFog(tex.st.t)) return TRUE;
+  vtx.x=vMin(1); vtx.y=vMin(2); vtx.z=vMax(3); GetFogMapInVertex(vtx,tex); if(InFog(tex.st.t)) return TRUE;
+  vtx.x=vMin(1); vtx.y=vMax(2); vtx.z=vMin(3); GetFogMapInVertex(vtx,tex); if(InFog(tex.st.t)) return TRUE;
+  vtx.x=vMin(1); vtx.y=vMax(2); vtx.z=vMax(3); GetFogMapInVertex(vtx,tex); if(InFog(tex.st.t)) return TRUE;
+  vtx.x=vMax(1); vtx.y=vMin(2); vtx.z=vMin(3); GetFogMapInVertex(vtx,tex); if(InFog(tex.st.t)) return TRUE;
+  vtx.x=vMax(1); vtx.y=vMin(2); vtx.z=vMax(3); GetFogMapInVertex(vtx,tex); if(InFog(tex.st.t)) return TRUE;
+  vtx.x=vMax(1); vtx.y=vMax(2); vtx.z=vMin(3); GetFogMapInVertex(vtx,tex); if(InFog(tex.st.t)) return TRUE;
+  vtx.x=vMax(1); vtx.y=vMax(2); vtx.z=vMax(3); GetFogMapInVertex(vtx,tex); if(InFog(tex.st.t)) return TRUE;
   return FALSE;
 }
 
@@ -1688,10 +1701,10 @@ colEnd:
     for( INDEX iMipVx=0; iMipVx<_ctAllMipVx; iMipVx++) {
       GFXColor &col = pcolMipBase[iMipVx];
       const SLONG slShade = Clamp( (SLONG)pswMipCol[iMipVx], 0L, 255L);
-      col.r = pubClipByte[_slAR + ((_slLR*slShade)>>8)];
-      col.g = pubClipByte[_slAG + ((_slLG*slShade)>>8)];
-      col.b = pubClipByte[_slAB + ((_slLB*slShade)>>8)];
-      col.a = slShade;
+      col.ub.r = pubClipByte[_slAR + ((_slLR*slShade)>>8)];
+      col.ub.g = pubClipByte[_slAG + ((_slLG*slShade)>>8)];
+      col.ub.b = pubClipByte[_slAB + ((_slLB*slShade)>>8)];
+      col.ub.a = slShade;
     }
 #endif
 
@@ -1710,11 +1723,8 @@ void CModelObject::RenderModel_View( CRenderModel &rm)
 {
   // cache API
   _eAPI = _pGfx->gl_eCurrentAPI;
-#ifdef SE1_D3D
-  ASSERT( _eAPI==GAT_OGL || _eAPI==GAT_D3D || _eAPI==GAT_NONE);
-#else // SE1_D3D
-  ASSERT( _eAPI==GAT_OGL || _eAPI==GAT_NONE);
-#endif // SE1_D3D
+  ASSERT( GfxValidApi(_eAPI) );
+
   if( _eAPI==GAT_NONE) return;  // must have API
 
   // adjust Truform usage
@@ -1986,7 +1996,7 @@ srfVtxLoop:
       pop     ebx
     }
 #else
-    // setup vetrex array
+    // setup vertex array
     for( iSrfVx=0; iSrfVx<ctSrfVx; iSrfVx++) {
       const INDEX iMipVx = puwSrfToMip[iSrfVx];
       pvtxSrfBase[iSrfVx].x = pvtxMipBase[iMipVx].x;
@@ -2107,8 +2117,8 @@ vtxEnd:
 #else
     // setup texcoord array
     for( INDEX iSrfVx=0; iSrfVx<ctSrfVx; iSrfVx++) {
-      ptexSrfBase[iSrfVx].s = pvTexCoord[iSrfVx](1) *fTexCorrU;
-      ptexSrfBase[iSrfVx].t = pvTexCoord[iSrfVx](2) *fTexCorrV;
+      ptexSrfBase[iSrfVx].st.s = pvTexCoord[iSrfVx](1) *fTexCorrU;
+      ptexSrfBase[iSrfVx].st.t = pvTexCoord[iSrfVx](2) *fTexCorrV;
     }
 #endif
 
@@ -2117,16 +2127,16 @@ vtxEnd:
       // eventually adjust reflection color for overbrighting
       GFXColor colSrfDiffAdj = colSrfDiff;
       if( bOverbright) {
-        colSrfDiffAdj.r >>=1;
-        colSrfDiffAdj.g >>=1;
-        colSrfDiffAdj.b >>=1;
+        colSrfDiffAdj.ub.r >>=1;
+        colSrfDiffAdj.ub.g >>=1;
+        colSrfDiffAdj.ub.b >>=1;
       } // just copy diffuse color
       for( INDEX iSrfVx=0; iSrfVx<ctSrfVx; iSrfVx++) pcolSrfBase[iSrfVx] = colSrfDiffAdj;
     }
     else {
 #if ASMOPT == 1
       // setup color array
-      const COLOR colS = colSrfDiff.abgr;
+      const COLOR colS = colSrfDiff.ul.abgr;
       __asm {
         push    ebx
         mov     ebx,D [puwSrfToMip]
@@ -2252,7 +2262,7 @@ diffColLoop:
     // get model detail color
     GFXColor colMdlBump;
     const COLOR colB = AdjustColor( rm.rm_pmdModelData->md_colBump, _slTexHueShift, _slTexSaturation);
-    colMdlBump.abgr  = ByteSwap(colB);
+    colMdlBump.ul.abgr  = ByteSwap(colB);
     // get detail texture corrections
     fTexCorrU = 1.0f / ptdBump->GetWidth(); 
     fTexCorrV = 1.0f / ptdBump->GetHeight();
@@ -2285,8 +2295,8 @@ diffColLoop:
       for( INDEX iSrfVx=0; iSrfVx<ctSrfVx; iSrfVx++) {
         // set detail texcoord and color
         INDEX iMipVx = mmi.mmpi_auwSrfToMip[iSrfVx];
-        ptexSrfBase[iSrfVx].s = pvTexCoord[iSrfVx](1) * fTexCorrU;
-        ptexSrfBase[iSrfVx].t = pvTexCoord[iSrfVx](2) * fTexCorrV;
+        ptexSrfBase[iSrfVx].st.s = pvTexCoord[iSrfVx](1) * fTexCorrU;
+        ptexSrfBase[iSrfVx].st.t = pvTexCoord[iSrfVx](2) * fTexCorrV;
         pcolSrfBase[iSrfVx]   = colSrfBump;
       }
     }
@@ -2412,7 +2422,7 @@ reflMipLoop:
     // for each mip vertex
     for( INDEX iMipVx=0; iMipVx<_ctAllMipVx; iMipVx++)
     { // get normal in absolute space
-      const GFXNormal &nor = pnorMipBase[iMipVx];
+      const GFXNormal3 &nor = pnorMipBase[iMipVx];
       const FLOAT fNx = nor.nx*m(1,1) + nor.ny*m(1,2) + nor.nz*m(1,3);
       const FLOAT fNy = nor.nx*m(2,1) + nor.ny*m(2,2) + nor.nz*m(2,3);
       const FLOAT fNz = nor.nx*m(3,1) + nor.ny*m(3,2) + nor.nz*m(3,3);
@@ -2424,8 +2434,8 @@ reflMipLoop:
       // map reflected vector to texture 
       // NOTE: using X and Z axes, so that singularity gets on -Y axis (where it will least probably be seen)
       const FLOAT f1oFM = 0.5f / sqrt(2+2*fRVy);  
-      ptexMipBase[iMipVx].s = fRVx*f1oFM +0.5f;
-      ptexMipBase[iMipVx].t = fRVz*f1oFM +0.5f;
+      ptexMipBase[iMipVx].st.s = fRVx*f1oFM +0.5f;
+      ptexMipBase[iMipVx].st.t = fRVz*f1oFM +0.5f;
     }
 #endif
     _pfModelProfile.StopTimer( CModelProfile::PTI_VIEW_INIT_REFL_MIP);
@@ -2437,7 +2447,7 @@ reflMipLoop:
     // get model reflection color
     GFXColor colMdlRefl;
     const COLOR colR = AdjustColor( rm.rm_pmdModelData->md_colReflections, _slTexHueShift, _slTexSaturation);
-    colMdlRefl.abgr = ByteSwap(colR);
+    colMdlRefl.ul.abgr = ByteSwap(colR);
     colMdlRefl.AttenuateA( (rm.rm_colBlend&CT_AMASK)>>CT_ASHIFT);
 
     // for each reflective surface in current mip model
@@ -2612,7 +2622,7 @@ specMipLoop:
     // for each mip vertex
     for( INDEX iMipVx=0; iMipVx<_ctAllMipVx; iMipVx++)
     { // reflect light vector around vertex normal in object space
-      GFXNormal &nor = pnorMipBase[iMipVx];
+      GFXNormal3 &nor = pnorMipBase[iMipVx];
       const FLOAT fNL = nor.nx*_vLightObj(1) + nor.ny*_vLightObj(2) +	nor.nz*_vLightObj(3);
       const FLOAT fRx = _vLightObj(1) - 2*nor.nx*fNL;
       const FLOAT fRy = _vLightObj(2) - 2*nor.ny*fNL;
@@ -2623,8 +2633,8 @@ specMipLoop:
       const FLOAT fRVz = fRx*m(3,1) + fRy*m(3,2) + fRz*m(3,3);
       // map reflected vector to texture
       const FLOAT f1oFM = 0.5f / sqrt(2+2*fRVz);  // was 2*sqrt(2+2*fRVz)
-      ptexMipBase[iMipVx].s = fRVx*f1oFM +0.5f;
-      ptexMipBase[iMipVx].t = fRVy*f1oFM +0.5f;
+      ptexMipBase[iMipVx].st.s = fRVx*f1oFM +0.5f;
+      ptexMipBase[iMipVx].st.t = fRVy*f1oFM +0.5f;
     }
 #endif
     _pfModelProfile.StopTimer( CModelProfile::PTI_VIEW_INIT_SPEC_MIP);
@@ -2636,11 +2646,11 @@ specMipLoop:
     // get model specular color and multiply with light color
     GFXColor colMdlSpec;
     const COLOR colS = AdjustColor( rm.rm_pmdModelData->md_colSpecular, _slTexHueShift, _slTexSaturation);
-    colMdlSpec.abgr  = ByteSwap(colS);
+    colMdlSpec.ul.abgr  = ByteSwap(colS);
     colMdlSpec.AttenuateRGB( (rm.rm_colBlend&CT_AMASK)>>CT_ASHIFT);
-    colMdlSpec.r = ClampUp( (colMdlSpec.r *_slLR)>>8, 255L);
-    colMdlSpec.g = ClampUp( (colMdlSpec.g *_slLG)>>8, 255L);
-    colMdlSpec.b = ClampUp( (colMdlSpec.b *_slLB)>>8, 255L);
+    colMdlSpec.ub.r = ClampUp( (colMdlSpec.ub.r *_slLR)>>8, 255L);
+    colMdlSpec.ub.g = ClampUp( (colMdlSpec.ub.g *_slLG)>>8, 255L);
+    colMdlSpec.ub.b = ClampUp( (colMdlSpec.ub.b *_slLB)>>8, 255L);
 
     // for each specular surface in current mip model
     FOREACHINSTATICARRAY( mmi.mmpi_MappingSurfaces, MappingSurface, itms)
@@ -2664,10 +2674,10 @@ specMipLoop:
         const INDEX iMipVx = puwSrfToMip[iSrfVx];
         // set specular texture and color
         ptexSrfBase[iSrfVx] = ptexMipBase[iMipVx];
-        const SLONG slShade = pcolMipBase[iMipVx].a;
-        pcolSrfBase[iSrfVx].abgr =  (((colSrfSpec.r)*slShade)>>8)
-                                 |  (((colSrfSpec.g)*slShade)&0x0000FF00)
-                                 | ((((colSrfSpec.b)*slShade)<<8)&0x00FF0000);
+        const SLONG slShade = pcolMipBase[iMipVx].ub.a;
+        pcolSrfBase[iSrfVx].ul.abgr =  (((colSrfSpec.ub.r)*slShade)>>8)
+                                 |  (((colSrfSpec.ub.g)*slShade)&0x0000FF00)
+                                 | ((((colSrfSpec.ub.b)*slShade)<<8)&0x00FF0000);
       }
       // eventually attenuate color in case of fog or haze
       if( (ms.ms_ulRenderingFlags&SRF_OPAQUE) && !_bForceTranslucency) continue;
@@ -2731,8 +2741,8 @@ specMipLoop:
       // prepare haze vertices
       for( INDEX iSrfVx=0; iSrfVx<ctSrfVx; iSrfVx++) {
         const INDEX iMipVx = puwSrfToMip[iSrfVx];
-        ptexSrfBase[iSrfVx].s = ptx1MipHaze[iMipVx];
-        ptexSrfBase[iSrfVx].t = 0.0f;
+        ptexSrfBase[iSrfVx].st.s = ptx1MipHaze[iMipVx];
+        ptexSrfBase[iSrfVx].st.t = 0.0f;
         pcolSrfBase[iSrfVx] = colHaze;
       }
       // mark that this surface has haze
@@ -3081,7 +3091,7 @@ void CModelObject::RenderShadow_View( CRenderModel &rm, const CPlacement3D &plLi
       pvtxSrfBase[iSrfVx].x = pvtxMipBase[iMipVx].x;
       pvtxSrfBase[iSrfVx].y = pvtxMipBase[iMipVx].y;
       pvtxSrfBase[iSrfVx].z = pvtxMipBase[iMipVx].z;
-      pcolSrfBase[iSrfVx].a = pubsMipBase[iMipVx];
+      pcolSrfBase[iSrfVx].ub.a = pubsMipBase[iMipVx];
       // get texture adjusted for perspective correction (aka projected mapping)
       const FLOAT fooq = pooqMipShad[iMipVx];
       ptx4SrfShad[iSrfVx].s = pvTexCoord[iSrfVx](1) *fTexCorrU *fooq;
@@ -3229,15 +3239,15 @@ void CModelObject::AddSimpleShadow_View( CRenderModel &rm, const FLOAT fIntensit
     pvtx[3].x = v10(1);  pvtx[3].y = v10(2);  pvtx[3].z = v10(3);
   }
   // texture coords
-  ptex[0].s = 0;  ptex[0].t = 0;
-  ptex[1].s = 0;  ptex[1].t = 1;
-  ptex[2].s = 1;  ptex[2].t = 1;
-  ptex[3].s = 1;  ptex[3].t = 0;
+  ptex[0].st.s = 0;  ptex[0].st.t = 0;
+  ptex[1].st.s = 0;  ptex[1].st.t = 1;
+  ptex[2].st.s = 1;  ptex[2].st.t = 1;
+  ptex[3].st.s = 1;  ptex[3].st.t = 0;
   // colors
-  pcol[0].abgr = ulAAAA;
-  pcol[1].abgr = ulAAAA;
-  pcol[2].abgr = ulAAAA;
-  pcol[3].abgr = ulAAAA;
+  pcol[0].ul.abgr = ulAAAA;
+  pcol[1].ul.abgr = ulAAAA;
+  pcol[2].ul.abgr = ulAAAA;
+  pcol[3].ul.abgr = ulAAAA;
 
   // if this model has fog
   if( rm.rm_ulFlags & RMF_FOG)
@@ -3247,8 +3257,8 @@ void CModelObject::AddSimpleShadow_View( CRenderModel &rm, const FLOAT fIntensit
       GFXVertex &vtx = pvtx[i];
       // get distance along viewer axis and fog axis and map to texture and attenuate shadow color
       const FLOAT fH = vtx.x*_fog_vHDirView(1) + vtx.y*_fog_vHDirView(2) + vtx.z*_fog_vHDirView(3);
-      tex.s = -vtx.z *_fog_fMulZ;
-      tex.t = (fH+_fog_fAddH) *_fog_fMulH;
+      tex.st.s = -vtx.z *_fog_fMulZ;
+      tex.st.t = (fH+_fog_fAddH) *_fog_fMulH;
       pcol[i].AttenuateRGB(GetFogAlpha(tex)^255);
     }
   }

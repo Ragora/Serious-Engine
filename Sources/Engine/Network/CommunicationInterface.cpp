@@ -13,7 +13,7 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include "Engine/StdH.h"
 
 #include <Engine/Base/Console.h>
 #include <Engine/Base/CTString.h>
@@ -31,8 +31,11 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <Engine/GameAgent/GameAgent.h>
 
-
+#ifdef PLATFORM_WIN32
 #pragma comment(lib, "wsock32.lib")
+#endif
+
+#define SLASHSLASH  0x2F2F   // looks like "//" in ASCII.
 
 #define SERVER_LOCAL_CLIENT     0
 extern INDEX net_iPort;
@@ -44,6 +47,7 @@ extern FLOAT net_tmConnectionTimeout;
 extern INDEX net_bReportPackets;
 
 static struct ErrorCode ErrorCodes[] = {
+#ifdef PLATFORM_WIN32
   ERRORCODE(WSAEINTR          , "WSAEINTR"),
   ERRORCODE(WSAEBADF          , "WSAEBADF"),
   ERRORCODE(WSAEACCES         , "WSAEACCES"),
@@ -89,8 +93,62 @@ static struct ErrorCode ErrorCodes[] = {
   ERRORCODE(WSATRY_AGAIN      , "WSATRY_AGAIN"),
   ERRORCODE(WSANO_RECOVERY    , "WSANO_RECOVERY"),
   ERRORCODE(WSANO_DATA        , "WSANO_DATA"),
+
+#else
+
+    // these were gleaned from the manpages for various BSD socket calls.
+    //  On linux, start with "man ip" for most of these.
+
+  ERRORCODE(EINTR             , "EINTR"),
+  ERRORCODE(EAGAIN            , "EAGAIN"),
+  ERRORCODE(EIO               , "EIO"),
+  ERRORCODE(EISDIR            , "EISDIR"),
+  ERRORCODE(EBADF             , "EBADF"),
+  ERRORCODE(EINVAL            , "EINVAL"),
+  ERRORCODE(EFAULT            , "EFAULT"),
+  ERRORCODE(EPROTONOSUPPORT   , "EPROTONOSUPPORT"),
+  ERRORCODE(ENFILE            , "ENFILE"),
+  ERRORCODE(EACCES            , "EACCES"),
+  ERRORCODE(ENOBUFS           , "ENOBUFS"),
+  ERRORCODE(ENOMEM            , "ENOMEM"),
+  ERRORCODE(ENOTSOCK          , "ENOTSOCK"),
+  ERRORCODE(EOPNOTSUPP        , "EOPNOTSUPP"),
+  ERRORCODE(EPERM             , "EPERM"),
+  ERRORCODE(ECONNABORTED      , "ECONNABORTED"),
+  ERRORCODE(ECONNREFUSED      , "ECONNREFUSED"),
+  ERRORCODE(ENETUNREACH       , "ENETUNREACH"),
+  ERRORCODE(EADDRINUSE        , "EADDRINUSE"),
+  ERRORCODE(EINPROGRESS       , "EINPROGRESS"),
+  ERRORCODE(EALREADY          , "EALREADY"),
+  ERRORCODE(EAGAIN            , "EAGAIN"),
+  ERRORCODE(EAFNOSUPPORT      , "EAFNOSUPPORT"),
+  ERRORCODE(EADDRNOTAVAIL     , "EADDRNOTAVAIL"),
+  ERRORCODE(ETIMEDOUT         , "ETIMEDOUT"),
+  ERRORCODE(ESOCKTNOSUPPORT   , "ESOCKTNOSUPPORT"),
+  ERRORCODE(ENAMETOOLONG      , "ENAMETOOLONG"),
+  ERRORCODE(ENOTDIR           , "ENOTDIR"),
+  ERRORCODE(ELOOP             , "ELOOP"),
+  ERRORCODE(EROFS             , "EROFS"),
+  ERRORCODE(EISCONN           , "EISCONN"),
+  ERRORCODE(EMSGSIZE          , "EMSGSIZE"),
+  ERRORCODE(ENODEV            , "ENODEV"),
+  ERRORCODE(ECONNRESET        , "ECONNRESET"),
+  ERRORCODE(ENOTCONN          , "ENOTCONN"),
+  #if !PLATFORM_MACOSX
+  ERRORCODE(ENOSR             , "ENOSR"),
+  ERRORCODE(ENOPKG            , "ENOPKG"),
+  #endif
+#endif
 };
 static struct ErrorTable SocketErrors = ERRORTABLE(ErrorCodes);
+
+// rcg10122001
+#ifdef PLATFORM_WIN32
+#define isWouldBlockError(x) (x == WSAEWOULDBLOCK)
+#else
+#define isWouldBlockError(x) ((x == EAGAIN) || (x == EWOULDBLOCK))
+#define WSAECONNRESET ECONNRESET
+#endif
 
 
 //structures used to emulate bandwidth and latency parameters - shared by all client interfaces
@@ -225,6 +283,7 @@ void CCommunicationInterface::Close(void)
 
 void CCommunicationInterface::InitWinsock(void)
 {
+#ifdef PLATFORM_WIN32
   if (cci_bWinSockOpen) {
     return;
   }
@@ -238,8 +297,11 @@ void CCommunicationInterface::InitWinsock(void)
   if (iResult==0) {
     // remember that
     cci_bWinSockOpen = TRUE;
-    CPrintF(TRANS("  winsock opened ok\n"));
+    CPrintF(TRANSV("  winsock opened ok\n"));
   }
+#else
+    cci_bWinSockOpen = TRUE;
+#endif
 };
 
 void CCommunicationInterface::EndWinsock(void)
@@ -248,8 +310,11 @@ void CCommunicationInterface::EndWinsock(void)
     return;
   }
 
+#ifdef PLATFORM_WIN32
   int iResult = WSACleanup();
   ASSERT(iResult==0);
+#endif
+
   cci_bWinSockOpen = FALSE;
 };
 
@@ -272,11 +337,11 @@ void CCommunicationInterface::PrepareForUse(BOOL bUseNetwork, BOOL bClient)
   EndWinsock();
 
   if (bUseNetwork) {
-    CPrintF(TRANS("Initializing TCP/IP...\n"));
+    CPrintF(TRANSV("Initializing TCP/IP...\n"));
     if (bClient) {
-      CPrintF(TRANS("  opening as client\n"));
+      CPrintF(TRANSV("  opening as client\n"));
     } else {
-      CPrintF(TRANS("  opening as server\n"));
+      CPrintF(TRANSV("  opening as server\n"));
     }
 
     // make sure winsock is on
@@ -286,7 +351,7 @@ void CCommunicationInterface::PrepareForUse(BOOL bUseNetwork, BOOL bClient)
     cm_ulLocalHost = 0;
     // if there is a desired local address
     if (net_strLocalHost!="") {
-      CPrintF(TRANS("  user forced local address: %s\n"), (const char*)net_strLocalHost);
+      CPrintF(TRANSV("  user forced local address: %s\n"), (const char*)net_strLocalHost);
       // use that address
       cm_strName = net_strLocalHost;
       cm_ulLocalHost = StringToAddress(cm_strName);
@@ -294,12 +359,12 @@ void CCommunicationInterface::PrepareForUse(BOOL bUseNetwork, BOOL bClient)
       if (cm_ulLocalHost==0 || cm_ulLocalHost==-1) {
         cm_ulLocalHost=0;
         // report it
-        CPrintF(TRANS("  requested local address is invalid\n"));
+        CPrintF(TRANSV("  requested local address is invalid\n"));
       }
     }
 
     // if no valid desired local address
-    CPrintF(TRANS("  getting local addresses\n"));
+    CPrintF(TRANSV("  getting local addresses\n"));
     // get default
     char hostname[256];
     gethostname(hostname, sizeof(hostname)-1);
@@ -318,8 +383,8 @@ void CCommunicationInterface::PrepareForUse(BOOL bUseNetwork, BOOL bClient)
       }
     }
 
-    CPrintF(TRANS("  local addresses: %s (%s)\n"), cm_strName, cm_strAddress);
-    CPrintF(TRANS("  port: %d\n"), net_iPort);
+    CPrintF(TRANSV("  local addresses: %s (%s)\n"), (const char *) cm_strName, (const char *) cm_strAddress);
+    CPrintF(TRANSV("  port: %d\n"), net_iPort);
 
     // try to open master UDP socket
     try {
@@ -327,9 +392,9 @@ void CCommunicationInterface::PrepareForUse(BOOL bUseNetwork, BOOL bClient)
 			cci_pbMasterInput.pb_ppbsStats = NULL;
 			cci_pbMasterOutput.pb_ppbsStats = NULL;
       cm_ciBroadcast.SetLocal(NULL);
-      CPrintF(TRANS("  opened socket: \n"));
+      CPrintF(TRANSV("  opened socket: \n"));
     } catch (char *strError) {
-      CPrintF(TRANS("  cannot open UDP socket: %s\n"), strError);
+      CPrintF(TRANSV("  cannot open UDP socket: %s\n"), strError);
     }
   }
   
@@ -428,11 +493,26 @@ void CCommunicationInterface::SetNonBlocking_t(void)
     return;
   }
 
+#ifdef PLATFORM_WIN32
   ULONG ulArgNonBlocking = 1;
   if (ioctlsocket(cci_hSocket, FIONBIO, &ulArgNonBlocking) == SOCKET_ERROR) {
     ThrowF_t(TRANS("Cannot set socket to non-blocking mode. %s"), 
       (const char*)GetSocketError(WSAGetLastError()));
   }
+#else
+  int flags = fcntl(cci_hSocket, F_GETFL);
+  int failed = flags;
+  if (failed != -1) {
+      flags |= O_NONBLOCK;
+      failed = fcntl(cci_hSocket, F_SETFL, flags);
+  }
+
+  if (failed == -1) {
+    ThrowF_t(TRANS("Cannot set socket to non-blocking mode. %s"), 
+      (const char*)GetSocketError(WSAGetLastError()));
+  }
+#endif
+
 };
 
 
@@ -440,7 +520,7 @@ void CCommunicationInterface::SetNonBlocking_t(void)
 CTString CCommunicationInterface::GetSocketError(INDEX iError)
 {
   CTString strError;
-  strError.PrintF(TRANS("Socket %d, Error %d (%s)"),
+  strError.PrintF(TRANSV("Socket %d, Error %d (%s)"),
     cci_hSocket, iError, ErrorDescription(&SocketErrors, iError));
   return strError;
 };
@@ -476,12 +556,18 @@ void CCommunicationInterface::GetLocalAddress_t(ULONG &ulHost, ULONG &ulPort)
 
   // get socket local port and address
   sockaddr_in sin;
-  int iSize = sizeof(sin);
+  socklen_t iSize = sizeof(sin);
   if (getsockname(cci_hSocket, (sockaddr*)&sin, &iSize) == SOCKET_ERROR) {
     ThrowF_t(TRANS("Cannot get local address on socket. %s"), 
       (const char*)GetSocketError(WSAGetLastError()));
   }
+
+#ifdef PLATFORM_WIN32
   ulHost = ntohl(sin.sin_addr.S_un.S_addr);
+#else
+  ulHost = ntohl(sin.sin_addr.s_addr);
+#endif
+
   ulPort = ntohs(sin.sin_port);
 }
 
@@ -497,12 +583,17 @@ void CCommunicationInterface::GetRemoteAddress_t(ULONG &ulHost, ULONG &ulPort)
 
   // get socket local port
   sockaddr_in sin;
-  int iSize = sizeof(sin);
+  socklen_t iSize = sizeof(sin);
   if (getpeername(cci_hSocket, (sockaddr*)&sin, &iSize) == SOCKET_ERROR) {
     ThrowF_t(TRANS("Cannot get remote address on socket. %s"), 
       (const char*)GetSocketError(WSAGetLastError()));
   }
+
+#ifdef PLATFORM_WIN32
   ulHost = ntohl(sin.sin_addr.S_un.S_addr);
+#else
+  ulHost = ntohl(sin.sin_addr.s_addr);
+#endif
   ulPort = ntohs(sin.sin_port);
 }
 
@@ -562,12 +653,12 @@ void CCommunicationInterface::Broadcast_Update_t() {
 					cm_aciClients[iClient].ci_adrAddress.adr_uwPort = ppaConnectionRequest->pa_adrAddress.adr_uwPort;
 					// generate the ID
 					UWORD uwID = _pTimer->GetHighPrecisionTimer().tv_llValue&0x0FFF;
-					if (uwID==0 || uwID=='//') {
+					if (uwID==0 || uwID==SLASHSLASH) {
 						uwID+=1;
 					}										
 					cm_aciClients[iClient].ci_adrAddress.adr_uwID = (uwID<<4)+iClient;
 					// form the connection response packet
-					ppaConnectionRequest->pa_adrAddress.adr_uwID = '//';
+					ppaConnectionRequest->pa_adrAddress.adr_uwID = SLASHSLASH;
 					ppaConnectionRequest->pa_ubReliable = UDP_PACKET_RELIABLE | UDP_PACKET_RELIABLE_HEAD | UDP_PACKET_RELIABLE_TAIL | UDP_PACKET_CONNECT_RESPONSE;
 					// return it to the client
 					ppaConnectionRequest->WriteToPacket(&(cm_aciClients[iClient].ci_adrAddress.adr_uwID),sizeof(cm_aciClients[iClient].ci_adrAddress.adr_uwID),ppaConnectionRequest->pa_ubReliable,cm_ciBroadcast.ci_ulSequence++,ppaConnectionRequest->pa_adrAddress.adr_uwID,sizeof(cm_aciClients[iClient].ci_adrAddress.adr_uwID));
@@ -771,7 +862,7 @@ BOOL CCommunicationInterface::Server_Update()
 					}
 				}
 			} else {
-        CPrintF(TRANS("Unable to deliver data to client '%s', disconnecting.\n"),AddressToString(cm_aciClients[iClient].ci_adrAddress.adr_ulAddress));
+        CPrintF(TRANSV("Unable to deliver data to client '%s', disconnecting.\n"),(const char *) AddressToString(cm_aciClients[iClient].ci_adrAddress.adr_ulAddress));
         Server_ClearClient(iClient);
         _pNetwork->ga_srvServer.HandleClientDisconected(iClient);
 
@@ -800,7 +891,7 @@ BOOL CCommunicationInterface::Server_Update()
 			BOOL bClientFound;
 			ppaPacket = cci_pbMasterInput.GetFirstPacket();
 			bClientFound = FALSE;
-			if (ppaPacket->pa_adrAddress.adr_uwID=='//' || ppaPacket->pa_adrAddress.adr_uwID==0) {
+			if (ppaPacket->pa_adrAddress.adr_uwID==SLASHSLASH || ppaPacket->pa_adrAddress.adr_uwID==0) {
 				cm_ciBroadcast.ci_pbInputBuffer.AppendPacket(*ppaPacket,FALSE);
 				bClientFound = TRUE;
 			} else {
@@ -816,7 +907,7 @@ BOOL CCommunicationInterface::Server_Update()
 				// warn about possible attack
 				extern INDEX net_bReportMiscErrors;
 				if (net_bReportMiscErrors) {
-					CPrintF(TRANS("WARNING: Invalid message from: %s\n"), AddressToString(ppaPacket->pa_adrAddress.adr_ulAddress));
+					CPrintF(TRANSV("WARNING: Invalid message from: %s\n"), (const char *) AddressToString(ppaPacket->pa_adrAddress.adr_ulAddress));
 				}
 			}
  		}
@@ -899,7 +990,7 @@ void CCommunicationInterface::Client_Close(void)
 
 	// dispatch remaining packets (keep trying for half a second - 10 attempts)
   for(TIME tmWait=0; tmWait<500;
-    Sleep(NET_WAITMESSAGE_DELAY), tmWait+=NET_WAITMESSAGE_DELAY) {
+    _pTimer->Sleep(NET_WAITMESSAGE_DELAY), tmWait+=NET_WAITMESSAGE_DELAY) {
     // if all packets are successfully sent, exit loop
 		if  ((cm_ciLocalClient.ci_pbOutputBuffer.pb_ulNumOfPackets == 0) 
 			&& (cm_ciLocalClient.ci_pbWaitAckBuffer.pb_ulNumOfPackets == 0)) {
@@ -946,7 +1037,7 @@ void CCommunicationInterface::Client_OpenNet_t(ULONG ulServerAddress)
 	UBYTE ubReliable;
 
   // check for reconnection
-  static ULONG ulLastServerAddress = -1;
+  static ULONG ulLastServerAddress = (ULONG) -1;
   BOOL bReconnecting = ulServerAddress == ulLastServerAddress;
   ulLastServerAddress = ulServerAddress;
 
@@ -968,7 +1059,7 @@ void CCommunicationInterface::Client_OpenNet_t(ULONG ulServerAddress)
 	ppaInfoPacket->pa_adrAddress.adr_ulAddress = ulServerAddress;
 	ppaInfoPacket->pa_adrAddress.adr_uwPort = net_iPort;
 	ppaInfoPacket->pa_ubRetryNumber = 0;
-	ppaInfoPacket->WriteToPacket(&ubDummy,1,ubReliable,cm_ciLocalClient.ci_ulSequence++,'//',1);
+	ppaInfoPacket->WriteToPacket(&ubDummy,1,ubReliable,cm_ciLocalClient.ci_ulSequence++,SLASHSLASH,1);
 
 	cm_ciLocalClient.ci_pbOutputBuffer.AppendPacket(*ppaInfoPacket,TRUE);
 
@@ -1006,7 +1097,7 @@ void CCommunicationInterface::Client_OpenNet_t(ULONG ulServerAddress)
 			}
 		}
 
-    Sleep(iRefresh);
+    _pTimer->Sleep(iRefresh);
     CallProgressHook_t(FLOAT(iRetry%10)/10);
 	}
 	
@@ -1138,13 +1229,13 @@ BOOL CCommunicationInterface::Client_Update(void)
 			bClientFound = FALSE;
 
       // if the packet address is broadcast and it's an unreliable transfer, put it in the broadcast buffer
-      if ((ppaPacket->pa_adrAddress.adr_uwID=='//' || ppaPacket->pa_adrAddress.adr_uwID==0) && 
+      if ((ppaPacket->pa_adrAddress.adr_uwID==SLASHSLASH || ppaPacket->pa_adrAddress.adr_uwID==0) && 
            ppaPacket->pa_ubReliable == UDP_PACKET_UNRELIABLE) {
         cm_ciBroadcast.ci_pbInputBuffer.AppendPacket(*ppaPacket,FALSE);
 				bClientFound = TRUE;
       // if the packet is for this client, accept it
       } else if ((ppaPacket->pa_adrAddress.adr_uwID == cm_ciLocalClient.ci_adrAddress.adr_uwID) || 
-				          ppaPacket->pa_adrAddress.adr_uwID=='//' || ppaPacket->pa_adrAddress.adr_uwID==0) { 
+				          ppaPacket->pa_adrAddress.adr_uwID==SLASHSLASH || ppaPacket->pa_adrAddress.adr_uwID==0) { 
 				cm_ciLocalClient.ci_pbInputBuffer.AppendPacket(*ppaPacket,FALSE);
 				bClientFound = TRUE;
 			}
@@ -1152,7 +1243,7 @@ BOOL CCommunicationInterface::Client_Update(void)
 				// warn about possible attack
 				extern INDEX net_bReportMiscErrors;
 				if (net_bReportMiscErrors) {
-					CPrintF(TRANS("WARNING: Invalid message from: %s\n"), AddressToString(ppaPacket->pa_adrAddress.adr_ulAddress));
+					CPrintF(TRANSV("WARNING: Invalid message from: %s\n"), (const char *) AddressToString(ppaPacket->pa_adrAddress.adr_ulAddress));
 				}
 			}
  		}
@@ -1174,7 +1265,7 @@ void CCommunicationInterface::UpdateMasterBuffers()
 	UBYTE aub[MAX_PACKET_SIZE];
 	CAddress adrIncomingAddress;
 	SOCKADDR_IN sa;
-	int size = sizeof(sa);
+	socklen_t size = sizeof(sa);
 	SLONG slSizeReceived;
 	SLONG slSizeSent;
 	BOOL bSomethingDone;
@@ -1196,10 +1287,10 @@ void CCommunicationInterface::UpdateMasterBuffers()
 			//On error, report it to the console (if error is not a no data to read message)
 			if (slSizeReceived == SOCKET_ERROR) {
 				int iResult = WSAGetLastError();
-				if (iResult!=WSAEWOULDBLOCK) {
+				if (!isWouldBlockError(iResult)) {
 					// report it
 					if (iResult!=WSAECONNRESET || net_bReportICMPErrors) {
-						CPrintF(TRANS("Socket error during UDP receive. %s\n"), 
+						CPrintF(TRANSV("Socket error during UDP receive. %s\n"), 
 							(const char*)GetSocketError(iResult));
 						return;
 					}
@@ -1212,7 +1303,7 @@ void CCommunicationInterface::UpdateMasterBuffers()
 					// the packet is in error
           extern INDEX net_bReportMiscErrors;          
           if (net_bReportMiscErrors) {
-					  CPrintF(TRANS("WARNING: Bad UDP packet from '%s'\n"), AddressToString(adrIncomingAddress.adr_ulAddress));
+					  CPrintF(TRANSV("WARNING: Bad UDP packet from '%s'\n"), (const char *) AddressToString(adrIncomingAddress.adr_ulAddress));
           }
 					// there might be more to do
 					bSomethingDone = TRUE;
@@ -1254,14 +1345,19 @@ void CCommunicationInterface::UpdateMasterBuffers()
     if (slSizeSent == SOCKET_ERROR) {
       int iResult = WSAGetLastError();
 			// if output UDP buffer full, stop sending
-			if (iResult == WSAEWOULDBLOCK) {
+			if (isWouldBlockError(iResult)) {
 				return;
 			// report it
 			} else if (iResult!=WSAECONNRESET || net_bReportICMPErrors) {
-        CPrintF(TRANS("Socket error during UDP send. %s\n"), 
+        CPrintF(TRANSV("Socket error during UDP send. %s\n"), 
           (const char*)GetSocketError(iResult));
       }
 			return;    
+
+    } else if (slSizeSent < ppaNewPacket->pa_slSize) {
+        STUBBED("LOST OUTGOING PACKET DATA!");
+        ASSERT(0);
+
     // if all sent ok
     } else {
 			

@@ -7,7 +7,7 @@
 /* Constructor from seconds. */
 inline CTimerValue::CTimerValue(double fSeconds)
 {
-  tv_llValue = __int64(fSeconds*_pTimer->tm_llPerformanceCounterFrequency);
+  tv_llValue = (__int64) (fSeconds*_pTimer->tm_llPerformanceCounterFrequency);
 }
 /* Clear timer value (set it to zero). */
 inline void CTimerValue::Clear(void)

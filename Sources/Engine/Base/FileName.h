@@ -26,24 +26,31 @@ with this program; if not, write to the Free Software Foundation, Inc.,
  */
 class ENGINE_API CTFileName : public CTString {
 public:
+  static const char *convertFromWin32(const char *str);
+  static const char *convertToWin32(const char *src);
+
   class CSerial *fnm_pserPreloaded;     // pointer to already loaded object if available
 private:
+
   /* Constructor from character string. */
-  inline CTFileName(const char *pString) : CTString(pString), fnm_pserPreloaded(NULL) {};
+  inline CTFileName(const char *pString) : CTString(convertFromWin32(pString)), fnm_pserPreloaded(NULL) {}
 public:
   /* Default constructor. */
   inline CTFileName(void) : fnm_pserPreloaded(NULL) {};
   /* Copy constructor. */
-  inline CTFileName(const CTString &strOriginal) : CTString(strOriginal), fnm_pserPreloaded(NULL) {};
+  inline CTFileName(const CTString &strOriginal) : CTString(convertFromWin32(strOriginal)), fnm_pserPreloaded(NULL) {}
   /* Constructor from character string for insertion in exe-file. */
-  inline CTFileName(const char *pString, int i) : CTString(pString+i), fnm_pserPreloaded(NULL) {};
+  inline CTFileName(const char *pString, int i) : CTString(convertFromWin32(pString+i)), fnm_pserPreloaded(NULL) {}
 
   /* Assignment. */
   CTFileName &operator=(const char *strCharString);
   inline void operator=(const CTString &strOther) {
-    CTString::operator=(strOther);
+    CTString::operator=(convertFromWin32(strOther));
     fnm_pserPreloaded = NULL;
   };
+
+  /* Get CTString with win32-style dir separators for string compares. */
+  CTString Win32FmtString(void) const;
 
   /* Get directory part of a filename. */
   CTFileName FileDir(void) const;
@@ -53,10 +60,8 @@ public:
   CTFileName FileExt(void) const;
   /* Get path and file name without extension. */
   CTFileName NoExt(void) const;
-  /* Set path to the absolute path, taking \.. and /.. into account. */
-  void SetAbsolutePath(void);
   /* Remove application path from a file name. */
-  BOOL RemoveApplicationPath_t(void); // throw char *
+  void RemoveApplicationPath_t(void); // throw char *
 
   // filename is its own name (used for storing in nametable)
   inline const CTFileName &GetName(void) { return *this; };

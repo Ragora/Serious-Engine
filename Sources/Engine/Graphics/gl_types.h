@@ -25,8 +25,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
  *
  */
 
-/* !!! FIXME: rcg10042001 Christ I hope this are the same on the Linux ABI... */
-
 typedef enum {
 	/* Boolean values */
 	GL_FALSE = 0,

@@ -13,7 +13,7 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include "Engine/StdH.h"
 
 #include <Engine/Graphics/ShadowMap.h>
 
@@ -27,7 +27,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <Engine/Graphics/GfxProfile.h>
 #include <Engine/Brushes/Brush.h>
 
-#include <Engine/Base/Statistics_internal.h>
+#include <Engine/Base/Statistics_Internal.h>
 
 
 #define SHADOWMAXBYTES (256*256*4*4/3)
@@ -288,7 +288,7 @@ SLONG CShadowMap::Uncache( void)
   sm_iFirstCachedMipLevel = 31;
   sm_pulCachedShadowMap = NULL;
   sm_slMemoryUsed = 0;
-  sm_tvLastDrawn = 0I64;
+  sm_tvLastDrawn = (__int64) 0;
   sm_iRenderFrame = -1;
   sm_ulFlags = NONE;
   sm_tpLocal.Clear();
@@ -308,7 +308,7 @@ void CShadowMap::Clear()
   sm_pulDynamicShadowMap = NULL;
   sm_iFirstMipLevel = 0;
   sm_slMemoryUsed = 0;
-  sm_tvLastDrawn = 0I64;
+  sm_tvLastDrawn = (__int64) 0;
   sm_mexOffsetX = 0;
   sm_mexOffsetY = 0;
   sm_mexWidth  = 0;
@@ -342,13 +342,21 @@ void CShadowMap::Read_old_t(CTStream *pstrm) // throw char *
   //  pstrm->ExpectID_t( CChunkID("CTSM")); // read in Read_t()
   if( pstrm->GetSize_t() != 5*4) throw( TRANS("Invalid shadow cluster map file."));
 
-  *pstrm >> (INDEX)sm_iFirstMipLevel;
+  INDEX idx; // this was the only way I could coerce GCC into playing. --ryan.
+
+  *pstrm >> idx;
+  sm_iFirstMipLevel = idx;
   INDEX iNoOfMipmaps;
-  *pstrm >> (INDEX)iNoOfMipmaps;
-  *pstrm >> (MEX)sm_mexOffsetX;
-  *pstrm >> (MEX)sm_mexOffsetY;
-  *pstrm >> (MEX)sm_mexWidth;
-  *pstrm >> (MEX)sm_mexHeight;
+  *pstrm >> iNoOfMipmaps;
+  *pstrm >> idx;
+  sm_mexOffsetX = idx;
+  *pstrm >> idx;
+  sm_mexOffsetY = idx;
+  *pstrm >> idx;
+  sm_mexWidth = idx;
+  *pstrm >> idx;
+  sm_mexHeight = idx;
+
   BOOL bStaticImagePresent, bAnimatingImagePresent;
   *pstrm >> (INDEX&)bStaticImagePresent;
   *pstrm >> (INDEX&)bAnimatingImagePresent;

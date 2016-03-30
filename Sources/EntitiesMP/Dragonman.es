@@ -16,7 +16,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 321
 %{
 #include "StdH.h"
-#include "Models/Enemies/Dragonman/Dragonman.h"
+#include "Models/Enemies/DragonMan/DragonMan.h"
 %}
 
 uses "EntitiesMP/EnemyFly";

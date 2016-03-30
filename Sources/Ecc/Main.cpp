@@ -75,7 +75,7 @@ SType SType::operator+(const SType &other)
 /*
  * Function used for reporting errors.
  */
-void yyerror(char *s)
+void yyerror(const char *s)
 {
   fprintf( stderr, "%s(%d): Error: %s\n", _strInputFileName, _iLinesCt, s);
   ctErrors++;
@@ -84,7 +84,7 @@ void yyerror(char *s)
 /*
  * Change the extension of the filename.
  */
-char *ChangeFileNameExtension(char *strFileName, char *strNewExtension)
+char *ChangeFileNameExtension(const char *strFileName, const char *strNewExtension)
 {
   char *strChanged = (char*)malloc(strlen(strFileName)+strlen(strNewExtension)+2);
   strcpy(strChanged, strFileName);
@@ -99,7 +99,7 @@ char *ChangeFileNameExtension(char *strFileName, char *strNewExtension)
 /*
  * Open a file and report an error if failed.
  */
-FILE *FOpen(const char *strFileName, char *strMode)
+FILE *FOpen(const char *strFileName, const char *strMode)
 {
   // open the input file
   FILE *f = fopen(strFileName, strMode);

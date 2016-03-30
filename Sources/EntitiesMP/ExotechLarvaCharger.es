@@ -75,12 +75,12 @@ functions:
  
   BOOL IsTargetValid(SLONG slPropertyOffset, CEntity *penTarget)
   {
-    if( slPropertyOffset == offsetof(CExotechLarvaCharger, m_penBattery01) ||
-        slPropertyOffset == offsetof(CExotechLarvaCharger, m_penBattery02) ||
-        slPropertyOffset == offsetof(CExotechLarvaCharger, m_penBattery03) ||
-        slPropertyOffset == offsetof(CExotechLarvaCharger, m_penBattery04) ||
-        slPropertyOffset == offsetof(CExotechLarvaCharger, m_penBattery05) ||
-        slPropertyOffset == offsetof(CExotechLarvaCharger, m_penBattery06))
+    if( slPropertyOffset == _offsetof(CExotechLarvaCharger, m_penBattery01) ||
+        slPropertyOffset == _offsetof(CExotechLarvaCharger, m_penBattery02) ||
+        slPropertyOffset == _offsetof(CExotechLarvaCharger, m_penBattery03) ||
+        slPropertyOffset == _offsetof(CExotechLarvaCharger, m_penBattery04) ||
+        slPropertyOffset == _offsetof(CExotechLarvaCharger, m_penBattery05) ||
+        slPropertyOffset == _offsetof(CExotechLarvaCharger, m_penBattery06))
     {
       if (IsOfClass(penTarget, "ExotechLarvaBattery")) { return TRUE; }
       else { return FALSE; }

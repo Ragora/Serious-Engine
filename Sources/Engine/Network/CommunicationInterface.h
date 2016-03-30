@@ -19,7 +19,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
   #pragma once
 #endif
 
-
+#include <Engine/Network/Socket.h>
 
 #define SERVER_CLIENTS 16
 

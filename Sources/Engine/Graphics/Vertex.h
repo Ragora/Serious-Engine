@@ -20,6 +20,15 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #endif
 
 
+#include "Color.h"
+
+// !!! FIXME: rcg11162001 I have the structures packed to assure positioning.
+// !!! FIXME: rcg11162001 This should be fixed on win32, and then this
+// !!! FIXME: rcg11162001 ifndef should be removed.
+#ifndef PLATFORM_WIN32
+#pragma pack(1)
+#endif
+
 struct GFXVertex3
 {
   FLOAT x,y,z;
@@ -35,8 +44,8 @@ struct GFXNormal3
 struct GFXTexCoord
 {
   union {
-    struct { FLOAT u,v; };
-    struct { FLOAT s,t; };
+    struct { FLOAT u,v; } uv;
+    struct { FLOAT s,t; } st;
   };
 };
 
@@ -50,12 +59,19 @@ struct GFXTexCoord4
 struct GFXColor
 {
   union {
-    struct { UBYTE r,g,b,a; };
-    struct { ULONG abgr;    };  // reverse order - use ByteSwap()!
+    struct { UBYTE r,g,b,a; } ub;
+    struct { ULONG abgr;    } ul;  // reverse order - use ByteSwap()!
   };
 
   GFXColor() {};
 
+/*
+ * rcg10052001 This is a REALLY bad idea;
+ *  never rely on the memory layout of even a
+ *  simple class. It works for MSVC, though,
+ *  so we'll keep it.
+ */
+#if (defined _MSC_VER)
   GFXColor( COLOR col) {
     _asm mov   ecx,dword ptr [this]
     _asm mov   eax,dword ptr [col]
@@ -69,50 +85,57 @@ struct GFXColor
     _asm bswap eax
     _asm mov   dword ptr [ecx],eax
   }
+#else
+  GFXColor( COLOR col) { ul.abgr = ByteSwap(col); }
+  __forceinline void Set( COLOR col) { ul.abgr = ByteSwap(col); }
+#endif
 
   void MultiplyRGBA( const GFXColor &col1, const GFXColor &col2) {
-    r = (ULONG(col1.r)*col2.r)>>8;
-    g = (ULONG(col1.g)*col2.g)>>8;
-    b = (ULONG(col1.b)*col2.b)>>8;
-    a = (ULONG(col1.a)*col2.a)>>8;
+    ub.r = (ULONG(col1.ub.r)*col2.ub.r)>>8;
+    ub.g = (ULONG(col1.ub.g)*col2.ub.g)>>8;
+    ub.b = (ULONG(col1.ub.b)*col2.ub.b)>>8;
+    ub.a = (ULONG(col1.ub.a)*col2.ub.a)>>8;
   }
 
   void MultiplyRGB( const GFXColor &col1, const GFXColor &col2) {
-    r = (ULONG(col1.r)*col2.r)>>8;
-    g = (ULONG(col1.g)*col2.g)>>8;
-    b = (ULONG(col1.b)*col2.b)>>8;
+    ub.r = (ULONG(col1.ub.r)*col2.ub.r)>>8;
+    ub.g = (ULONG(col1.ub.g)*col2.ub.g)>>8;
+    ub.b = (ULONG(col1.ub.b)*col2.ub.b)>>8;
   }
 
   void MultiplyRGBCopyA1( const GFXColor &col1, const GFXColor &col2) {
-    r = (ULONG(col1.r)*col2.r)>>8;
-    g = (ULONG(col1.g)*col2.g)>>8;
-    b = (ULONG(col1.b)*col2.b)>>8;
-    a = col1.a;
+    ub.r = (ULONG(col1.ub.r)*col2.ub.r)>>8;
+    ub.g = (ULONG(col1.ub.g)*col2.ub.g)>>8;
+    ub.b = (ULONG(col1.ub.b)*col2.ub.b)>>8;
+    ub.a = col1.ub.a;
   }
 
   void AttenuateRGB( ULONG ulA) {
-    r = (ULONG(r)*ulA)>>8;
-    g = (ULONG(g)*ulA)>>8;
-    b = (ULONG(b)*ulA)>>8;
+    ub.r = (ULONG(ub.r)*ulA)>>8;
+    ub.g = (ULONG(ub.g)*ulA)>>8;
+    ub.b = (ULONG(ub.b)*ulA)>>8;
   }
 
   void AttenuateA( ULONG ulA) {
-    a = (ULONG(a)*ulA)>>8;
+    ub.a = (ULONG(ub.a)*ulA)>>8;
   }
 };
 
 
 #define GFXVertex GFXVertex4
-struct GFXVertex4
-{
-  GFXVertex4()
-  {
-  }
+/*
+ * rcg10042001 Removed the union; objects with constructors can't be
+ *  safely unioned, and there's not a whole lot of memory lost here anyhow.
+ */
+
+// IF YOU CHANGE THIS STRUCT, YOU WILL BREAK THE INLINE ASSEMBLY
+//  ON GNU PLATFORMS! THIS INCLUDES CHANGING THE STRUCTURE'S PACKING.
+//  You have been warned.
+struct GFXVertex4 {
   FLOAT x,y,z;
-  union {
-    struct { struct GFXColor col; };
-    struct { SLONG shade; };
-  };
+  struct GFXColor col;
+  SLONG shade;
+  void Clear(void) {};
 };
 
 
@@ -124,6 +147,12 @@ struct GFXNormal4
 };
 
 
+// !!! FIXME: rcg11162001 I have the structures packed to assure positioning.
+// !!! FIXME: rcg11162001 This should be fixed on win32, and then this
+// !!! FIXME: rcg11162001 ifndef should be removed.
+#ifndef PLATFORM_WIN32
+#pragma pack()
+#endif
 
 #endif  /* include-once check. */
 

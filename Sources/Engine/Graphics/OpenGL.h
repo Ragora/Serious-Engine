@@ -78,6 +78,10 @@ extern void  (__stdcall *pglPNTrianglesfATI)( GLenum pname, GLfloat param);
 
 // additional tools -----------------------------------------------------
 
+#include <Engine/Graphics/Color.h>
+#include <Engine/Graphics/Vertex.h>
+#include <Engine/Templates/StaticStackArray.cpp>
+
 
 // set color from croteam format
 inline void glCOLOR( COLOR col)
@@ -89,14 +93,14 @@ inline void glCOLOR( COLOR col)
             ((col >> 8) & 0x0000FF00) |
             ((col >> 24)            ) );
 
-#elif (defined _MSC_VER)
+#elif (defined __MSVC_INLINE__)
   __asm {
     mov     eax,dword ptr [col]
     bswap   eax
     mov     dword ptr [col],eax
   }
 
-#elif (defined __GNUC__)
+#elif (defined __GNU_INLINE__)
   __asm__ __volatile__ (
     "bswapl   %%eax    \n\t"
         : "=a" (col)

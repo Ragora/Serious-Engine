@@ -15,14 +15,18 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "StdAfx.h"
 #include "LCDDrawing.h"
+
+#ifdef DECL_DLL
+#undef DECL_DLL
+#endif
 #define DECL_DLL
 #include "EntitiesMP/Common/Particles.h"
 
-#include "Models/Enemies/Headman/Headman.h"
+#include "Models/Enemies/Headman/headman.h"
 #include "Models/Enemies/Eyeman/Eyeman.h"
 #include "Models/Enemies/Boneman/Boneman.h"
-#include "Models/Enemies/Werebull/Werebull.h"
-#include "Models/Enemies/Scorpman/Scorpman.h"
+#include "Models/Enemies/WereBull/WereBull.h"
+#include "Models/Enemies/SCORPMAN/scorpman.h"
 #include "Models/Enemies/Walker/Walker.h"
 #include "Models/Enemies/Woman/Woman.h"
 #include "Models/Enemies/Gizmo/Gizmo.h"
@@ -33,7 +37,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "ModelsMP/Enemies/Guffy/Guffy.h" 
 #include "ModelsMP/Enemies/Grunt/Grunt.h"
 #include "ModelsMP/Enemies/Demon/Demon.h"
-#include "ModelsMP/Enemies/ChainsawFreak/Freak.h"
+#include "ModelsMP/Enemies/ChainSawFreak/Freak.h"
 #include "ModelsMP/Enemies/CannonStatic/Turret.h"
 #include "ModelsMP/Enemies/CannonRotating/Turret.h"
 #include "ModelsMP/Enemies/CannonRotating/RotatingMechanism.h"
@@ -48,14 +52,14 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "Models/Weapons/Colt/ColtItem.h"
 #include "Models/Weapons/SingleShotgun/SingleShotgunItem.h"
 #include "Models/Weapons/DoubleShotgun/DoubleShotgunItem.h"
-#include "Models/Weapons/Minigun/MinigunItem.h"
-#include "Models/Weapons/Tommygun/TommygunItem.h"
+#include "Models/Weapons/MiniGun/MiniGunItem.h"
+#include "Models/Weapons/TommyGun/TommyGunItem.h"
 #include "Models/Weapons/RocketLauncher/RocketLauncherItem.h"
 #include "Models/Weapons/GrenadeLauncher/GrenadeLauncherItem.h"
 #include "Models/Weapons/Laser/LaserItem.h"
 #include "Models/Weapons/Cannon/Cannon.h"
 #include "ModelsMP/Weapons/Sniper/SniperItem.h"
-#include "ModelsMP/Weapons/ChainSaw/ChainSawItem.h"
+#include "ModelsMP/Weapons/ChainSaw/ChainsawItem.h"
 #include "ModelsMP/Weapons/ChainSaw/BladeForPlayer.h"
 #include "ModelsMP/Weapons/Flamer/FlamerItem.h"
 
@@ -83,7 +87,7 @@ static BOOL _bModelOK = FALSE;
 
 extern FLOAT _fMsgAppearFade;
 
-CModelObject *AddAttachment_t(CModelObject *pmoParent, INDEX iPosition,
+static CModelObject *AddAttachment_t(CModelObject *pmoParent, INDEX iPosition,
    const CTFileName &fnmModel, INDEX iAnim,
    const CTFileName &fnmTexture,
    const CTFileName &fnmReflection=CTFILENAME(""),
@@ -910,7 +914,7 @@ extern void SetupCompModel_t(const CTString &strName)
     _fFloorY = -1.0f;
 
   } else {
-    ThrowF_t(TRANS("Unknown model '%s'"), strName);
+    ThrowF_t(TRANS("Unknown model '%s'"), (const char *) strName);
   }
 }
 
@@ -928,7 +932,7 @@ void RenderMessageModel(CDrawPort *pdp, const CTString &strModel)
     // if failed
     } catch(char *strError) {
       // report error
-      CPrintF("Cannot setup model '%s':\n%s\n", strModel, strError);
+      CPrintF("Cannot setup model '%s':\n%s\n", (const char *) strModel, strError);
       // do nothing
       return;
     }

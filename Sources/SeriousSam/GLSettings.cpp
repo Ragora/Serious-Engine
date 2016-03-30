@@ -13,7 +13,7 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include "SeriousSam/StdH.h"
 
 // list of settings data
 static CListHead _lhSettings;
@@ -32,9 +32,8 @@ public:
 
 // last valid settings info
 static CTString _strLastRenderer;
-extern CTString _strPreferencesDescription = "";
-extern INDEX    _iLastPreferences = 1;
-
+CTString _strPreferencesDescription = "";
+INDEX    _iLastPreferences = 1;
 
 // check if this entry matches given info
 BOOL CSettingsEntry::Matches( const CTString &strRenderer) const
@@ -100,8 +99,8 @@ void InitGLSettings(void)
 
   _strLastRenderer= "none";
   _iLastPreferences = 1;
-  _pShell->DeclareSymbol("persistent CTString sam_strLastRenderer;", &_strLastRenderer);
-  _pShell->DeclareSymbol("persistent INDEX    sam_iLastSetup;",      &_iLastPreferences);
+  _pShell->DeclareSymbol("persistent CTString sam_strLastRenderer;", (void *) &_strLastRenderer);
+  _pShell->DeclareSymbol("persistent INDEX    sam_iLastSetup;",      (void *) &_iLastPreferences);
 }
 
 
@@ -122,7 +121,7 @@ extern void ApplyGLSettings(BOOL bForce)
 {
   CPrintF( TRANS("\nAutomatic 3D-board preferences adjustment...\n"));
   CDisplayAdapter &da = _pGfx->gl_gaAPI[_pGfx->gl_eCurrentAPI].ga_adaAdapter[_pGfx->gl_iCurrentAdapter];
-  CPrintF( TRANS("Detected: %s - %s - %s\n"), da.da_strVendor, da.da_strRenderer, da.da_strVersion);
+  CPrintF( TRANS("Detected: %s - %s - %s\n"), (const char *) da.da_strVendor, (const char *) da.da_strRenderer, (const char *) da.da_strVersion);
 
   // get new settings
   CSettingsEntry *pse = GetGLSettings( da.da_strRenderer);
@@ -130,40 +129,43 @@ extern void ApplyGLSettings(BOOL bForce)
   // if none found
   if (pse==NULL) {
     // error
-    CPrintF(TRANS("No matching preferences found! Automatic adjustment disabled!\n"));
+    CPrintF(TRANSV("No matching preferences found! Automatic adjustment disabled!\n"));
     return;
   }
 
   // report
-  CPrintF(TRANS("Matching: %s (%s)\n"), pse->se_strRenderer, pse->se_strDescription);
+  CPrintF(TRANSV("Matching: %s (%s)\n"),
+            (const char *) pse->se_strRenderer,
+            (const char *) pse->se_strDescription);
+
   _strPreferencesDescription = pse->se_strDescription;
 
   if (!bForce) {
     // if same as last
     if( pse->se_strDescription==_strLastRenderer && sam_iVideoSetup==_iLastPreferences) {
       // do nothing
-      CPrintF(TRANS("Similar to last, keeping same preferences.\n"));
+      CPrintF(TRANSV("Similar to last, keeping same preferences.\n"));
       return;
     }
-    CPrintF(TRANS("Different than last, applying new preferences.\n"));
+    CPrintF(TRANSV("Different than last, applying new preferences.\n"));
   } else {
-    CPrintF(TRANS("Applying new preferences.\n"));
+    CPrintF(TRANSV("Applying new preferences.\n"));
   } 
 
   // clamp rendering preferences (just to be on the safe side)
   sam_iVideoSetup = Clamp( sam_iVideoSetup, 0L, 3L);
-  CPrintF(TRANS("Mode: %s\n"), RenderingPreferencesDescription(sam_iVideoSetup));
+  CPrintF(TRANSV("Mode: %s\n"), (const char *) RenderingPreferencesDescription(sam_iVideoSetup));
   // if not in custom mode
   if (sam_iVideoSetup<3) {
     // execute the script
     CTString strCmd;
-    strCmd.PrintF("include \"Scripts\\GLSettings\\%s\"", CTString(pse->se_fnmScript));
+    strCmd.PrintF("include \"Scripts\\GLSettings\\%s\"", (const char *) (CTString(pse->se_fnmScript)));
     _pShell->Execute(strCmd);
     // refresh textures
     _pShell->Execute("RefreshTextures();");
   }
   // done
-  CPrintF(TRANS("Done.\n\n"));
+  CPrintF(TRANSV("Done.\n\n"));
 
   // remember settings
   _strLastRenderer = pse->se_strDescription; 

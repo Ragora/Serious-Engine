@@ -223,6 +223,15 @@ public:
 };
 
 /*
+ * !!! FIXME: R_OK is used with the unix access() API...
+ * !!! FIXME:  we're lucky...on Linux, it's a macro, but it could be an
+ * !!! FIXME:  enum just as easily.  --ryan.
+ */
+#ifdef R_OK
+#undef R_OK
+#endif
+
+/*
  * Stream of message blocks that can be sent across network.
  */
 class CNetworkStream {
@@ -271,6 +280,10 @@ public:
   void RemoveOlderBlocksBySequence(INDEX iLastSequenceToKeep);
 };
 
+
+#ifdef NETSTRUCTS_PACKED
+  #pragma pack(1)
+#endif
 class ENGINE_API CPlayerAction {
 public:
   // order is important for compression and normalization - do not reorder!
@@ -305,7 +318,10 @@ public:
   /* Read an object from stream. */
   friend CTStream &operator>>(CTStream &strm, CPlayerAction &pa);
 };
-
+#ifdef NETSTRUCTS_PACKED
+  #pragma pack()
+#endif
 
 #endif  /* include-once check. */
+
 

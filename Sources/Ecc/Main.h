@@ -24,7 +24,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #endif
 
 extern int yylex(void);
-extern void yyerror(char *s);
+extern void yyerror(const char *s);
 extern int yyparse(void);
 
 extern FILE *_fInput;

@@ -13,7 +13,7 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include "Engine/StdH.h"
 
 #include <Engine/Network/NetworkMessage.h>
 #include <Engine/Network/Compression.h>
@@ -49,7 +49,7 @@ static struct ErrorCode ErrorCodes[] = {
   ERRORCODE(MSG_GAMESTREAMBLOCKS, "MSG_GAMESTREAMBLOCKS"), 
   ERRORCODE(MSG_REQUESTGAMESTREAMRESEND, "MSG_REQUESTGAMESTREAMRESEND"),
 };
-extern struct ErrorTable MessageTypes = ERRORTABLE(ErrorCodes);
+struct ErrorTable MessageTypes = ERRORTABLE(ErrorCodes);
 
 /////////////////////////////////////////////////////////////////////
 // CNetworkMessage
@@ -175,7 +175,7 @@ BOOL CNetworkMessage::EndOfMessage(void)
 void CNetworkMessage::Read(void *pvBuffer, SLONG slSize)
 {
   if (nm_pubPointer+slSize > nm_pubMessage+nm_slSize) {
-    CPrintF(TRANS("Warning: Message over-reading!\n"));
+    CPrintF(TRANSV("Warning: Message over-reading!\n"));
     ASSERT(FALSE);
     memset(pvBuffer, 0, slSize);
     return;
@@ -187,7 +187,7 @@ void CNetworkMessage::Read(void *pvBuffer, SLONG slSize)
 void CNetworkMessage::Write(const void *pvBuffer, SLONG slSize)
 {
   if (nm_pubPointer+slSize > nm_pubMessage+nm_slMaxSize) {
-    CPrintF(TRANS("Warning: Message over-writing!\n"));
+    CPrintF(TRANSV("Warning: Message over-writing!\n"));
     ASSERT(FALSE);
     return;
   }
@@ -236,7 +236,7 @@ CNetworkMessage &CNetworkMessage::operator<<(const CTString &str)
       *nm_pubPointer++ = 0;
       nm_slSize++;
       // report error and stop
-      CPrintF(TRANS("Warning: Message over-writing!\n"));
+      CPrintF(TRANSV("Warning: Message over-writing!\n"));
       ASSERT(FALSE);
       return *this;
     }
@@ -860,6 +860,7 @@ void CPlayerAction::Normalize(void)
 // create a checksum value for sync-check
 void CPlayerAction::ChecksumForSync(ULONG &ulCRC)
 {
+  // !!! FIXME: Bad, bad, bad.  --ryan.
   CRC_AddBlock(ulCRC, (UBYTE*)this, sizeof(this));
 }
 
@@ -974,8 +975,8 @@ CNetworkMessage &operator>>(CNetworkMessage &nm, CPlayerAction &pa)
   }
 
   // find number of zero bits for flags
-  INDEX iZeros=0;
-  for(; iZeros<6; iZeros++) {
+  INDEX iZeros;
+  for(iZeros=0; iZeros<6; iZeros++) {
     UBYTE ub=0;
     nm.ReadBits(&ub, 1);
     if (ub!=0) {
@@ -1018,12 +1019,20 @@ CNetworkMessage &operator>>(CNetworkMessage &nm, CPlayerAction &pa)
 /* Write an object into stream. */
 CTStream &operator<<(CTStream &strm, const CPlayerAction &pa)
 {
-  strm.Write_t(&pa,sizeof(pa));
+  strm<<pa.pa_vTranslation;
+  strm<<pa.pa_aRotation;
+  strm<<pa.pa_aViewRotation;
+  strm<<pa.pa_ulButtons;
+  strm<<pa.pa_llCreated;
   return strm;
 }
 /* Read an object from stream. */
 CTStream &operator>>(CTStream &strm, CPlayerAction &pa)
 {
-  strm.Read_t(&pa,sizeof(pa));
+  strm>>pa.pa_vTranslation;
+  strm>>pa.pa_aRotation;
+  strm>>pa.pa_aViewRotation;
+  strm>>pa.pa_ulButtons;
+  strm>>pa.pa_llCreated;
   return strm;
 }

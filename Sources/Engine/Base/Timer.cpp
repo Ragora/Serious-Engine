@@ -13,11 +13,12 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
 
-#include "StdH.h"
+#include "Engine/StdH.h"
 
 #include <Engine/Base/Timer.h>
 #include <Engine/Base/Console.h>
 #include <Engine/Base/Translation.h>
+#include <Engine/Base/ThreadLocalStorage.h>  //rcg10242001
 
 #include <Engine/Base/Registry.h>
 #include <Engine/Base/Profiling.h>
@@ -27,9 +28,23 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <Engine/Base/ListIterator.inl>
 #include <Engine/Base/Priority.inl>
 
-// Read the Pentium TimeStampCounter
+//#if ( (USE_PORTABLE_C) || (PLATFORM_UNIX) )
+//#define USE_GETTIMEOFDAY 1
+//#endif
+
+#if USE_GETTIMEOFDAY
+#include <sys/time.h>
+#endif
+
+// Read the Pentium TimeStampCounter (or something like that).
 static inline __int64 ReadTSC(void)
 {
+#if USE_GETTIMEOFDAY
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  return( (((__int64) tv.tv_sec) * 1000000) + ((__int64) tv.tv_usec) );
+
+#elif (defined __MSVC_INLINE__)
   __int64 mmRet;
   __asm {
     rdtsc
@@ -37,14 +52,32 @@ static inline __int64 ReadTSC(void)
     mov   dword ptr [mmRet+4],edx
   }
   return mmRet;
+
+#elif (defined __GNU_INLINE__)
+  __int64 mmRet;
+  __asm__ __volatile__ (
+    "rdtsc                    \n\t"
+    "movl   %%eax, 0(%%esi)   \n\t"
+    "movl   %%edx, 4(%%esi)   \n\t"
+        :
+        : "S" (&mmRet)
+        : "memory", "eax", "edx"
+  );
+  return(mmRet);
+
+#else
+  #error Please implement for your platform/compiler.
+#endif
 }
 
 
 // link with Win-MultiMedia
+#ifdef _MSC_VER
 #pragma comment(lib, "winmm.lib")
+#endif
 
 // current game time always valid for the currently active task
-static _declspec(thread) TIME _CurrentTickTimer = 0.0f;
+THREADLOCAL(TIME, _CurrentTickTimer, 0.0f);
 
 // CTimer implementation
 
@@ -89,8 +122,29 @@ void CTimer_TimerFunc_internal(void)
 // streams and to group file before enabling that!
 //  CTSTREAM_BEGIN {
 
+#ifdef SINGLE_THREADED
+
+    // rcg10272001 experimenting here...
+    static CTimerValue highResQuantum((double) _pTimer->TickQuantum);
+
+    CTimerValue upkeep = _pTimer->GetHighPrecisionTimer() - _pTimer->tm_InitialTimerUpkeep;
+    TIME t = upkeep.GetSeconds();
+
+    if (t < _pTimer->TickQuantum)  // not time to do an update, yet.
+        return;
+
+    while (t >= _pTimer->TickQuantum) {
+      _pTimer->tm_InitialTimerUpkeep += highResQuantum;
+      _pTimer->tm_RealTimeTimer += _pTimer->TickQuantum;
+      t -= _pTimer->TickQuantum;
+    }
+
+#else
+
     // increment the 'real time' timer
     _pTimer->tm_RealTimeTimer += _pTimer->TickQuantum;
+
+#endif
 
     // get the current time for real and in ticks
     CTimerValue tvTimeNow = _pTimer->GetHighPrecisionTimer();
@@ -117,6 +171,10 @@ void CTimer_TimerFunc_internal(void)
 
 //  } CTSTREAM_END;
 }
+
+// !!! FIXME : rcg10192001 Abstract this!
+#if (!defined SINGLE_THREADED)
+#ifdef PLATFORM_WIN32
 void __stdcall CTimer_TimerFunc(UINT uID, UINT uMsg, ULONG dwUser, ULONG dw1, ULONG dw2)
 {
   // access to the list of handlers must be locked
@@ -124,7 +182,18 @@ void __stdcall CTimer_TimerFunc(UINT uID, UINT uMsg, ULONG dwUser, ULONG dw1, UL
   // handle all timers
   CTimer_TimerFunc_internal();
 }
-
+#elif (defined PLATFORM_UNIX)
+#include "SDL.h"
+Uint32 CTimer_TimerFunc_SDL(Uint32 interval)
+{
+  // access to the list of handlers must be locked
+  CTSingleLock slHooks(&_pTimer->tm_csHooks, TRUE);
+  // handle all timers
+  CTimer_TimerFunc_internal();
+  return(interval);
+}
+#endif
+#endif
 
 #pragma inline_depth()
 
@@ -134,6 +203,7 @@ static INDEX _aiTries[MAX_MEASURE_TRIES];
 // Get processor speed in Hertz
 static __int64 GetCPUSpeedHz(void)
 {
+#ifdef PLATFORM_WIN32
   // get the frequency of the 'high' precision timer
   __int64 llTimerFrequency;
   BOOL bPerformanceCounterPresent = QueryPerformanceFrequency((LARGE_INTEGER*)&llTimerFrequency);
@@ -151,8 +221,7 @@ static __int64 GetCPUSpeedHz(void)
   __int64 llSpeedMeasured;
 
   // try to measure 10 times
-  INDEX iSet=0;
-  for( ; iSet<10; iSet++)
+  for( INDEX iSet=0; iSet<10; iSet++)
   { // one time has several tries
     for( iTry=0; iTry<MAX_MEASURE_TRIES; iTry++)
     { // wait the state change on the timer
@@ -201,7 +270,7 @@ static __int64 GetCPUSpeedHz(void)
   // if not found in registry
   if( !bFoundInReg) {
     // use measured
-    CPrintF(TRANS("  CPU speed not found in registry, using calculated value\n\n"));
+    CPrintF(TRANSV("  CPU speed not found in registry, using calculated value\n\n"));
     return (__int64)slSpeedRead*1000000;
   // if found in registry
   } else {
@@ -209,26 +278,46 @@ static __int64 GetCPUSpeedHz(void)
     const INDEX iTolerance = slSpeedRead *1/100; // %1 tolerance should be enough
     if( abs(slSpeedRead-slSpeedReg) > iTolerance) {
       // report warning and use registry value
-      CPrintF(TRANS("  WARNING: calculated CPU speed different than stored in registry!\n\n"));
+      CPrintF(TRANSV("  WARNING: calculated CPU speed different than stored in registry!\n\n"));
       return (__int64)slSpeedReg*1000000;
     }
     // use measured value
     return (__int64)slSpeedRead*1000000;
   }
+#else
+
+    STUBBED("I hope this isn't critical...");
+    return(1);
+
+#endif
+
 }
 
+
+#if PLATFORM_MACOSX
+extern "C" { signed int GetCPUSpeed(void); }  // carbon function, avoid header.
+#endif
 
 /*
  * Constructor.
  */
 CTimer::CTimer(BOOL bInterrupt /*=TRUE*/)
 {
+#if (defined SINGLE_THREADED)
+  bInterrupt = FALSE;
+#endif
+
   tm_csHooks.cs_iIndex = 1000;
   // set global pointer
   ASSERT(_pTimer == NULL);
   _pTimer = this;
   tm_bInterrupt = bInterrupt;
 
+#if USE_GETTIMEOFDAY
+  // just use gettimeofday.
+  tm_llCPUSpeedHZ = tm_llPerformanceCounterFrequency = 1000000;
+
+#elif PLATFORM_WIN32
   { // this part of code must be executed as precisely as possible
     CSetPriority sp(REALTIME_PRIORITY_CLASS, THREAD_PRIORITY_TIME_CRITICAL);
     tm_llCPUSpeedHZ = GetCPUSpeedHz();
@@ -237,6 +326,54 @@ CTimer::CTimer(BOOL bInterrupt /*=TRUE*/)
     // measure profiling errors and set epsilon corrections
     CProfileForm::CalibrateProfilingTimers();
   }
+
+#elif PLATFORM_MACOSX
+  tm_llPerformanceCounterFrequency = tm_llCPUSpeedHZ = ((__int64) GetCPUSpeed()) * 1000000;
+
+#else
+  // !!! FIXME : This is an ugly hack.
+  double mhz = 0.0;
+  const char *envmhz = getenv("SERIOUS_MHZ");
+
+  if (envmhz != NULL)
+  {
+    mhz = atof(envmhz);
+  }
+
+  else
+  {
+    FILE *fp = fopen("/proc/cpuinfo", "rb");
+    if (fp != NULL)
+    {
+      char *buf = (char *) malloc(10240);  // bleh.
+      if (buf != NULL)
+      {
+        fread(buf, 10240, 1, fp);
+        char *ptr = strstr(buf, "cpu MHz");
+        if (ptr != NULL)
+        {
+          ptr = strchr(ptr, ':');
+          if (ptr != NULL)
+          {
+            do
+            {
+              ptr++;
+            } while ((*ptr == '\t') || (*ptr == ' '));
+            mhz = atof(ptr);
+          }
+        }
+        free(buf);
+      }
+      fclose(fp);
+    }
+  }
+
+  if (mhz == 0.0) {
+     FatalError("Can't get CPU speed. Please set SERIOUS_MHZ environment variable.");
+  }
+
+  tm_llPerformanceCounterFrequency = tm_llCPUSpeedHZ = (__int64) (mhz * 1000000.0);
+#endif
 
   // clear counters
   _CurrentTickTimer = TIME(0);
@@ -249,8 +386,18 @@ CTimer::CTimer(BOOL bInterrupt /*=TRUE*/)
   tm_fLerpFactor2 = 1.0f;
 
   // start interrupt (eventually)
+#if (defined SINGLE_THREADED)
+
+  tm_InitialTimerUpkeep = GetHighPrecisionTimer();
+
+#else
+
   if( tm_bInterrupt)
   {
+
+   // !!! FIXME : rcg10192001 Abstract this!
+   #ifdef PLATFORM_WIN32
+
     tm_TimerID = timeSetEvent(
       ULONG(TickQuantum*1000.0f),	  // period value [ms]
       0,	                          // resolution (0==max. possible)
@@ -261,18 +408,27 @@ CTimer::CTimer(BOOL bInterrupt /*=TRUE*/)
     // check that interrupt was properly started
     if( tm_TimerID==NULL) FatalError(TRANS("Cannot initialize multimedia timer!"));
 
+   #else
+
+    if (SDL_Init(SDL_INIT_TIMER) == -1) FatalError(TRANS("Cannot initialize multimedia timer!"));
+    SDL_SetTimer(ULONG(TickQuantum*1000.0f), CTimer_TimerFunc_SDL);
+
+   #endif
+
     // make sure that timer interrupt is ticking
-    INDEX iTry=1;
-    for( ; iTry<=3; iTry++) {
+    INDEX iTry;
+    for(iTry=1; iTry<=3; iTry++) {
       const TIME tmTickBefore = GetRealTimeTick();
       Sleep(1000* iTry*3 *TickQuantum);
       const TIME tmTickAfter = GetRealTimeTick();
+      ASSERT(tmTickBefore <= tmTickAfter);
       if( tmTickBefore!=tmTickAfter) break;
       Sleep(1000*iTry);
     }
     // report fatal
     if( iTry>3) FatalError(TRANS("Problem with initializing multimedia timer - please try again."));
   }
+#endif  // !defined SINGLE_THREADED
 }
 
 /*
@@ -280,19 +436,29 @@ CTimer::CTimer(BOOL bInterrupt /*=TRUE*/)
  */
 CTimer::~CTimer(void)
 {
+    // !!! FIXME : abstract this.
+#if (!defined SINGLE_THREADED)
+#ifdef PLATFORM_WIN32
   ASSERT(_pTimer == this);
 
   // destroy timer
   if (tm_bInterrupt) {
-    ASSERT(tm_TimerID!=NULL);
+    ASSERT(tm_TimerID);
     ULONG rval = timeKillEvent(tm_TimerID);
     ASSERT(rval == TIMERR_NOERROR);
   }
   // check that all handlers have been removed
   ASSERT(tm_lhHooks.IsEmpty());
 
+#else
+    SDL_SetTimer(0, NULL);
+#endif
+
+#endif
+
   // clear global pointer
   _pTimer = NULL;
+
 }
 
 /*
@@ -328,6 +494,13 @@ void CTimer::HandleTimerHandlers(void)
   CTimer_TimerFunc_internal();
 }
 
+/*
+ * Get current timer value of high precision timer.
+ */
+CTimerValue CTimer::GetHighPrecisionTimer(void)
+{
+  return ReadTSC();
+}
 
 /*
  * Set the real time tick value.
@@ -390,7 +563,7 @@ void CTimer::DisableLerp(void)
 CTString TimeToString(FLOAT fTime)
 {
   CTString strTime;
-  int iSec = floor(fTime);
+  int iSec = (int) floor(fTime);
   int iMin = iSec/60;
   iSec = iSec%60;
   int iHou = iMin/60;

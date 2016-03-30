@@ -63,7 +63,7 @@ void UpdateInputEnabledState(CViewPort *pvp)
 }
 
 // automaticaly manage pause toggling
-void UpdatePauseState(void)
+static void UpdatePauseState(void)
 {
   BOOL bShouldPause = 
      _pGame->gm_csConsoleState ==CS_ON || _pGame->gm_csConsoleState ==CS_TURNINGON || _pGame->gm_csConsoleState ==CS_TURNINGOFF ||
@@ -76,7 +76,12 @@ void UpdatePauseState(void)
 void CGame::QuickTest(const CTFileName &fnMapName, 
   CDrawPort *pdp, CViewPort *pvp)
 {
-  UINT uiMessengerMsg = RegisterWindowMessageA("Croteam Messenger: Incoming Message");
+#ifdef PLATFORM_WIN32
+  UINT uiMessengerMsg = RegisterWindowMessage("Croteam Messenger: Incoming Message");
+#else
+  UINT uiMessengerMsg = 0x7337d00d;
+#endif
+
   EnableLoadingHook(pdp);
 
   // quick start game with the world
@@ -166,7 +171,12 @@ void CGame::QuickTest(const CTFileName &fnMapName,
         _pNetwork->TogglePause();
       }
       if(msg.message==WM_KEYDOWN && 
+            // !!! FIXME: rcg11162001 This sucks.
+        #ifdef PLATFORM_UNIX
+        (msg.unicode == '~'
+        #else
         (MapVirtualKey(msg.wParam, 0)==41 // scan code for '~'
+        #endif
         ||msg.wParam==VK_F1)) {
         if (_pGame->gm_csConsoleState==CS_OFF || _pGame->gm_csConsoleState==CS_TURNINGOFF) {
           _pGame->gm_csConsoleState = CS_TURNINGON;

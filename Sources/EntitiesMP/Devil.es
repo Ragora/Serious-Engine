@@ -253,7 +253,7 @@ functions:
   virtual CTString GetPlayerKillDescription(const CTString &strPlayerName, const EDeath &eDeath)
   {
     CTString str;
-    str.PrintF(TRANS("Ugh Zan killed %s"), strPlayerName);
+    str.PrintF(TRANSV("Ugh Zan killed %s"), (const char *) strPlayerName);
     return str;
   }
 
@@ -759,7 +759,7 @@ functions:
       {
         m_dsLastDevilState = m_dsDevilState;
         CTString strDevilState = DevilState_enum.NameForValue(INDEX(m_dsDevilState));
-        CPrintF( "New devil state: %s\n", strDevilState);
+        CPrintF( "New devil state: %s\n", (const char *) strDevilState);
       }
 
       // print fire power state change
@@ -767,7 +767,7 @@ functions:
       {
         m_dapLastAttackPower = m_dapAttackPower;
         CTString strAttackPower = DevilAttackPower_enum.NameForValue(INDEX(m_dapAttackPower));
-        CPrintF( "New attack power: %s\n", strAttackPower);
+        CPrintF( "New attack power: %s\n", (const char *) strAttackPower);
       }
 
       // print radius of attack change
@@ -814,7 +814,9 @@ functions:
           strScheduledAnimName = aiScheduled.ai_AnimName;
         }
         CPrintF("Time: %-10g %20s, %s\n",
-          _pTimer->GetLerpedCurrentTick(), strCurrentAnimName, strScheduledAnimName);
+          _pTimer->GetLerpedCurrentTick(),
+          (const char *) strCurrentAnimName,
+          (const char *) strScheduledAnimName);
       }
       m_iLastCurrentAnim = iCurrentAnim;
       m_iLastScheduledAnim = iScheduledAnim;
@@ -829,9 +831,9 @@ functions:
       CPrintF("\n\n");
       
       CTString strAttackPower = DevilAttackPower_enum.NameForValue(INDEX(m_dapAttackPower));
-      CPrintF( "Attack power: %s\n", strAttackPower);
+      CPrintF( "Attack power: %s\n", (const char *) strAttackPower);
       CTString strDevilState = DevilState_enum.NameForValue(INDEX(m_dsDevilState));
-      CPrintF( "Devil state: %s\n", strDevilState);
+      CPrintF( "Devil state: %s\n", (const char *) strDevilState);
 
       CPrintF("m_fFireTime = %g\n", m_fFireTime);
       CPrintF("m_iFiredProjectiles = %d\n", m_iFiredProjectiles);
@@ -858,13 +860,13 @@ functions:
 
       CPrintF( "m_ttTarget (type): %d\n", INDEX(m_ttTarget));
 
-      CPrintF( "m_penWatcher %x\n", m_penWatcher);
+      CPrintF( "m_penWatcher %x\n", (const char *) (m_penWatcher->GetName()));
       CTString strEnemyName = "Null ptr, no name";
       if( m_penEnemy != NULL) 
       {
         strEnemyName = m_penEnemy->GetName();
       }
-      CPrintF( "m_penEnemy %x, enemy name: %s\n", m_penEnemy, strEnemyName);
+      CPrintF( "m_penEnemy %x, enemy name: %s\n", (const char *) (m_penEnemy->GetName()), (const char *) strEnemyName);
 
       CPrintF( "m_vStartPosition (%g, %g, %g)\n", m_vStartPosition(1), m_vStartPosition(2), m_vStartPosition(3));
       CPrintF( "m_vStartDirection (%g, %g, %g)\n", m_vStartDirection(1), m_vStartDirection(2), m_vStartDirection(3));
@@ -892,8 +894,8 @@ functions:
       CPrintF( "m_vDesiredPosition (%g, %g, %g)\n", m_vDesiredPosition(1), m_vDesiredPosition(2), m_vDesiredPosition(3));
   
       CTString strDestinationType = DestinationType_enum.NameForValue(INDEX(m_dtDestination));
-      CPrintF( "m_dtDestination: %s\n", strDestinationType);
-      CPrintF( "m_penPathMarker %x\n", m_penPathMarker);
+      CPrintF( "m_dtDestination: %s\n", (const char *) strDestinationType);
+      CPrintF( "m_penPathMarker %x\n", (const char *) (m_penPathMarker->GetName()));
 
       CPrintF( "m_vPlayerSpotted (%g, %g, %g)\n", m_vPlayerSpotted(1), m_vPlayerSpotted(2), m_vPlayerSpotted(3));
       CPrintF( "m_fMoveFrequency = %g\n", m_fMoveFrequency);
@@ -911,14 +913,14 @@ functions:
       {
         strMarkerName = m_penMarker->GetName();
       }
-      CPrintF( "m_penMarker %x, marker name: %s\n", m_penMarker, strMarkerName);
+      CPrintF( "m_penMarker %x, marker name: %s\n", (const char *) (m_penMarker->GetName()), (const char *) strMarkerName);
 
       CTString strMainMusicHolderName = "Null ptr, no name";
       if( m_penMainMusicHolder != NULL) 
       {
         strMainMusicHolderName = m_penMainMusicHolder->GetName();
       }
-      CPrintF( "m_penMainMusicHolder %x, MainMusicHolder name: %s\n", m_penMainMusicHolder, strMainMusicHolderName);
+      CPrintF( "m_penMainMusicHolder %x, MainMusicHolder name: %s\n", (const char *) (m_penMainMusicHolder->GetName()), (const char *) strMainMusicHolderName);
       CPrintF( "m_tmLastFussTime = %g\n", m_tmLastFussTime);
       CPrintF( "m_iScore = %d\n", m_iScore);
       CPrintF( "m_fMaxHealth = %g\n", m_fMaxHealth);
@@ -2354,7 +2356,7 @@ procedures:
         if( cht_bDebugFinalBoss)
         {
           CTString strDevilCommand = DevilCommandType_enum.NameForValue(INDEX(eDevilCommand.dctType));
-          CPrintF("Main loop, event: Devil command: %s\n", strDevilCommand);
+          CPrintF("Main loop, event: Devil command: %s\n", (const char *) strDevilCommand);
         }
 
         if( eDevilCommand.dctType == DC_GRAB_LOWER_WEAPONS)
